@@ -412,17 +412,56 @@ else:
 # --- Sidebar ---
 
 with st.sidebar:
-    st.title("Valuation Controls")
+    st.markdown("""
+    <style>
+    .sexy-sidebar {
+        background: #f8f9fa;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        padding: 24px 18px 18px 18px;
+        margin-bottom: 16px;
+        font-size: 1.08em;
+    }
+    .sexy-sidebar h1, .sexy-sidebar h2, .sexy-sidebar h3, .sexy-sidebar h4 {
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+    }
+    .sexy-section {
+        margin-bottom: 18px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .sexy-label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .sexy-icon {
+        font-size: 1.2em;
+        margin-right: 6px;
+    }
+    </style>
+    <div class='sexy-sidebar'>
+    <h2>🏠 MegaValuationer</h2>
+    <div class='sexy-section'>
+        <span class='sexy-label sexy-icon'>🧹</span>
+        <span class='sexy-label'>Reset & Refresh</span>
+    """, unsafe_allow_html=True)
 
     if st.button("🔄 Reset Filters", key="reset_filters"):
         _reset_filters()
         st.rerun()
-
-    # Unified refresh button for all data
     if st.button("🔄 Refresh All Data", key="refresh_all"):
         refresh_all_data()
         st.rerun()
 
+    st.markdown("""
+    </div>
+    <div class='sexy-section'>
+        <span class='sexy-label sexy-icon'>📂</span>
+        <span class='sexy-label'>Transaction Files</span>
+    """, unsafe_allow_html=True)
     with st.expander("📂 Select Transaction Files", expanded=False):
         all_txn_files = [f for f in os.listdir(transactions_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
         st.multiselect(
@@ -430,9 +469,12 @@ with st.sidebar:
             options=all_txn_files,
             key="included_txn_files"
         )
-
-    # --- Filter Mode ---
-    st.subheader("Filter Mode")
+    st.markdown("""
+    </div>
+    <div class='sexy-section'>
+        <span class='sexy-label sexy-icon'>🔎</span>
+        <span class='sexy-label'>Filter Mode</span>
+    """, unsafe_allow_html=True)
     filter_mode = st.radio("Select filter mode", ["Unit Selection", "Manual Selection"], key="filter_mode", horizontal=True)
 
     # --- Property Filters ---
