@@ -62,4 +62,10 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# API Keys and sensitive data
+openai_key.txt
+*_key.txt
+*_key.*
+secrets.txt 
