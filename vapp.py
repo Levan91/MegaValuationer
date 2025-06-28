@@ -1,8 +1,31 @@
 # --- Unified Data Refresh Function ---
 def refresh_all_data():
-    load_all_transactions.clear()
-    load_all_listings.clear()
-    # Layout map is not cached with @cache_data but can be handled if needed
+    """Clear all cached data and force reload from files."""
+    try:
+        # Clear transaction data cache
+        load_all_transactions.clear()
+        
+        # Clear listings data cache
+        load_all_listings.clear()
+        
+        # Clear monthly data cache
+        get_monthly_df.clear()
+        
+        # Clear similarity model cache
+        get_similarity_model.clear()
+        
+        # Clear Prophet model cache
+        load_prophet_model.clear()
+        
+        # Clear any other cached data
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        
+        st.success("✅ All cached data cleared! Data will reload on next interaction.")
+        
+    except Exception as e:
+        st.error(f"❌ Error clearing cache: {str(e)}")
+        st.info("💡 Try refreshing the page manually.")
 
 import streamlit as st
 import os
@@ -53,7 +76,7 @@ def get_similarity_model(df, numeric_features, categorical_features, cache_versi
 def load_prophet_model(
     growth, n_changepoints, changepoint_range, changepoint_prior_scale,
     yearly_seasonality, weekly_seasonality, daily_seasonality,
-    seasonality_prior_scale, interval_width, cap, monthly_df
+    seasonality_prior_scale, interval_width, cap, monthly_df, uncertainty_samples=1000
 ):
     """Cache and return a fitted Prophet model."""
     # Ensure seasonality arguments are booleans
