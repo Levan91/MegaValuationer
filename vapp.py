@@ -569,17 +569,6 @@ with st.sidebar:
             on_change=_on_unit_number_change,
             placeholder=""
         )
-        
-        # Debug information (can be removed after fixing)
-        with st.expander("🔧 Debug Unit Selection", expanded=False):
-            st.write(f"**Current Unit:** {current}")
-            st.write(f"**Selected Unit:** {unit_number}")
-            st.write(f"**Development:** {st.session_state.get('development', 'None')}")
-            st.write(f"**Community:** {st.session_state.get('community', 'None')}")
-            st.write(f"**Subcommunity:** {st.session_state.get('subcommunity', 'None')}")
-            st.write(f"**Available Units:** {len(unit_number_options)} units")
-            st.write(f"**Default Index:** {default_idx}")
-            st.write(f"**Options:** {options[:5]}..." if len(options) > 5 else f"**Options:** {options}")
     else:
         # Manual Selection: Hide/disable unit number
         st.markdown("**Unit Number:** _(Disabled in Manual Selection)_")
@@ -590,19 +579,24 @@ with st.sidebar:
     layout_df_filtered = layout_map_df.copy()
     filtered_unit_nos = set()
 
-    if community:
+    # Get current filter values from session state
+    current_development = st.session_state.get("development", "")
+    current_community = st.session_state.get("community", [])
+    current_subcommunity = st.session_state.get("subcommunity", "")
+
+    if current_community:
         community_col = all_transactions['Community/Building']
         if not isinstance(community_col, pd.Series):
             community_col = pd.Series(community_col)
-        unit_nos = all_transactions[community_col.isin(community)]['Unit No.']
+        unit_nos = all_transactions[community_col.isin(current_community)]['Unit No.']
         if not isinstance(unit_nos, pd.Series):
             unit_nos = pd.Series(unit_nos)
         filtered_unit_nos.update(unit_nos.dropna().unique())
-    if subcommunity:
+    if current_subcommunity:
         subcommunity_col = all_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
             subcommunity_col = pd.Series(subcommunity_col)
-        mask = subcommunity_col.isin(subcommunity)
+        mask = subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)
         unit_nos = all_transactions[mask]['Unit No.']
         if not isinstance(unit_nos, pd.Series):
             unit_nos = pd.Series(unit_nos)
@@ -631,7 +625,21 @@ with st.sidebar:
         if not isinstance(layout_type_col, pd.Series):
             layout_type_col = pd.Series(layout_type_col)
         layout_options = sorted(layout_type_col.dropna().unique())
+    
     mapped_layout = layout_map.get(unit_number, "") if unit_number else ""
+    
+    # Debug: Show layout filtering info
+    with st.expander("🔧 Debug Layout Filtering", expanded=False):
+        st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
+        st.write(f"**Filtered Layout DF Shape:** {layout_df_filtered.shape}")
+        st.write(f"**Filtered Unit Numbers:** {len(filtered_unit_nos)}")
+        st.write(f"**Current Unit:** {unit_number}")
+        st.write(f"**Mapped Layout:** {mapped_layout}")
+        st.write(f"**Layout Options:** {layout_options}")
+        st.write(f"**Selected Layout Type:** {selected_layout_type}")
+        st.write(f"**Current Community:** {current_community}")
+        st.write(f"**Current Subcommunity:** {current_subcommunity}")
+    
     # If the unit selection logic above found selected_layout_type, use it
     layout_type = st.multiselect(
         "Layout Type",
