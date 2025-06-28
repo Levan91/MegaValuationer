@@ -1027,9 +1027,8 @@ tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuati
 
 with tab1:
     st.title("Real Estate Valuation Dashboard")
-    st.write("Main dashboard area will be developed here.")
 
-    # Only show Selected Unit Info (left column) and remove valuation summary (right column)
+    # Selected Unit Info box
     st.markdown("### Selected Unit Info")
     info_parts = []
     if unit_number:
@@ -1043,13 +1042,13 @@ with tab1:
     if info_parts:
         st.markdown(" | ".join(info_parts))
 
-    # Try to use selected_unit_data if available for info, else fallback to session state
+    # Unit details
     if unit_number:
         selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
         if not isinstance(selected_unit_data, pd.DataFrame):
             selected_unit_data = pd.DataFrame(selected_unit_data)
-        if not selected_unit_data.empty:  # type: ignore
-            unit_info = selected_unit_data.iloc[0]  # type: ignore
+        if not selected_unit_data.empty:
+            unit_info = selected_unit_data.iloc[0]
             st.markdown(f"**Development:** {unit_info['All Developments']}")
             st.markdown(f"**Community:** {unit_info['Community/Building']}")
             st.markdown(f"**Property Type:** {unit_info['Unit Type']}")
@@ -1074,34 +1073,12 @@ with tab1:
         st.markdown(f"**Plot Size:** {plot_size}")
         st.markdown(f"**Floor Level:**")
 
-    # --- Rental status & contract details ---
-    today = pd.Timestamp.now().normalize()
-    rental_circle = "🟢"  # default available
-    if unit_number and 'Contract Start' in rental_df.columns:
-        unit_rentals = rental_df[rental_df['Unit No.'].astype(str) == unit_number]
-        if not unit_rentals.empty:
-            latest = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]  # type: ignore
-            start, end = latest['Contract Start'], latest['Contract End']
-            if pd.notnull(start) and pd.notnull(end):
-                days_left = (end - today).days
-                if start <= today <= end:
-                    rental_circle = "🟡" if days_left <= 90 else "🔴"
-            # Show contract duration
-            st.markdown(f"**Contract duration:** {start.strftime('%Y-%B-%d')} / {end.strftime('%Y-%B-%d')}")
-            # Show annualised rental price if available
-            price_col = next((col for col in rental_df.columns if 'Annualised Rental Price' in col), None)
-            if price_col:
-                price = latest[price_col]
-                st.markdown(f"**Annualised Rental Price:** AED {price:,.0f}")
-    st.markdown(f"**Rental Status:** {rental_circle}")
-
-
     # Transaction history for selected unit
     if unit_number:
         selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
         if not isinstance(selected_unit_data, pd.DataFrame):
             selected_unit_data = pd.DataFrame(selected_unit_data)
-        if not selected_unit_data.empty:  # type: ignore
+        if not selected_unit_data.empty:
             st.markdown("---")
             st.markdown("**Transaction History for Selected Unit:**")
             unit_txn_columns_to_hide = ["Unit No.", "Unit Number", "Select Data Points", "Maid", "Study", "Balcony", "Developer Name", "Source", "Comments", "Source File", "View"]
@@ -1116,12 +1093,13 @@ with tab1:
         else:
             st.info("No transaction data found for selected unit.")
 
+    # Transaction History
     st.subheader("Transaction History")
     if isinstance(filtered_transactions, pd.DataFrame) and filtered_transactions.shape[0] > 0:
         columns_to_hide = ["Select Data Points", "Maid", "Study", "Balcony", "Developer Name", "Source", "Comments", "Source File", "View"]
         visible_columns = [col for col in filtered_transactions.columns if col not in columns_to_hide]
         # Hide Sub Community column if no values present
-        if 'Sub Community / Building' in filtered_transactions.columns and pd.Series(filtered_transactions['Sub Community / Building']).dropna().empty:  # type: ignore
+        if 'Sub Community / Building' in filtered_transactions.columns and pd.Series(filtered_transactions['Sub Community / Building']).dropna().empty:
             if 'Sub Community / Building' in visible_columns:
                 visible_columns.remove('Sub Community / Building')
         # Format Evidence Date to YYYY-MM-DD (remove time)
