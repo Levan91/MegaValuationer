@@ -230,8 +230,8 @@ def _on_bedrooms_change():
 # --- Page Config ---
 st.set_page_config(page_title="Valuation App V2", layout="wide")
 
-# --- Load Transaction Data from DATA/Transactions (cached) ---
-transactions_dir = os.path.join(os.path.dirname(__file__), 'DATA', 'Transactions')
+# --- Load Transaction Data from Data/Transactions (cached) ---
+transactions_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Transactions')
 # Initialize transaction file selection
 txn_files = [f for f in os.listdir(transactions_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
 if "included_txn_files" not in st.session_state:
@@ -256,7 +256,7 @@ else:
     st.warning("No transaction data loaded.")
 
 # --- Load rental data and extract contract dates ---
-rental_file_path = os.path.join(os.path.dirname(__file__), "DATA", "Rentals", "Maple_rentals.xlsx")
+rental_file_path = os.path.join(os.path.dirname(__file__), "Data", "Rentals", "Maple_rentals.xlsx")
 if os.path.exists(rental_file_path):
     try:
         rental_df = pd.read_excel(rental_file_path)
@@ -299,7 +299,7 @@ def load_all_listings(listings_dir):
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
  # --- Load Layout Types Mapping ---
-layout_dir = os.path.join(os.path.dirname(__file__), 'DATA', 'Layout Types')
+layout_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Layout Types')
 layout_files = [f for f in os.listdir(layout_dir) if f.endswith('.xlsx')]
 layout_dfs = []
 for file in layout_files:
@@ -882,8 +882,8 @@ elif filter_mode == "Manual Selection":
     if sales_recurrence != "All":
         filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
 
- # --- Load Live Listings Data from DATA/Listings ---
-listings_dir = os.path.join(os.path.dirname(__file__), 'DATA', 'Listings')
+ # --- Load Live Listings Data from Data/Listings ---
+listings_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Listings')
 with st.spinner("Loading live listings..."):
     all_listings = load_all_listings(listings_dir)
 # Pre-convert numeric columns for listings
