@@ -412,21 +412,27 @@ else:
 # --- Sidebar ---
 
 with st.sidebar:
-    st.markdown("## 🏠 MegaValuationer")
-    st.markdown("### 🧹 Reset & Refresh")
-    st.button("🔄 Reset Filters", key="reset_filters")
-    st.button("🔄 Refresh All Data", key="refresh_all")
-    st.markdown("---")
-    st.markdown("### 📂 Transaction Files")
-    with st.expander("Select Transaction Files", expanded=False):
+    st.title("Valuation Controls")
+
+    if st.button("🔄 Reset Filters", key="reset_filters"):
+        _reset_filters()
+        st.rerun()
+
+    # Unified refresh button for all data
+    if st.button("🔄 Refresh All Data", key="refresh_all"):
+        refresh_all_data()
+        st.rerun()
+
+    with st.expander("📂 Select Transaction Files", expanded=False):
         all_txn_files = [f for f in os.listdir(transactions_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
         st.multiselect(
             "Include transaction files:",
             options=all_txn_files,
             key="included_txn_files"
         )
-    st.markdown("---")
-    st.markdown("### 🔎 Filter Mode")
+
+    # --- Filter Mode ---
+    st.subheader("Filter Mode")
     filter_mode = st.radio("Select filter mode", ["Unit Selection", "Manual Selection"], key="filter_mode", horizontal=True)
 
     # --- Property Filters ---
@@ -691,6 +697,26 @@ with st.sidebar:
                 layout_type_col = pd.Series(layout_type_col)
             layout_options = sorted(layout_type_col.dropna().unique())
 
+    # Debug: Show layout filtering info
+    with st.expander("🔧 Debug Layout Filtering", expanded=False):
+        st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
+        st.write(f"**Filtered Layout DF Shape:** {layout_df_filtered.shape}")
+        st.write(f"**Filtered Unit Numbers:** {len(filtered_unit_nos)}")
+        st.write(f"**Current Unit:** {unit_number}")
+        st.write(f"**Mapped Layout:** {mapped_layout}")
+        st.write(f"**Layout Options:** {layout_options}")
+        st.write(f"**Selected Layout Type:** {selected_layout_type}")
+        st.write(f"**Current Community:** {current_community}")
+        st.write(f"**Current Subcommunity:** {current_subcommunity}")
+    
+    # If the unit selection logic above found selected_layout_type, use it
+    layout_type = st.multiselect(
+        "Layout Type",
+        options=layout_options,
+        default=[selected_layout_type] if selected_layout_type and selected_layout_type in layout_options else ([mapped_layout] if mapped_layout in layout_options else []),
+        key="layout_type"
+    )
+
     # --- Location Filters ---
     st.subheader("Location")
     lock_location_filters = st.checkbox("🔒 Lock Location Filters", value=False, key="lock_location_filters")
@@ -907,7 +933,7 @@ if filter_mode == "Unit Selection":
     if layout_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
     # BUA tolerance filter if enabled
-    if unit_number and st.session_state.get("enable_bua_tol", False):
+    if property_type == "Apartment" and unit_number and st.session_state.get("enable_bua_tol", False):
         tol = st.session_state.get("bua_tolerance", 0)
         if tol > 0:
             try:
@@ -1025,27 +1051,19 @@ with tab1:
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
     st.title("Real Estate Valuation Dashboard")
 
-    # --- Compact Selected Unit Info Card ---
+    # Selected Unit Info box
+    st.markdown("### Selected Unit Info")
+    info_parts = []
     if unit_number:
-        # Gather info for the card
+        info_parts.append(f"📦 {unit_number}")
+    if subcommunity:
+        info_parts.append(f"🏙️ {subcommunity}")
+    if "Layout Type" in all_transactions.columns:
         layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
-        layout_type_val = layout_val[0] if layout_val.size > 0 else ""
-        comm_val = community[0] if isinstance(community, list) and community else community
-        st.markdown(
-            f"""
-            <div style='background: #f8f9fa; border-radius: 10px; padding: 12px 18px; margin-bottom: 10px; display: flex; align-items: center; font-size: 1.1em;'>
-                <span style='margin-right: 18px;'>📦 <b>{unit_number}</b></span>
-                <span style='margin-right: 18px;'>🏙️ {comm_val}</span>
-                <span style='margin-right: 18px;'>📐 {layout_type_val}</span>
-                <span style='margin-right: 18px;'>🛏️ {bedrooms} Beds</span>
-                <span style='margin-right: 18px;'>📏 {bua} sqft</span>
-                <span style='margin-right: 18px;'>🌳 {plot_size} sqft</span>
-                <span style='margin-right: 18px;'>🛗 {floor}</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    # Remove the old verbose Selected Unit Info markdowns
+        if layout_val.size > 0:
+            info_parts.append(f"🗂️ {layout_val[0]}")
+    if info_parts:
+        st.markdown(" | ".join(info_parts))
 
     # Unit details
     if unit_number:
