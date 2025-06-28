@@ -1952,13 +1952,6 @@ def create_market_events():
     })
     return events
 
-# Add labels for MAPE metrics
-st.markdown('---')
-st.subheader('Model Accuracy Metrics')
-st.info('**Out-of-Sample MAPE (last 6 months):**\nThis measures how well the model predicts unseen data. It is for model quality info only and is NOT used for the main forecast or table.')
-st.info('**In-Sample MAPE:**\nThis measures how well the model fits all available data. It is used for the main forecast and table, based on the parameter set you select below.')
-st.markdown('---')
-
 # Place the stub for tune_prophet_hyperparameters here, before any use
 if 'tune_prophet_hyperparameters' not in globals():
     def tune_prophet_hyperparameters(monthly_df):
