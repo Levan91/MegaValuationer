@@ -87,23 +87,26 @@ def load_prophet_model(
             return val.lower() == "true"
         return bool(val)
    
-    # Convert boolean seasonality to string format expected by Prophet
-    yearly_seasonality_str = "auto" if to_bool(yearly_seasonality) else "false"
-    weekly_seasonality_str = "auto" if to_bool(weekly_seasonality) else "false"
-    daily_seasonality_str = "auto" if to_bool(daily_seasonality) else "false"
+    # Build Prophet parameters dict, only including seasonality if enabled
+    prophet_params = {
+        'growth': growth,
+        'n_changepoints': n_changepoints,
+        'changepoint_range': changepoint_range,
+        'changepoint_prior_scale': changepoint_prior_scale,
+        'seasonality_prior_scale': seasonality_prior_scale,
+        'interval_width': interval_width,
+        'uncertainty_samples': uncertainty_samples
+    }
     
-    m_temp = Prophet(
-        growth=growth,
-        n_changepoints=n_changepoints,
-        changepoint_range=changepoint_range,
-        changepoint_prior_scale=changepoint_prior_scale,
-        yearly_seasonality=yearly_seasonality_str,
-        weekly_seasonality=weekly_seasonality_str,
-        daily_seasonality=daily_seasonality_str,
-        seasonality_prior_scale=seasonality_prior_scale,
-        interval_width=interval_width,
-        uncertainty_samples=uncertainty_samples
-    )  # type: ignore
+    # Only add seasonality parameters if they are enabled
+    if to_bool(yearly_seasonality):
+        prophet_params['yearly_seasonality'] = "auto"
+    if to_bool(weekly_seasonality):
+        prophet_params['weekly_seasonality'] = "auto"
+    if to_bool(daily_seasonality):
+        prophet_params['daily_seasonality'] = "auto"
+    
+    m_temp = Prophet(**prophet_params)  # type: ignore
     
     if growth == "logistic" and cap is not None:
         monthly_df['cap'] = cap
@@ -1606,23 +1609,27 @@ if 'Development' in listing_df.columns and development:
     interval_width = float(interval_width)
     uncertainty_samples = int(1000)
     try:
-        # Convert boolean seasonality to string format expected by Prophet
-        yearly_seasonality_str = "auto" if yearly_seasonality else "false"
-        weekly_seasonality_str = "auto" if weekly_seasonality else "false"
-        daily_seasonality_str = "auto" if daily_seasonality else "false"
+        # Convert boolean seasonality to proper format expected by Prophet
+        # Build Prophet parameters dict, only including seasonality if enabled
+        prophet_params = {
+            'growth': growth,
+            'n_changepoints': n_changepoints,
+            'changepoint_range': changepoint_range,
+            'changepoint_prior_scale': changepoint_prior_scale,
+            'seasonality_prior_scale': seasonality_prior_scale,
+            'interval_width': interval_width,
+            'uncertainty_samples': uncertainty_samples
+        }
         
-        m_temp = Prophet(
-            growth=growth,
-            n_changepoints=n_changepoints,
-            changepoint_range=changepoint_range,
-            changepoint_prior_scale=changepoint_prior_scale,
-            yearly_seasonality=yearly_seasonality_str,
-            weekly_seasonality=weekly_seasonality_str,
-            daily_seasonality=daily_seasonality_str,
-            seasonality_prior_scale=seasonality_prior_scale,
-            interval_width=interval_width,
-            uncertainty_samples=uncertainty_samples
-        )  # type: ignore
+        # Only add seasonality parameters if they are enabled
+        if yearly_seasonality:
+            prophet_params['yearly_seasonality'] = "auto"
+        if weekly_seasonality:
+            prophet_params['weekly_seasonality'] = "auto"
+        if daily_seasonality:
+            prophet_params['daily_seasonality'] = "auto"
+        
+        m_temp = Prophet(**prophet_params)  # type: ignore
         m_temp.fit(monthly_df)
         f = m_temp.predict(monthly_df[['ds']])
         current_mape = mean_absolute_percentage_error(monthly_df['y'], f['yhat']) * 100
