@@ -933,7 +933,7 @@ if filter_mode == "Unit Selection":
     if layout_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
     # BUA tolerance filter if enabled
-    if property_type == "Apartment" and unit_number and st.session_state.get("enable_bua_tol", False):
+    if unit_number and st.session_state.get("enable_bua_tol", False):
         tol = st.session_state.get("bua_tolerance", 0)
         if tol > 0:
             try:
