@@ -691,26 +691,6 @@ with st.sidebar:
                 layout_type_col = pd.Series(layout_type_col)
             layout_options = sorted(layout_type_col.dropna().unique())
 
-    # Debug: Show layout filtering info
-    with st.expander("🔧 Debug Layout Filtering", expanded=False):
-        st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
-        st.write(f"**Filtered Layout DF Shape:** {layout_df_filtered.shape}")
-        st.write(f"**Filtered Unit Numbers:** {len(filtered_unit_nos)}")
-        st.write(f"**Current Unit:** {unit_number}")
-        st.write(f"**Mapped Layout:** {mapped_layout}")
-        st.write(f"**Layout Options:** {layout_options}")
-        st.write(f"**Selected Layout Type:** {selected_layout_type}")
-        st.write(f"**Current Community:** {current_community}")
-        st.write(f"**Current Subcommunity:** {current_subcommunity}")
-    
-    # If the unit selection logic above found selected_layout_type, use it
-    layout_type = st.multiselect(
-        "Layout Type",
-        options=layout_options,
-        default=[selected_layout_type] if selected_layout_type and selected_layout_type in layout_options else ([mapped_layout] if mapped_layout in layout_options else []),
-        key="layout_type"
-    )
-
     # --- Location Filters ---
     st.subheader("Location")
     lock_location_filters = st.checkbox("🔒 Lock Location Filters", value=False, key="lock_location_filters")
@@ -1045,19 +1025,27 @@ with tab1:
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
     st.title("Real Estate Valuation Dashboard")
 
-    # Selected Unit Info box
-    st.markdown("### Selected Unit Info")
-    info_parts = []
+    # --- Compact Selected Unit Info Card ---
     if unit_number:
-        info_parts.append(f"📦 {unit_number}")
-    if subcommunity:
-        info_parts.append(f"🏙️ {subcommunity}")
-    if "Layout Type" in all_transactions.columns:
+        # Gather info for the card
         layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
-        if layout_val.size > 0:
-            info_parts.append(f"🗂️ {layout_val[0]}")
-    if info_parts:
-        st.markdown(" | ".join(info_parts))
+        layout_type_val = layout_val[0] if layout_val.size > 0 else ""
+        comm_val = community[0] if isinstance(community, list) and community else community
+        st.markdown(
+            f"""
+            <div style='background: #f8f9fa; border-radius: 10px; padding: 12px 18px; margin-bottom: 10px; display: flex; align-items: center; font-size: 1.1em;'>
+                <span style='margin-right: 18px;'>📦 <b>{unit_number}</b></span>
+                <span style='margin-right: 18px;'>🏙️ {comm_val}</span>
+                <span style='margin-right: 18px;'>📐 {layout_type_val}</span>
+                <span style='margin-right: 18px;'>🛏️ {bedrooms} Beds</span>
+                <span style='margin-right: 18px;'>📏 {bua} sqft</span>
+                <span style='margin-right: 18px;'>🌳 {plot_size} sqft</span>
+                <span style='margin-right: 18px;'>🛗 {floor}</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    # Remove the old verbose Selected Unit Info markdowns
 
     # Unit details
     if unit_number:
