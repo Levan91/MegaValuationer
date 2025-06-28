@@ -626,8 +626,55 @@ with st.sidebar:
             layout_type_col = pd.Series(layout_type_col)
         layout_options = sorted(layout_type_col.dropna().unique())
     
-    mapped_layout = layout_map.get(unit_number, "") if unit_number else ""
-    
+    normalized_unit_number = unit_number.strip().upper() if unit_number else ""
+    mapped_layout = layout_map.get(normalized_unit_number, "") if normalized_unit_number else ""
+
+    # If a unit is selected, show only its mapped layout as the option
+    if normalized_unit_number and mapped_layout:
+        layout_options = [mapped_layout]
+    else:
+        if current_community:
+            community_col = all_transactions['Community/Building']
+            if not isinstance(community_col, pd.Series):
+                community_col = pd.Series(community_col)
+            unit_nos = all_transactions[community_col.isin(current_community)]['Unit No.']
+            if not isinstance(unit_nos, pd.Series):
+                unit_nos = pd.Series(unit_nos)
+            filtered_unit_nos.update(unit_nos.dropna().unique())
+        if current_subcommunity:
+            subcommunity_col = all_transactions['Sub Community / Building']
+            if not isinstance(subcommunity_col, pd.Series):
+                subcommunity_col = pd.Series(subcommunity_col)
+            mask = subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)
+            unit_nos = all_transactions[mask]['Unit No.']
+            if not isinstance(unit_nos, pd.Series):
+                unit_nos = pd.Series(unit_nos)
+            unit_nos = unit_nos.reset_index(drop=True)
+            valid_units = unit_nos.dropna().unique()
+            if unit_number not in valid_units:
+                st.session_state.pop("unit_number", None)
+            filtered_unit_nos.update(unit_nos.dropna().unique())
+
+        if filtered_unit_nos:
+            unit_no_col = layout_df_filtered['Unit No.']
+            if not isinstance(unit_no_col, pd.Series):
+                unit_no_col = pd.Series(unit_no_col)
+            layout_df_filtered = layout_df_filtered[unit_no_col.isin(list(filtered_unit_nos))]
+        else:
+            unit_no_col = layout_df_filtered['Unit No.']
+            if not isinstance(unit_no_col, pd.Series):
+                unit_no_col = pd.Series(unit_no_col)
+            layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
+
+        # If the unit selection logic above found layout_type_options, use them
+        if layout_type_options:
+            layout_options = layout_type_options
+        else:
+            layout_type_col = layout_df_filtered['Layout Type']
+            if not isinstance(layout_type_col, pd.Series):
+                layout_type_col = pd.Series(layout_type_col)
+            layout_options = sorted(layout_type_col.dropna().unique())
+
     # Debug: Show layout filtering info
     with st.expander("🔧 Debug Layout Filtering", expanded=False):
         st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
