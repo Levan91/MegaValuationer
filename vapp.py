@@ -1026,7 +1026,7 @@ if not all_listings.empty:
 tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Other"])
 
 with tab1:
-    st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
+    # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
     st.title("Real Estate Valuation Dashboard")
 
     # Selected Unit Info box
