@@ -185,7 +185,23 @@ def _reset_filters():
     # Restore sales_recurrence
     st.session_state["sales_recurrence"] = saved
 
-# --- Filter change callbacks ---
+def _on_unit_number_change():
+    """Callback function for unit number selection changes"""
+    # Clear other filters when unit is selected to avoid conflicts
+    unit_number = st.session_state.get("unit_number", "")
+    if unit_number:
+        # Clear location filters when unit is selected (unless locked)
+        if not st.session_state.get("lock_location_filters", False):
+            st.session_state.pop("development", None)
+            st.session_state.pop("community", None)
+            st.session_state.pop("subcommunity", None)
+        # Clear property filters
+        st.session_state.pop("property_type", None)
+        st.session_state.pop("bedrooms", None)
+        st.session_state.pop("bua", None)
+        st.session_state.pop("plot_size", None)
+        st.session_state.pop("layout_type", None)
+
 def _on_development_change():
     # Only clear unit_number if it no longer matches the selected development
     unit_number = st.session_state.get("unit_number", "")
@@ -508,36 +524,62 @@ with st.sidebar:
     # --- Unit Number Filter ---
     st.subheader("Unit Number")
     if not all_transactions.empty:
-        unit_df = all_transactions
-        if 'development' in locals() and development:
-            unit_df = unit_df[unit_df['All Developments'] == development]
-        if 'community' in locals() and community:
+        unit_df = all_transactions.copy()
+        
+        # Get current filter values from session state
+        current_development = st.session_state.get("development", "")
+        current_community = st.session_state.get("community", [])
+        current_subcommunity = st.session_state.get("subcommunity", "")
+        
+        # Apply filters based on current session state values
+        if current_development:
+            unit_df = unit_df[unit_df['All Developments'] == current_development]
+        if current_community:
             community_col = unit_df['Community/Building']
             if not isinstance(community_col, pd.Series):
                 community_col = pd.Series(community_col)
-            unit_df = unit_df[community_col.isin(community)]
-        if 'subcommunity' in locals() and subcommunity:
+            unit_df = unit_df[community_col.isin(current_community)]
+        if current_subcommunity:
             subcommunity_col = unit_df['Sub Community / Building']
             if not isinstance(subcommunity_col, pd.Series):
                 subcommunity_col = pd.Series(subcommunity_col)
-            unit_df = unit_df[subcommunity_col.isin(subcommunity)]
+            unit_df = unit_df[subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)]
+        
         unit_no_col = unit_df['Unit No.']
         if not isinstance(unit_no_col, pd.Series):
             unit_no_col = pd.Series(unit_no_col)
         unit_number_options = sorted(unit_no_col.dropna().unique())
     else:
         unit_number_options = []
+    
     current = st.session_state.get("unit_number", "")
     options = [""] + unit_number_options
-    default_idx = options.index(current) if current in options else 0
+    # Safer index calculation
+    try:
+        default_idx = options.index(current) if current in options else 0
+    except (ValueError, IndexError):
+        default_idx = 0
+    
     if filter_mode == "Unit Selection":
         unit_number = st.selectbox(
             "Unit Number",
             options=options,
             index=default_idx,
             key="unit_number",
+            on_change=_on_unit_number_change,
             placeholder=""
         )
+        
+        # Debug information (can be removed after fixing)
+        with st.expander("🔧 Debug Unit Selection", expanded=False):
+            st.write(f"**Current Unit:** {current}")
+            st.write(f"**Selected Unit:** {unit_number}")
+            st.write(f"**Development:** {st.session_state.get('development', 'None')}")
+            st.write(f"**Community:** {st.session_state.get('community', 'None')}")
+            st.write(f"**Subcommunity:** {st.session_state.get('subcommunity', 'None')}")
+            st.write(f"**Available Units:** {len(unit_number_options)} units")
+            st.write(f"**Default Index:** {default_idx}")
+            st.write(f"**Options:** {options[:5]}..." if len(options) > 5 else f"**Options:** {options}")
     else:
         # Manual Selection: Hide/disable unit number
         st.markdown("**Unit Number:** _(Disabled in Manual Selection)_")
