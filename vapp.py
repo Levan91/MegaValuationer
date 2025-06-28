@@ -697,19 +697,8 @@ with st.sidebar:
                 layout_type_col = pd.Series(layout_type_col)
             layout_options = sorted(layout_type_col.dropna().unique())
 
-    # Debug: Show layout filtering info
-    with st.expander("🔧 Debug Layout Filtering", expanded=False):
-        st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
-        st.write(f"**Filtered Layout DF Shape:** {layout_df_filtered.shape}")
-        st.write(f"**Filtered Unit Numbers:** {len(filtered_unit_nos)}")
-        st.write(f"**Current Unit:** {unit_number}")
-        st.write(f"**Mapped Layout:** {mapped_layout}")
-        st.write(f"**Layout Options:** {layout_options}")
-        st.write(f"**Selected Layout Type:** {selected_layout_type}")
-        st.write(f"**Current Community:** {current_community}")
-        st.write(f"**Current Subcommunity:** {current_subcommunity}")
     
-    # If the unit selection logic above found selected_layout_type, use it
+    # Always define layout_type after debug expander
     layout_type = st.multiselect(
         "Layout Type",
         options=layout_options,
