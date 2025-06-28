@@ -187,22 +187,35 @@ def _reset_filters():
 
 def _on_unit_number_change():
     """Callback function for unit number selection changes"""
-    # Clear other filters when unit is selected to avoid conflicts
+    # Only clear filters if a unit is actually selected (not when clearing)
     unit_number = st.session_state.get("unit_number", "")
     if unit_number:
-        # Clear location filters when unit is selected (unless locked)
-        if not st.session_state.get("lock_location_filters", False):
-            st.session_state.pop("development", None)
-            st.session_state.pop("community", None)
-            st.session_state.pop("subcommunity", None)
-        # Clear property filters
+        # Clear property filters when unit is selected to avoid conflicts
         st.session_state.pop("property_type", None)
         st.session_state.pop("bedrooms", None)
         st.session_state.pop("bua", None)
         st.session_state.pop("plot_size", None)
         st.session_state.pop("layout_type", None)
+        # Only clear location filters if not locked AND if they don't match the unit
+        if not st.session_state.get("lock_location_filters", False):
+            # Check if current location filters match the selected unit
+            unit_row = all_transactions[all_transactions['Unit No.'] == unit_number]
+            if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
+                unit_info = unit_row.iloc[0]
+                current_dev = st.session_state.get("development", "")
+                current_comm = st.session_state.get("community", [])
+                current_subcomm = st.session_state.get("subcommunity", [])
+                
+                # Only clear if they don't match
+                if current_dev and current_dev != unit_info.get('All Developments', ''):
+                    st.session_state.pop("development", None)
+                if current_comm and unit_info.get('Community/Building', '') not in current_comm:
+                    st.session_state.pop("community", None)
+                if current_subcomm and unit_info.get('Sub Community / Building', '') not in current_subcomm:
+                    st.session_state.pop("subcommunity", None)
 
 def _on_development_change():
+    """Callback function for development selection changes"""
     # Only clear unit_number if it no longer matches the selected development
     unit_number = st.session_state.get("unit_number", "")
     development = st.session_state.get("development", "")
@@ -217,11 +230,11 @@ def _on_development_change():
         valid_units = unit_no_series.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-
-    st.session_state.pop("community", None)
-    st.session_state.pop("subcommunity", None)
+    
+    # Don't automatically clear community/subcommunity - let user manage them
 
 def _on_community_change():
+    """Callback function for community selection changes"""
     # Only clear unit_number if it no longer matches the selected communities
     unit_number = st.session_state.get("unit_number", "")
     community = st.session_state.get("community", [])
@@ -239,10 +252,11 @@ def _on_community_change():
         valid_units = valid_units.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-
-    st.session_state.pop("subcommunity", None)
+    
+    # Don't automatically clear subcommunity - let user manage it
 
 def _on_subcommunity_change():
+    """Callback function for subcommunity selection changes"""
     # Only clear unit_number if it no longer matches the selected subcommunities
     unit_number = st.session_state.get("unit_number", "")
     subcommunity = st.session_state.get("subcommunity", [])
@@ -262,12 +276,20 @@ def _on_subcommunity_change():
         valid_units = unit_nos.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-    else:
-        st.session_state.pop("unit_number", None)
+    # Don't clear unit_number when subcommunity is empty - let user manage it
 
 def _on_bedrooms_change():
-    # Clear only the unit number selection when bedrooms changes
-    st.session_state["unit_number"] = ""
+    """Callback function for bedrooms selection changes"""
+    # Only clear unit number if it doesn't match the selected bedrooms
+    unit_number = st.session_state.get("unit_number", "")
+    bedrooms = st.session_state.get("bedrooms", "")
+    
+    if unit_number and bedrooms:
+        unit_row = all_transactions[all_transactions['Unit No.'] == unit_number]
+        if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
+            unit_beds = str(unit_row.iloc[0].get('Beds', ''))
+            if unit_beds != bedrooms:
+                st.session_state.pop("unit_number", None)
 
 # --- Page Config ---
 st.set_page_config(page_title="Valuation App V2", layout="wide")
