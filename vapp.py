@@ -841,7 +841,7 @@ with st.sidebar:
 
     # Floor Tolerance filter toggle
     enable_floor_tol = st.checkbox("Enable floor tolerance", value=False, key="enable_floor_tol")
-    if enable_floor_tol and property_type == "Apartment":
+    if enable_floor_tol:
         floor_tolerance = st.number_input(
             "Floor tolerance (± floors)", min_value=0, step=1, value=0, key="floor_tolerance"
         )
@@ -1161,23 +1161,7 @@ with tab2:
             filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == bedrooms]
             if not isinstance(filtered_listings, pd.DataFrame):
                 filtered_listings = pd.DataFrame(filtered_listings)
-        # Floor tolerance filter for live listings (optional, not specified in instructions)
-        if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_listings.columns:
-            try:
-                selected_floor = int(
-                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
-                )
-                tol = st.session_state['floor_tolerance']
-                low = selected_floor - tol
-                high = selected_floor + tol
-                filtered_listings = filtered_listings[
-                    (filtered_listings['Floor Level'] >= low) &
-                    (filtered_listings['Floor Level'] <= high)
-                ]
-                if not isinstance(filtered_listings, pd.DataFrame):
-                    filtered_listings = pd.DataFrame(filtered_listings)
-            except Exception:
-                pass
+        # Remove tolerance filters from live listings - they should only apply to transactions
         if layout_type and 'Layout Type' in filtered_listings.columns:
             filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(layout_type)]  # type: ignore
             if not isinstance(filtered_listings, pd.DataFrame):
