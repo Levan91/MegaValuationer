@@ -1960,7 +1960,7 @@ with tab5:
     if remove_card_idx is not None and n_cards > 2:
         st.session_state['comp_card_count'] -= 1
         st.session_state['comp_card_keys'].pop(remove_card_idx)
-        st.experimental_rerun()
+        st.rerun()
 
 import logging
 logger = logging.getLogger(__name__)
@@ -2177,5 +2177,96 @@ if 'tune_prophet_hyperparameters' not in globals():
 
 # Move this outside the expander so it's always defined
 monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
+
+# 1. Add autofill_card_fields function after imports
+
+def autofill_card_fields(card_key):
+    card_state_prefix = f"comp_card_{card_key}_"
+    selected_unit = st.session_state.get(f"unit_{card_key}", "")
+    if selected_unit:
+        unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
+        if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
+            unit_row = unit_row.iloc[0]
+            st.session_state[f"dev_{card_key}"] = unit_row.get('All Developments', "")
+            st.session_state[f"com_{card_key}"] = unit_row.get('Community/Building', "")
+            st.session_state[f"subcom_{card_key}"] = unit_row.get('Sub Community / Building', "")
+            st.session_state[f"layout_{card_key}"] = unit_row.get('Layout Type', "")
+            st.session_state[f"beds_{card_key}"] = str(unit_row.get('Beds', ""))
+    st.rerun()
+
+# 2. In tab5, update the Unit No. selectbox to use on_change=autofill_card_fields
+# 3. For all other selectboxes, set their value from session_state (if present)
+# 4. Replace st.experimental_rerun() with st.rerun() in tab5
+# 5. Add DataFrame guard before accessing .columns in filtered
+
+# ... inside tab5 card loop ...
+# Replace this block:
+# selected_unit = st.selectbox(f"Unit No.", [""] + unit_no_options, key=f"unit_{card_key}")
+# ...
+# development = st.selectbox("Development", [""] + dev_options, key=f"dev_{card_key}")
+# ...
+# community = st.selectbox("Community", [""] + com_options, key=f"com_{card_key}")
+# ...
+# subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, key=f"subcom_{card_key}")
+# ...
+# layout_type = st.selectbox("Layout Type", [""] + layout_options, key=f"layout_{card_key}")
+# ...
+# bedrooms = st.selectbox("Bedrooms", [""] + bed_options, key=f"beds_{card_key}")
+
+# Replace with:
+# (inside the card loop)
+filter_cols1 = st.columns(3)
+with filter_cols1[0]:
+    selected_unit = st.selectbox(
+        f"Unit No.",
+        [""] + unit_no_options,
+        key=f"unit_{card_key}",
+        on_change=autofill_card_fields,
+        args=(card_key,)
+    )
+with filter_cols1[1]:
+    development = st.selectbox(
+        "Development",
+        [""] + dev_options,
+        index=([""] + dev_options).index(st.session_state.get(f"dev_{card_key}", "")) if st.session_state.get(f"dev_{card_key}", "") in dev_options else 0,
+        key=f"dev_{card_key}"
+    )
+with filter_cols1[2]:
+    community = st.selectbox(
+        "Community",
+        [""] + com_options,
+        index=([""] + com_options).index(st.session_state.get(f"com_{card_key}", "")) if st.session_state.get(f"com_{card_key}", "") in com_options else 0,
+        key=f"com_{card_key}"
+    )
+filter_cols2 = st.columns(3)
+with filter_cols2[0]:
+    subcommunity = st.selectbox(
+        "Subcommunity",
+        [""] + subcom_options,
+        index=([""] + subcom_options).index(st.session_state.get(f"subcom_{card_key}", "")) if st.session_state.get(f"subcom_{card_key}", "") in subcom_options else 0,
+        key=f"subcom_{card_key}"
+    )
+with filter_cols2[1]:
+    layout_type = st.selectbox(
+        "Layout Type",
+        [""] + layout_options,
+        index=([""] + layout_options).index(st.session_state.get(f"layout_{card_key}", "")) if st.session_state.get(f"layout_{card_key}", "") in layout_options else 0,
+        key=f"layout_{card_key}"
+    )
+with filter_cols2[2]:
+    bedrooms = st.selectbox(
+        "Bedrooms",
+        [""] + bed_options,
+        index=([""] + bed_options).index(st.session_state.get(f"beds_{card_key}", "")) if st.session_state.get(f"beds_{card_key}", "") in bed_options else 0,
+        key=f"beds_{card_key}"
+    )
+
+# When removing a card, replace st.experimental_rerun() with st.rerun()
+# ...
+if remove_card_idx is not None and n_cards > 2:
+    st.session_state['comp_card_count'] -= 1
+    st.session_state['comp_card_keys'].pop(remove_card_idx)
+    st.rerun()
+# ...
 
 
