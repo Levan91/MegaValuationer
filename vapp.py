@@ -1751,42 +1751,81 @@ with tab4:
 
 with tab5:
     st.header("Comparisons")
-    st.write("Select multiple units (from transactions) to compare their key attributes side by side.")
+    st.write("Compare two property segments side by side. Select filters for each card to see demand, price trends, and growth metrics.")
 
-    st.subheader("Compare Transaction Units")
-    if not all_transactions.empty:
-        unit_no_col = all_transactions['Unit No.']
-        if not isinstance(unit_no_col, pd.Series):
-            unit_no_col = pd.Series(unit_no_col)
-        unit_options = unit_no_col.dropna().astype(str).unique().tolist()
-        selected_units = st.multiselect(
-            "Select units to compare (from transactions):",
-            options=unit_options,
-            key="compare_units"
-        )
-        if selected_units:
-            unit_no_series = all_transactions['Unit No.']
-            if not isinstance(unit_no_series, pd.Series):
-                unit_no_series = pd.Series(unit_no_series)
-            compare_df = all_transactions[unit_no_series.astype(str).isin(selected_units)]
-            compare_df = pd.DataFrame(compare_df)
-            # Show only key columns
-            key_cols = [
-                'Unit No.', 'All Developments', 'Community/Building', 'Sub Community / Building',
-                'Layout Type', 'Unit Type', 'Beds', 'Unit Size (sq ft)', 'Plot Size (sq ft)',
-                'Floor Level', 'Price (AED)', 'Evidence Date'
-            ]
-            show_cols = [col for col in key_cols if col in compare_df.columns]
-            st.dataframe(compare_df[show_cols])
-            st.download_button(
-                "Download Comparison as CSV",
-                compare_df[show_cols].to_csv(index=False).encode(),
-                file_name="unit_comparison.csv"
-            )
-        else:
-            st.info("Select units above to compare.")
-    else:
-        st.warning("No transaction data available.")
+    col1, col2 = st.columns(2)
+    card_filters = []
+    for idx, col in enumerate([col1, col2]):
+        with col:
+            st.subheader(f"Comparison Card {idx+1}")
+            dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
+            com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
+            subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
+            layout_options = sorted(pd.Series(all_transactions['Layout Type']).dropna().unique()) if not all_transactions.empty else []
+            bed_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
+
+            development = st.selectbox(f"Development (Card {idx+1})", [""] + dev_options, key=f"dev_{idx}")
+            community = st.selectbox(f"Community (Card {idx+1})", [""] + com_options, key=f"com_{idx}")
+            subcommunity = st.selectbox(f"Subcommunity (Card {idx+1})", [""] + subcom_options, key=f"subcom_{idx}")
+            layout_type = st.selectbox(f"Layout Type (Card {idx+1})", [""] + layout_options, key=f"layout_{idx}")
+            bedrooms = st.selectbox(f"Bedrooms (Card {idx+1})", [""] + bed_options, key=f"beds_{idx}")
+            card_filters.append({
+                'development': development,
+                'community': community,
+                'subcommunity': subcommunity,
+                'layout_type': layout_type,
+                'bedrooms': bedrooms
+            })
+
+    for idx, col in enumerate([col1, col2]):
+        with col:
+            filters = card_filters[idx]
+            filtered = all_transactions.copy()
+            if filters['development']:
+                filtered = filtered[filtered['All Developments'] == filters['development']]
+            if filters['community']:
+                filtered = filtered[filtered['Community/Building'] == filters['community']]
+            if filters['subcommunity']:
+                filtered = filtered[filtered['Sub Community / Building'] == filters['subcommunity']]
+            if filters['layout_type']:
+                filtered = filtered[filtered['Layout Type'] == filters['layout_type']]
+            if filters['bedrooms']:
+                filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
+            filtered = filtered.copy()
+            # Ensure Evidence Date is datetime
+            if 'Evidence Date' in filtered.columns:
+                filtered['Evidence Date'] = pd.to_datetime(filtered['Evidence Date'], errors='coerce')
+            # Metrics
+            st.markdown("---")
+            st.markdown(f"### Metrics for Card {idx+1}")
+            if filtered.empty:
+                st.info("No data for selected filters.")
+                continue
+            # Average sales per month (demand)
+            if 'Evidence Date' in filtered.columns:
+                monthly_counts = filtered.set_index('Evidence Date').resample('M').size()
+                avg_sales_per_month = monthly_counts.mean() if not monthly_counts.empty else 0
+                st.metric("Avg Sales/Month", f"{avg_sales_per_month:.2f}")
+                st.bar_chart(monthly_counts, use_container_width=True)
+            # Average price per sq ft over time (trend)
+            if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
+                price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
+                st.line_chart(price_trend, use_container_width=True)
+            # Growth rate (last 12 months)
+            if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
+                price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
+                if len(price_trend) >= 12:
+                    growth = (price_trend.iloc[-1] - price_trend.iloc[-12]) / price_trend.iloc[-12] * 100 if price_trend.iloc[-12] != 0 else 0
+                    st.metric("12mo Growth Rate (%)", f"{growth:.2f}%")
+            # Recent price range (last 6 months)
+            if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
+                last_6mo = filtered[filtered['Evidence Date'] >= (pd.Timestamp.now() - pd.DateOffset(months=6))]
+                if not last_6mo.empty:
+                    min_price = last_6mo['Price (AED/sq ft)'].min()
+                    max_price = last_6mo['Price (AED/sq ft)'].max()
+                    median_price = last_6mo['Price (AED/sq ft)'].median()
+                    st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
+            st.markdown("---")
 
 import logging
 logger = logging.getLogger(__name__)
