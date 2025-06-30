@@ -1819,22 +1819,18 @@ with tab5:
                     selected_unit = st.selectbox(
                         f"Unit No.",
                         [""] + unit_no_options,
-                        key=f"unit_{card_key}",
-                        on_change=autofill_card_fields,
-                        args=(card_key,)
+                        key=f"unit_{card_key}"
                     )
                 with filter_cols1[1]:
                     development = st.selectbox(
                         "Development",
                         [""] + dev_options,
-                        value=st.session_state.get(f"dev_{card_key}", ""),
                         key=f"dev_{card_key}"
                     )
                 with filter_cols1[2]:
                     community = st.selectbox(
                         "Community",
                         [""] + com_options,
-                        value=st.session_state.get(f"com_{card_key}", ""),
                         key=f"com_{card_key}"
                     )
                 # Second row: Subcommunity, Layout Type, Bedrooms
@@ -1843,21 +1839,18 @@ with tab5:
                     subcommunity = st.selectbox(
                         "Subcommunity",
                         [""] + subcom_options,
-                        value=st.session_state.get(f"subcom_{card_key}", ""),
                         key=f"subcom_{card_key}"
                     )
                 with filter_cols2[1]:
                     layout_type = st.selectbox(
                         "Layout Type",
                         [""] + layout_options,
-                        value=st.session_state.get(f"layout_{card_key}", ""),
                         key=f"layout_{card_key}"
                     )
                 with filter_cols2[2]:
                     bedrooms = st.selectbox(
                         "Bedrooms",
                         [""] + bed_options,
-                        value=st.session_state.get(f"beds_{card_key}", ""),
                         key=f"beds_{card_key}"
                     )
 
@@ -2283,22 +2276,18 @@ with filter_cols1[0]:
     selected_unit = st.selectbox(
         f"Unit No.",
         [""] + unit_no_options,
-        key=f"unit_{card_key}",
-        on_change=autofill_card_fields,
-        args=(card_key,)
+        key=f"unit_{card_key}"
     )
 with filter_cols1[1]:
     development = st.selectbox(
         "Development",
         [""] + dev_options,
-        value=st.session_state.get(f"dev_{card_key}", ""),
         key=f"dev_{card_key}"
     )
 with filter_cols1[2]:
     community = st.selectbox(
         "Community",
         [""] + com_options,
-        value=st.session_state.get(f"com_{card_key}", ""),
         key=f"com_{card_key}"
     )
 filter_cols2 = st.columns(3)
@@ -2306,21 +2295,18 @@ with filter_cols2[0]:
     subcommunity = st.selectbox(
         "Subcommunity",
         [""] + subcom_options,
-        value=st.session_state.get(f"subcom_{card_key}", ""),
         key=f"subcom_{card_key}"
     )
 with filter_cols2[1]:
     layout_type = st.selectbox(
         "Layout Type",
         [""] + layout_options,
-        value=st.session_state.get(f"layout_{card_key}", ""),
         key=f"layout_{card_key}"
     )
 with filter_cols2[2]:
     bedrooms = st.selectbox(
         "Bedrooms",
         [""] + bed_options,
-        value=st.session_state.get(f"beds_{card_key}", ""),
         key=f"beds_{card_key}"
     )
 
