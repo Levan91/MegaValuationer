@@ -1751,11 +1751,20 @@ with tab4:
 
 with tab5:
     st.header("Comparisons")
-    st.write("Compare two property segments side by side. Select filters for each card to see demand, price trends, and growth metrics.")
+    st.write("Compare multiple property segments side by side. Select filters for each card to see demand, price trends, and growth metrics.")
+
+    # Card count state
+    if 'comp_card_count' not in st.session_state:
+        st.session_state['comp_card_count'] = 2
+    max_cards = 4
+    if st.button("➕ Add Card", key="add_comp_card"):
+        if st.session_state['comp_card_count'] < max_cards:
+            st.session_state['comp_card_count'] += 1
+    n_cards = st.session_state['comp_card_count']
 
     # Date filter section
-    st.markdown("### Date Filter for Both Cards")
-    date_filter_mode = st.radio("Date Filter Mode", ["All History", "Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
+    st.markdown("### Date Filter for All Cards")
+    date_filter_mode = st.radio("Date Filter Mode", ["Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
     last_n_days = 365
     after_date = None
     if date_filter_mode == "Last N Days":
@@ -1763,9 +1772,9 @@ with tab5:
     elif date_filter_mode == "After Date":
         after_date = st.date_input("Select start date", key="comp_after_date")
 
-    col1, col2 = st.columns(2)
+    cols = st.columns(n_cards)
     card_filters = []
-    for idx, col in enumerate([col1, col2]):
+    for idx, col in enumerate(cols):
         with col:
             st.subheader(f"Comparison Card {idx+1}")
             dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
@@ -1803,7 +1812,7 @@ with tab5:
             })
 
     from datetime import datetime, timedelta
-    for idx, col in enumerate([col1, col2]):
+    for idx, col in enumerate(cols):
         with col:
             filters = card_filters[idx]
             filtered = all_transactions.copy()
@@ -1820,8 +1829,7 @@ with tab5:
                 filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
             filtered = filtered.copy()
             # Calculate total units of this type (ignore date filter)
-            total_units_df = filtered.copy()
-            total_units_df = pd.DataFrame(total_units_df)
+            total_units_df = pd.DataFrame(filtered.copy())
             n_units = int(total_units_df['Unit No.'].nunique()) if not total_units_df.empty and 'Unit No.' in total_units_df.columns else 0
             # Apply date filter
             if 'Evidence Date' in filtered.columns:
