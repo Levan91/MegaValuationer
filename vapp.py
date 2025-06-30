@@ -1755,7 +1755,7 @@ with tab5:
 
     # Date filter section
     st.markdown("### Date Filter for Both Cards")
-    date_filter_mode = st.radio("Date Filter Mode", ["Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
+    date_filter_mode = st.radio("Date Filter Mode", ["All History", "Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
     last_n_days = 365
     after_date = None
     if date_filter_mode == "Last N Days":
@@ -1819,6 +1819,10 @@ with tab5:
             if filters['bedrooms']:
                 filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
             filtered = filtered.copy()
+            # Calculate total units of this type (ignore date filter)
+            total_units_df = filtered.copy()
+            total_units_df = pd.DataFrame(total_units_df)
+            n_units = int(total_units_df['Unit No.'].nunique()) if not total_units_df.empty and 'Unit No.' in total_units_df.columns else 0
             # Apply date filter
             if 'Evidence Date' in filtered.columns:
                 filtered['Evidence Date'] = pd.to_datetime(filtered['Evidence Date'], errors='coerce')
@@ -1832,9 +1836,9 @@ with tab5:
             st.markdown("---")
             st.markdown(f"### Metrics for Card {idx+1}")
             filtered = pd.DataFrame(filtered)
-            if not filtered.empty and 'Unit No.' in filtered.columns:
-                n_units = int(filtered['Unit No.'].nunique())
-                st.metric("Units of this type in selection", n_units)
+            st.metric("Units of this type in selection", n_units)
+            n_transactions = len(filtered) if not filtered.empty else 0
+            st.metric("Transactions in selected period", n_transactions)
             if filtered.empty:
                 st.info("No data for selected filters.")
                 continue
