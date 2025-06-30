@@ -1838,7 +1838,13 @@ with tab5:
                 # First row: Unit No., Development, Community
                 filter_cols1 = st.columns(3)
                 with filter_cols1[0]:
-                    selected_unit = st.selectbox(f"Unit No.", [""] + unit_no_options, key=f"unit_{card_key}", index=([""] + unit_no_options).index(selected_unit) if selected_unit in unit_no_options else 0)
+                    selected_unit = st.selectbox(
+                        f"Unit No.", [""] + unit_no_options,
+                        key=f"unit_{card_key}",
+                        index=([""] + unit_no_options).index(selected_unit) if selected_unit in unit_no_options else 0,
+                        on_change=autofill_card_fields,
+                        args=(card_key,)
+                    )
                     st.session_state[card_state_prefix + "unit"] = selected_unit
                 with filter_cols1[1]:
                     development = st.selectbox("Development", [""] + dev_options, key=f"dev_{card_key}", index=([""] + dev_options).index(development) if development in dev_options else 0)
@@ -2068,7 +2074,7 @@ with tab5:
                                         mode='markers',
                                         marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
                                         name='Verified Listings',
-                                        customdata=ver_df["URL"] if "URL" in ver_df.columns else None,
+                                        customdata=ver_df["URL"],
                                         text=ver_df.apply(lambda row: " | ".join(filter(None, [
                                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
                                             f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
@@ -2084,7 +2090,7 @@ with tab5:
                                         mode='markers',
                                         marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
                                         name='Non-verified Listings',
-                                        customdata=nonver_df["URL"] if "URL" in nonver_df.columns else None,
+                                        customdata=nonver_df["URL"],
                                         text=nonver_df.apply(lambda row: " | ".join(filter(None, [
                                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
                                             f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
@@ -2324,5 +2330,21 @@ if 'tune_prophet_hyperparameters' not in globals():
 
 # Move this outside the expander so it's always defined
 monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
+
+# Add this function near the top of the file (after imports)
+def autofill_card_fields(card_key):
+    card_state_prefix = f"comp_card_{card_key}_"
+    selected_unit = st.session_state.get(f"unit_{card_key}", "")
+    import pandas as pd
+    if selected_unit:
+        unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
+        if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
+            unit_row = unit_row.iloc[0]
+            st.session_state[card_state_prefix + "dev"] = unit_row.get('All Developments', "")
+            st.session_state[card_state_prefix + "com"] = unit_row.get('Community/Building', "")
+            st.session_state[card_state_prefix + "subcom"] = unit_row.get('Sub Community / Building', "")
+            st.session_state[card_state_prefix + "layout"] = unit_row.get('Layout Type', "")
+            st.session_state[card_state_prefix + "beds"] = str(unit_row.get('Beds', ""))
+            st.experimental_rerun()
 
 
