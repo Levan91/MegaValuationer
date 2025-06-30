@@ -2262,54 +2262,39 @@ with filter_cols1[0]:
         args=(card_key,)
     )
 with filter_cols1[1]:
-    dev_val = st.session_state.get(f"dev_{card_key}", "")
-    dev_options_full = [""] + dev_options
-    dev_idx = dev_options_full.index(dev_val) if dev_val in dev_options_full else 0
     development = st.selectbox(
         "Development",
-        dev_options_full,
-        index=dev_idx,
+        [""] + dev_options,
+        value=st.session_state.get(f"dev_{card_key}", ""),
         key=f"dev_{card_key}"
     )
 with filter_cols1[2]:
-    com_val = st.session_state.get(f"com_{card_key}", "")
-    com_options_full = [""] + com_options
-    com_idx = com_options_full.index(com_val) if com_val in com_options_full else 0
     community = st.selectbox(
         "Community",
-        com_options_full,
-        index=com_idx,
+        [""] + com_options,
+        value=st.session_state.get(f"com_{card_key}", ""),
         key=f"com_{card_key}"
     )
 filter_cols2 = st.columns(3)
 with filter_cols2[0]:
-    subcom_val = st.session_state.get(f"subcom_{card_key}", "")
-    subcom_options_full = [""] + subcom_options
-    subcom_idx = subcom_options_full.index(subcom_val) if subcom_val in subcom_options_full else 0
     subcommunity = st.selectbox(
         "Subcommunity",
-        subcom_options_full,
-        index=subcom_idx,
+        [""] + subcom_options,
+        value=st.session_state.get(f"subcom_{card_key}", ""),
         key=f"subcom_{card_key}"
     )
 with filter_cols2[1]:
-    layout_val = st.session_state.get(f"layout_{card_key}", "")
-    layout_options_full = [""] + layout_options
-    layout_idx = layout_options_full.index(layout_val) if layout_val in layout_options_full else 0
     layout_type = st.selectbox(
         "Layout Type",
-        layout_options_full,
-        index=layout_idx,
+        [""] + layout_options,
+        value=st.session_state.get(f"layout_{card_key}", ""),
         key=f"layout_{card_key}"
     )
 with filter_cols2[2]:
-    beds_val = st.session_state.get(f"beds_{card_key}", "")
-    bed_options_full = [""] + bed_options
-    beds_idx = bed_options_full.index(beds_val) if beds_val in bed_options_full else 0
     bedrooms = st.selectbox(
         "Bedrooms",
-        bed_options_full,
-        index=beds_idx,
+        [""] + bed_options,
+        value=st.session_state.get(f"beds_{card_key}", ""),
         key=f"beds_{card_key}"
     )
 
