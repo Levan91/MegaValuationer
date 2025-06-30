@@ -1753,6 +1753,16 @@ with tab5:
     st.header("Comparisons")
     st.write("Compare two property segments side by side. Select filters for each card to see demand, price trends, and growth metrics.")
 
+    # Date filter section
+    st.markdown("### Date Filter for Both Cards")
+    date_filter_mode = st.radio("Date Filter Mode", ["Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
+    last_n_days = 365
+    after_date = None
+    if date_filter_mode == "Last N Days":
+        last_n_days = st.number_input("Enter number of days", min_value=1, step=1, value=365, key="comp_last_n_days")
+    elif date_filter_mode == "After Date":
+        after_date = st.date_input("Select start date", key="comp_after_date")
+
     col1, col2 = st.columns(2)
     card_filters = []
     for idx, col in enumerate([col1, col2]):
@@ -1792,6 +1802,7 @@ with tab5:
                 'bedrooms': bedrooms
             })
 
+    from datetime import datetime, timedelta
     for idx, col in enumerate([col1, col2]):
         with col:
             filters = card_filters[idx]
@@ -1808,13 +1819,18 @@ with tab5:
             if filters['bedrooms']:
                 filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
             filtered = filtered.copy()
-            # Ensure Evidence Date is datetime
+            # Apply date filter
             if 'Evidence Date' in filtered.columns:
                 filtered['Evidence Date'] = pd.to_datetime(filtered['Evidence Date'], errors='coerce')
+                today = datetime.today()
+                if date_filter_mode == "Last N Days" and last_n_days:
+                    date_threshold = today - timedelta(days=last_n_days)
+                    filtered = filtered[filtered['Evidence Date'] >= date_threshold]
+                elif date_filter_mode == "After Date" and after_date:
+                    filtered = filtered[filtered['Evidence Date'] >= pd.to_datetime(after_date)]
             # Metrics
             st.markdown("---")
             st.markdown(f"### Metrics for Card {idx+1}")
-            # Show number of units of this type in selection
             filtered = pd.DataFrame(filtered)
             if not filtered.empty and 'Unit No.' in filtered.columns:
                 n_units = int(filtered['Unit No.'].nunique())
@@ -1841,10 +1857,11 @@ with tab5:
             # Recent price range (last 6 months)
             if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                 last_6mo = filtered[filtered['Evidence Date'] >= (pd.Timestamp.now() - pd.DateOffset(months=6))]
+                last_6mo = pd.DataFrame(last_6mo)
                 if not last_6mo.empty:
                     min_price = last_6mo['Price (AED/sq ft)'].min()
                     max_price = last_6mo['Price (AED/sq ft)'].max()
-                    median_price = last_6mo['Price (AED/sq ft)'].median()
+                    median_price = pd.Series(last_6mo['Price (AED/sq ft)']).median()
                     st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
             st.markdown("---")
 
