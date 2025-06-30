@@ -187,35 +187,22 @@ def _reset_filters():
 
 def _on_unit_number_change():
     """Callback function for unit number selection changes"""
-    # Only clear filters if a unit is actually selected (not when clearing)
+    # Clear other filters when unit is selected to avoid conflicts
     unit_number = st.session_state.get("unit_number", "")
     if unit_number:
-        # Clear property filters when unit is selected to avoid conflicts
+        # Clear location filters when unit is selected (unless locked)
+        if not st.session_state.get("lock_location_filters", False):
+            st.session_state.pop("development", None)
+            st.session_state.pop("community", None)
+            st.session_state.pop("subcommunity", None)
+        # Clear property filters
         st.session_state.pop("property_type", None)
         st.session_state.pop("bedrooms", None)
         st.session_state.pop("bua", None)
         st.session_state.pop("plot_size", None)
         st.session_state.pop("layout_type", None)
-        # Only clear location filters if not locked AND if they don't match the unit
-        if not st.session_state.get("lock_location_filters", False):
-            # Check if current location filters match the selected unit
-            unit_row = all_transactions[all_transactions['Unit No.'] == unit_number]
-            if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
-                unit_info = unit_row.iloc[0]
-                current_dev = st.session_state.get("development", "")
-                current_comm = st.session_state.get("community", [])
-                current_subcomm = st.session_state.get("subcommunity", [])
-                
-                # Only clear if they don't match
-                if current_dev and current_dev != unit_info.get('All Developments', ''):
-                    st.session_state.pop("development", None)
-                if current_comm and unit_info.get('Community/Building', '') not in current_comm:
-                    st.session_state.pop("community", None)
-                if current_subcomm and unit_info.get('Sub Community / Building', '') not in current_subcomm:
-                    st.session_state.pop("subcommunity", None)
 
 def _on_development_change():
-    """Callback function for development selection changes"""
     # Only clear unit_number if it no longer matches the selected development
     unit_number = st.session_state.get("unit_number", "")
     development = st.session_state.get("development", "")
@@ -230,11 +217,11 @@ def _on_development_change():
         valid_units = unit_no_series.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-    
-    # Don't automatically clear community/subcommunity - let user manage them
+
+    st.session_state.pop("community", None)
+    st.session_state.pop("subcommunity", None)
 
 def _on_community_change():
-    """Callback function for community selection changes"""
     # Only clear unit_number if it no longer matches the selected communities
     unit_number = st.session_state.get("unit_number", "")
     community = st.session_state.get("community", [])
@@ -252,11 +239,10 @@ def _on_community_change():
         valid_units = valid_units.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-    
-    # Don't automatically clear subcommunity - let user manage it
+
+    st.session_state.pop("subcommunity", None)
 
 def _on_subcommunity_change():
-    """Callback function for subcommunity selection changes"""
     # Only clear unit_number if it no longer matches the selected subcommunities
     unit_number = st.session_state.get("unit_number", "")
     subcommunity = st.session_state.get("subcommunity", [])
@@ -276,20 +262,12 @@ def _on_subcommunity_change():
         valid_units = unit_nos.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-    # Don't clear unit_number when subcommunity is empty - let user manage it
+    else:
+        st.session_state.pop("unit_number", None)
 
 def _on_bedrooms_change():
-    """Callback function for bedrooms selection changes"""
-    # Only clear unit number if it doesn't match the selected bedrooms
-    unit_number = st.session_state.get("unit_number", "")
-    bedrooms = st.session_state.get("bedrooms", "")
-    
-    if unit_number and bedrooms:
-        unit_row = all_transactions[all_transactions['Unit No.'] == unit_number]
-        if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
-            unit_beds = str(unit_row.iloc[0].get('Beds', ''))
-            if unit_beds != bedrooms:
-                st.session_state.pop("unit_number", None)
+    # Clear only the unit number selection when bedrooms changes
+    st.session_state["unit_number"] = ""
 
 # --- Page Config ---
 st.set_page_config(page_title="Valuation App V2", layout="wide")
@@ -697,8 +675,19 @@ with st.sidebar:
                 layout_type_col = pd.Series(layout_type_col)
             layout_options = sorted(layout_type_col.dropna().unique())
 
+    # Debug: Show layout filtering info
+    with st.expander("🔧 Debug Layout Filtering", expanded=False):
+        st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
+        st.write(f"**Filtered Layout DF Shape:** {layout_df_filtered.shape}")
+        st.write(f"**Filtered Unit Numbers:** {len(filtered_unit_nos)}")
+        st.write(f"**Current Unit:** {unit_number}")
+        st.write(f"**Mapped Layout:** {mapped_layout}")
+        st.write(f"**Layout Options:** {layout_options}")
+        st.write(f"**Selected Layout Type:** {selected_layout_type}")
+        st.write(f"**Current Community:** {current_community}")
+        st.write(f"**Current Subcommunity:** {current_subcommunity}")
     
-    # Always define layout_type after debug expander
+    # If the unit selection logic above found selected_layout_type, use it
     layout_type = st.multiselect(
         "Layout Type",
         options=layout_options,
@@ -830,7 +819,7 @@ with st.sidebar:
 
     # Floor Tolerance filter toggle
     enable_floor_tol = st.checkbox("Enable floor tolerance", value=False, key="enable_floor_tol")
-    if enable_floor_tol:
+    if enable_floor_tol and property_type == "Apartment":
         floor_tolerance = st.number_input(
             "Floor tolerance (± floors)", min_value=0, step=1, value=0, key="floor_tolerance"
         )
@@ -1034,7 +1023,7 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Other"])  # Remove Comparisons tab
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Other"])
 
 with tab1:
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
@@ -1150,7 +1139,23 @@ with tab2:
             filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == bedrooms]
             if not isinstance(filtered_listings, pd.DataFrame):
                 filtered_listings = pd.DataFrame(filtered_listings)
-        # Remove tolerance filters from live listings - they should only apply to transactions
+        # Floor tolerance filter for live listings (optional, not specified in instructions)
+        if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_listings.columns:
+            try:
+                selected_floor = int(
+                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+                )
+                tol = st.session_state['floor_tolerance']
+                low = selected_floor - tol
+                high = selected_floor + tol
+                filtered_listings = filtered_listings[
+                    (filtered_listings['Floor Level'] >= low) &
+                    (filtered_listings['Floor Level'] <= high)
+                ]
+                if not isinstance(filtered_listings, pd.DataFrame):
+                    filtered_listings = pd.DataFrame(filtered_listings)
+            except Exception:
+                pass
         if layout_type and 'Layout Type' in filtered_listings.columns:
             filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(layout_type)]  # type: ignore
             if not isinstance(filtered_listings, pd.DataFrame):
@@ -1295,10 +1300,9 @@ with tab3:
 
     with st.expander("Forecast & Listings Filters", expanded=False):
         prophet_last_n_days = st.number_input(
-            "Prophet: Last N Days",
+            "",
             min_value=30, max_value=3650, step=30, value=1095, key="prophet_last_n_days",
-            help="Prophet: Last N Days",
-            label_visibility="visible"
+            help="Prophet: Last N Days"
         )
         # Live Listings Filters
         verified_only = st.checkbox(
@@ -1526,12 +1530,7 @@ if 'Development' in listing_df.columns and development:
                 marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
                 name='Verified Listings',
                 customdata=ver_df["URL"],
-                text=ver_df.apply(lambda row: " | ".join(filter(None, [
-                    f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
-                    f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
-                    f'{row["Community"]}' if pd.notnull(row.get("Community")) else "",
-                    f'{row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
-                ])), axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
+                text=ver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
                 hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
             ))
         if not nonver_df.empty:
@@ -1542,12 +1541,7 @@ if 'Development' in listing_df.columns and development:
                 marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
                 name='Non-verified Listings',
                 customdata=nonver_df["URL"],
-                text=nonver_df.apply(lambda row: " | ".join(filter(None, [
-                    f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
-                    f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
-                    f'{row["Community"]}' if pd.notnull(row.get("Community")) else "",
-                    f'{row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
-                ])), axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
+                text=nonver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
                 hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
             ))
         fig.update_layout(
@@ -1965,135 +1959,5 @@ if 'tune_prophet_hyperparameters' not in globals():
 
 # Move this outside the expander so it's always defined
 monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
-
-# 1. Add autofill_card_fields function after imports
-
-def autofill_card_fields(card_key):
-    selected_unit = st.session_state.get(f"unit_{card_key}", "")
-    if selected_unit:
-        unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
-        if hasattr(unit_row, "empty") and not unit_row.empty:
-            unit_row = unit_row.iloc[0]
-            dev = str(unit_row.get('All Developments', "")).strip()
-            com = str(unit_row.get('Community/Building', "")).strip()
-            subcom = str(unit_row.get('Sub Community / Building', "")).strip()
-            layout = str(unit_row.get('Layout Type', "")).strip()
-            beds = str(unit_row.get('Beds', "")).strip()
-            # Get options from session_state (populated in card loop)
-            dev_options = st.session_state.get(f"dev_options_{card_key}", [])
-            com_options = st.session_state.get(f"com_options_{card_key}", [])
-            subcom_options = st.session_state.get(f"subcom_options_{card_key}", [])
-            layout_options = st.session_state.get(f"layout_options_{card_key}", [])
-            bed_options = st.session_state.get(f"bed_options_{card_key}", [])
-            st.session_state[f"dev_{card_key}"] = dev if dev in dev_options else ""
-            st.session_state[f"com_{card_key}"] = com if com in com_options else ""
-            st.session_state[f"subcom_{card_key}"] = subcom if subcom in subcom_options else ""
-            st.session_state[f"layout_{card_key}"] = layout if layout in layout_options else ""
-            st.session_state[f"beds_{card_key}"] = beds if beds in bed_options else ""
-    st.rerun()
-
-# In the card loop, after creating the options lists, store them in session_state for the callback to use
-st.session_state[f"dev_options_{card_key}"] = [""] + dev_options
-st.session_state[f"com_options_{card_key}"] = [""] + com_options
-st.session_state[f"subcom_options_{card_key}"] = [""] + subcom_options
-st.session_state[f"layout_options_{card_key}"] = [""] + layout_options
-st.session_state[f"bed_options_{card_key}"] = [""] + bed_options
-
-# After selectboxes, print debug output
-st.write({
-    "selected_unit": selected_unit,
-    "autofill_dev": st.session_state.get(f"dev_{card_key}", ""),
-    "dev_options": dev_options,
-    "autofill_com": st.session_state.get(f"com_{card_key}", ""),
-    "com_options": com_options,
-    "autofill_subcom": st.session_state.get(f"subcom_{card_key}", ""),
-    "subcom_options": subcom_options,
-    "autofill_layout": st.session_state.get(f"layout_{card_key}", ""),
-    "layout_options": layout_options,
-    "autofill_beds": st.session_state.get(f"beds_{card_key}", ""),
-    "bed_options": bed_options
-})
-
-# 2. In tab5, update the Unit No. selectbox to use on_change=autofill_card_fields
-# 3. For all other selectboxes, set their value from session_state (if present)
-# 4. Replace st.experimental_rerun() with st.rerun() in tab5
-# 5. Add DataFrame guard before accessing .columns in filtered
-
-# ... inside tab5 card loop ...
-# Replace this block:
-# selected_unit = st.selectbox(f"Unit No.", [""] + unit_no_options, key=f"unit_{card_key}")
-# ...
-# development = st.selectbox("Development", [""] + dev_options, key=f"dev_{card_key}")
-# ...
-# community = st.selectbox("Community", [""] + com_options, key=f"com_{card_key}")
-# ...
-# subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, key=f"subcom_{card_key}")
-# ...
-# layout_type = st.selectbox("Layout Type", [""] + layout_options, key=f"layout_{card_key}")
-# ...
-# bedrooms = st.selectbox("Bedrooms", [""] + bed_options, key=f"beds_{card_key}")
-
-# Replace with:
-# (inside the card loop)
-filter_cols1 = st.columns(3)
-with filter_cols1[0]:
-    selected_unit = st.selectbox(
-        f"Unit No.",
-        [""] + unit_no_options,
-        key=f"unit_{card_key}"
-    )
-with filter_cols1[1]:
-    development = st.selectbox(
-        "Development",
-        [""] + dev_options,
-        key=f"dev_{card_key}"
-    )
-with filter_cols1[2]:
-    community = st.selectbox(
-        "Community",
-        [""] + com_options,
-        key=f"com_{card_key}"
-    )
-filter_cols2 = st.columns(3)
-with filter_cols2[0]:
-    subcommunity = st.selectbox(
-        "Subcommunity",
-        [""] + subcom_options,
-        key=f"subcom_{card_key}"
-    )
-with filter_cols2[1]:
-    layout_type = st.selectbox(
-        "Layout Type",
-        [""] + layout_options,
-        key=f"layout_{card_key}"
-    )
-with filter_cols2[2]:
-    bedrooms = st.selectbox(
-        "Bedrooms",
-        [""] + bed_options,
-        key=f"beds_{card_key}"
-    )
-
-# When removing a card, replace st.experimental_rerun() with st.rerun()
-# ...
-if remove_card_idx is not None and n_cards > 2:
-    st.session_state['comp_card_count'] -= 1
-    st.session_state['comp_card_keys'].pop(remove_card_idx)
-    st.rerun()
-# ...
-
-# After the selectboxes in each comparison card, add debug output
-st.write({
-    'autofill_dev': st.session_state.get(f'dev_{card_key}', ''),
-    'dev_options': dev_options,
-    'autofill_com': st.session_state.get(f'com_{card_key}', ''),
-    'com_options': com_options,
-    'autofill_subcom': st.session_state.get(f'subcom_{card_key}', ''),
-    'subcom_options': subcom_options,
-    'autofill_layout': st.session_state.get(f'layout_{card_key}', ''),
-    'layout_options': layout_options,
-    'autofill_beds': st.session_state.get(f'beds_{card_key}', ''),
-    'bed_options': bed_options
-})
 
 
