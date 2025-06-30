@@ -2062,6 +2062,19 @@ with tab4:
                         key=f"beds_{card_key}"
                     )
 
+                # Only show chart and metrics if at least one filter is selected
+                filters_selected = any([
+                    selected_unit,
+                    development,
+                    community,
+                    subcommunity,
+                    layout_type,
+                    bedrooms
+                ])
+                if not filters_selected:
+                    st.info("Select at least one filter to see data.")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    continue
                 # Filter transactions for this card
                 filtered_txn = all_transactions.copy()
                 if selected_unit:
