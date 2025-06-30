@@ -1855,7 +1855,27 @@ with tab5:
                 monthly_counts = filtered.set_index('Evidence Date').resample('M').size()
                 avg_sales_per_month = monthly_counts.mean() if not monthly_counts.empty else 0
                 st.metric("Avg Sales/Month", f"{avg_sales_per_month:.2f}")
-                st.bar_chart(monthly_counts, use_container_width=True)
+                # Improved Plotly bar chart
+                import plotly.graph_objects as go
+                bar_fig = go.Figure()
+                bar_fig.add_trace(go.Bar(
+                    x=monthly_counts.index.strftime('%b %Y'),
+                    y=monthly_counts.values,
+                    marker_color='#1f77b4',
+                    text=monthly_counts.values,
+                    textposition='outside',
+                    hovertemplate='Month: %{x}<br>Sales: %{y}<extra></extra>'
+                ))
+                bar_fig.update_layout(
+                    title='Monthly Sales Volume',
+                    xaxis_title='Month',
+                    yaxis_title='Number of Sales',
+                    bargap=0.2,
+                    showlegend=False,
+                    margin=dict(l=20, r=20, t=40, b=40),
+                    height=300
+                )
+                st.plotly_chart(bar_fig, use_container_width=True)
             # Average price per sq ft over time (trend)
             if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                 price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
