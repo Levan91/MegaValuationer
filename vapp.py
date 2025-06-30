@@ -1751,7 +1751,7 @@ with tab4:
 
 with tab5:
     st.header("Comparisons")
-    st.write("Select multiple units (from transactions) or listings (from live listings) to compare their key attributes side by side.")
+    st.write("Select multiple units (from transactions) to compare their key attributes side by side.")
 
     st.subheader("Compare Transaction Units")
     if not all_transactions.empty:
@@ -1787,41 +1787,6 @@ with tab5:
             st.info("Select units above to compare.")
     else:
         st.warning("No transaction data available.")
-
-    st.subheader("Compare Live Listings")
-    if not all_listings.empty:
-        listing_no_col = all_listings['Unit No.']
-        if not isinstance(listing_no_col, pd.Series):
-            listing_no_col = pd.Series(listing_no_col)
-        listing_options = listing_no_col.dropna().astype(str).unique().tolist()
-        selected_listings = st.multiselect(
-            "Select listings to compare (from live listings):",
-            options=listing_options,
-            key="compare_listings"
-        )
-        if selected_listings:
-            listing_no_series = all_listings['Unit No.']
-            if not isinstance(listing_no_series, pd.Series):
-                listing_no_series = pd.Series(listing_no_series)
-            compare_listings_df = all_listings[listing_no_series.astype(str).isin(selected_listings)]
-            compare_listings_df = pd.DataFrame(compare_listings_df)
-            # Show only key columns
-            key_cols = [
-                'Unit No.', 'Development', 'Community', 'Subcommunity',
-                'Layout Type', 'Type', 'Beds', 'BUA', 'Plot Size',
-                'Floor Level', 'Price (AED)', 'Days Listed', 'Verified', 'URL'
-            ]
-            show_cols = [col for col in key_cols if col in compare_listings_df.columns]
-            st.dataframe(compare_listings_df[show_cols])
-            st.download_button(
-                "Download Listing Comparison as CSV",
-                compare_listings_df[show_cols].to_csv(index=False).encode(),
-                file_name="listing_comparison.csv"
-            )
-        else:
-            st.info("Select listings above to compare.")
-    else:
-        st.warning("No live listings data available.")
 
 import logging
 logger = logging.getLogger(__name__)
