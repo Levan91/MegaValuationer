@@ -1772,130 +1772,137 @@ with tab5:
     elif date_filter_mode == "After Date":
         after_date = st.date_input("Select start date", key="comp_after_date")
 
-    cols = st.columns(n_cards)
+    # Render cards in rows of 2
     card_filters = []
-    for idx, col in enumerate(cols):
-        with col:
-            st.subheader(f"Comparison Card {idx+1}")
-            dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
-            com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
-            subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
-            layout_options = sorted(pd.Series(all_transactions['Layout Type']).dropna().unique()) if not all_transactions.empty else []
-            bed_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
-            unit_no_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().astype(str).unique()) if not all_transactions.empty else []
+    for row_start in range(0, n_cards, 2):
+        row_cols = st.columns(min(2, n_cards - row_start))
+        for i, col in enumerate(row_cols):
+            idx = row_start + i
+            with col:
+                st.subheader(f"Comparison Card {idx+1}")
+                dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
+                com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
+                subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
+                layout_options = sorted(pd.Series(all_transactions['Layout Type']).dropna().unique()) if not all_transactions.empty else []
+                bed_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
+                unit_no_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().astype(str).unique()) if not all_transactions.empty else []
 
-            # Unit selector
-            selected_unit = st.selectbox(f"Unit No. (Card {idx+1})", [""] + unit_no_options, key=f"unit_{idx}")
-            # Autofill logic
-            autofill = {'development': '', 'community': '', 'subcommunity': '', 'layout_type': '', 'bedrooms': ''}
-            if selected_unit:
-                unit_row = all_transactions[all_transactions['Unit No.'].astype(str) == selected_unit]
-                unit_row = pd.DataFrame(unit_row)
-                if not unit_row.empty:
-                    autofill['development'] = unit_row['All Developments'].iloc[0] if 'All Developments' in unit_row.columns else ''
-                    autofill['community'] = unit_row['Community/Building'].iloc[0] if 'Community/Building' in unit_row.columns else ''
-                    autofill['subcommunity'] = unit_row['Sub Community / Building'].iloc[0] if 'Sub Community / Building' in unit_row.columns else ''
-                    autofill['layout_type'] = unit_row['Layout Type'].iloc[0] if 'Layout Type' in unit_row.columns else ''
-                    autofill['bedrooms'] = str(unit_row['Beds'].iloc[0]) if 'Beds' in unit_row.columns else ''
-            # Use autofill as default, but allow manual override
-            development = st.selectbox(f"Development (Card {idx+1})", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{idx}")
-            community = st.selectbox(f"Community (Card {idx+1})", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{idx}")
-            subcommunity = st.selectbox(f"Subcommunity (Card {idx+1})", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{idx}")
-            layout_type = st.selectbox(f"Layout Type (Card {idx+1})", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{idx}")
-            bedrooms = st.selectbox(f"Bedrooms (Card {idx+1})", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{idx}")
-            card_filters.append({
-                'development': development,
-                'community': community,
-                'subcommunity': subcommunity,
-                'layout_type': layout_type,
-                'bedrooms': bedrooms
-            })
+                # Unit selector
+                selected_unit = st.selectbox(f"Unit No. (Card {idx+1})", [""] + unit_no_options, key=f"unit_{idx}")
+                # Autofill logic
+                autofill = {'development': '', 'community': '', 'subcommunity': '', 'layout_type': '', 'bedrooms': ''}
+                if selected_unit:
+                    unit_row = all_transactions[all_transactions['Unit No.'].astype(str) == selected_unit]
+                    unit_row = pd.DataFrame(unit_row)
+                    if not unit_row.empty:
+                        autofill['development'] = unit_row['All Developments'].iloc[0] if 'All Developments' in unit_row.columns else ''
+                        autofill['community'] = unit_row['Community/Building'].iloc[0] if 'Community/Building' in unit_row.columns else ''
+                        autofill['subcommunity'] = unit_row['Sub Community / Building'].iloc[0] if 'Sub Community / Building' in unit_row.columns else ''
+                        autofill['layout_type'] = unit_row['Layout Type'].iloc[0] if 'Layout Type' in unit_row.columns else ''
+                        autofill['bedrooms'] = str(unit_row['Beds'].iloc[0]) if 'Beds' in unit_row.columns else ''
+                # Use autofill as default, but allow manual override
+                development = st.selectbox(f"Development (Card {idx+1})", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{idx}")
+                community = st.selectbox(f"Community (Card {idx+1})", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{idx}")
+                subcommunity = st.selectbox(f"Subcommunity (Card {idx+1})", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{idx}")
+                layout_type = st.selectbox(f"Layout Type (Card {idx+1})", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{idx}")
+                bedrooms = st.selectbox(f"Bedrooms (Card {idx+1})", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{idx}")
+                card_filters.append({
+                    'development': development,
+                    'community': community,
+                    'subcommunity': subcommunity,
+                    'layout_type': layout_type,
+                    'bedrooms': bedrooms
+                })
 
     from datetime import datetime, timedelta
-    for idx, col in enumerate(cols):
-        with col:
-            filters = card_filters[idx]
-            filtered = all_transactions.copy()
-            filtered = pd.DataFrame(filtered)
-            if filters['development']:
-                filtered = filtered[filtered['All Developments'] == filters['development']]
-            if filters['community']:
-                filtered = filtered[filtered['Community/Building'] == filters['community']]
-            if filters['subcommunity']:
-                filtered = filtered[filtered['Sub Community / Building'] == filters['subcommunity']]
-            if filters['layout_type']:
-                filtered = filtered[filtered['Layout Type'] == filters['layout_type']]
-            if filters['bedrooms']:
-                filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
-            filtered = filtered.copy()
-            # Calculate total units of this type (ignore date filter)
-            total_units_df = pd.DataFrame(filtered.copy())
-            n_units = int(total_units_df['Unit No.'].nunique()) if not total_units_df.empty and 'Unit No.' in total_units_df.columns else 0
-            # Apply date filter
-            if 'Evidence Date' in filtered.columns:
-                filtered['Evidence Date'] = pd.to_datetime(filtered['Evidence Date'], errors='coerce')
-                today = datetime.today()
-                if date_filter_mode == "Last N Days" and last_n_days:
-                    date_threshold = today - timedelta(days=last_n_days)
-                    filtered = filtered[filtered['Evidence Date'] >= date_threshold]
-                elif date_filter_mode == "After Date" and after_date:
-                    filtered = filtered[filtered['Evidence Date'] >= pd.to_datetime(after_date)]
-            # Metrics
-            st.markdown("---")
-            st.markdown(f"### Metrics for Card {idx+1}")
-            filtered = pd.DataFrame(filtered)
-            st.metric("Units of this type in selection", n_units)
-            n_transactions = len(filtered) if not filtered.empty else 0
-            st.metric("Transactions in selected period", n_transactions)
-            if filtered.empty:
-                st.info("No data for selected filters.")
-                continue
-            # Average sales per month (demand)
-            if 'Evidence Date' in filtered.columns:
-                monthly_counts = filtered.set_index('Evidence Date').resample('M').size()
-                avg_sales_per_month = monthly_counts.mean() if not monthly_counts.empty else 0
-                st.metric("Avg Sales/Month", f"{avg_sales_per_month:.2f}")
-                # Improved Plotly bar chart
-                import plotly.graph_objects as go
-                bar_fig = go.Figure()
-                bar_fig.add_trace(go.Bar(
-                    x=monthly_counts.index.strftime('%b %Y'),
-                    y=monthly_counts.values,
-                    marker_color='#1f77b4',
-                    text=monthly_counts.values,
-                    textposition='outside',
-                    hovertemplate='Month: %{x}<br>Sales: %{y}<extra></extra>'
-                ))
-                bar_fig.update_layout(
-                    title='Monthly Sales Volume',
-                    xaxis_title='Month',
-                    yaxis_title='Number of Sales',
-                    bargap=0.2,
-                    showlegend=False,
-                    margin=dict(l=20, r=20, t=40, b=40),
-                    height=300
-                )
-                st.plotly_chart(bar_fig, use_container_width=True)
-            # Average price per sq ft over time (trend)
-            if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
-                price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
-                st.line_chart(price_trend, use_container_width=True)
-            # Growth rate (last 12 months)
-            if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
-                price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
-                if len(price_trend) >= 12:
-                    growth = (price_trend.iloc[-1] - price_trend.iloc[-12]) / price_trend.iloc[-12] * 100 if price_trend.iloc[-12] != 0 else 0
-                    st.metric("12mo Growth Rate (%)", f"{growth:.2f}%")
-            # Recent price range (last 6 months)
-            if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
-                last_6mo = filtered[filtered['Evidence Date'] >= (pd.Timestamp.now() - pd.DateOffset(months=6))]
-                last_6mo = pd.DataFrame(last_6mo)
-                if not last_6mo.empty:
-                    min_price = last_6mo['Price (AED/sq ft)'].min()
-                    max_price = last_6mo['Price (AED/sq ft)'].max()
-                    median_price = pd.Series(last_6mo['Price (AED/sq ft)']).median()
-                    st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
-            st.markdown("---")
+    card_idx = 0
+    for row_start in range(0, n_cards, 2):
+        row_cols = st.columns(min(2, n_cards - row_start))
+        for i, col in enumerate(row_cols):
+            idx = row_start + i
+            with col:
+                filters = card_filters[idx]
+                filtered = all_transactions.copy()
+                filtered = pd.DataFrame(filtered)
+                if filters['development']:
+                    filtered = filtered[filtered['All Developments'] == filters['development']]
+                if filters['community']:
+                    filtered = filtered[filtered['Community/Building'] == filters['community']]
+                if filters['subcommunity']:
+                    filtered = filtered[filtered['Sub Community / Building'] == filters['subcommunity']]
+                if filters['layout_type']:
+                    filtered = filtered[filtered['Layout Type'] == filters['layout_type']]
+                if filters['bedrooms']:
+                    filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
+                filtered = filtered.copy()
+                # Calculate total units of this type (ignore date filter)
+                total_units_df = pd.DataFrame(filtered.copy())
+                n_units = int(total_units_df['Unit No.'].nunique()) if not total_units_df.empty and 'Unit No.' in total_units_df.columns else 0
+                # Apply date filter
+                if 'Evidence Date' in filtered.columns:
+                    filtered['Evidence Date'] = pd.to_datetime(filtered['Evidence Date'], errors='coerce')
+                    today = datetime.today()
+                    if date_filter_mode == "Last N Days" and last_n_days:
+                        date_threshold = today - timedelta(days=last_n_days)
+                        filtered = filtered[filtered['Evidence Date'] >= date_threshold]
+                    elif date_filter_mode == "After Date" and after_date:
+                        filtered = filtered[filtered['Evidence Date'] >= pd.to_datetime(after_date)]
+                # Metrics
+                st.markdown("---")
+                st.markdown(f"### Metrics for Card {idx+1}")
+                filtered = pd.DataFrame(filtered)
+                st.metric("Units of this type in selection", n_units)
+                n_transactions = len(filtered) if not filtered.empty else 0
+                st.metric("Transactions in selected period", n_transactions)
+                if filtered.empty:
+                    st.info("No data for selected filters.")
+                    continue
+                # Average sales per month (demand)
+                if 'Evidence Date' in filtered.columns:
+                    monthly_counts = filtered.set_index('Evidence Date').resample('M').size()
+                    avg_sales_per_month = monthly_counts.mean() if not monthly_counts.empty else 0
+                    st.metric("Avg Sales/Month", f"{avg_sales_per_month:.2f}")
+                    # Improved Plotly bar chart
+                    import plotly.graph_objects as go
+                    bar_fig = go.Figure()
+                    bar_fig.add_trace(go.Bar(
+                        x=monthly_counts.index.strftime('%b %Y'),
+                        y=monthly_counts.values,
+                        marker_color='#1f77b4',
+                        text=monthly_counts.values,
+                        textposition='outside',
+                        hovertemplate='Month: %{x}<br>Sales: %{y}<extra></extra>'
+                    ))
+                    bar_fig.update_layout(
+                        title='Monthly Sales Volume',
+                        xaxis_title='Month',
+                        yaxis_title='Number of Sales',
+                        bargap=0.2,
+                        showlegend=False,
+                        margin=dict(l=20, r=20, t=40, b=40),
+                        height=300
+                    )
+                    st.plotly_chart(bar_fig, use_container_width=True)
+                # Average price per sq ft over time (trend)
+                if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
+                    price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
+                    st.line_chart(price_trend, use_container_width=True)
+                # Growth rate (last 12 months)
+                if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
+                    price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
+                    if len(price_trend) >= 12:
+                        growth = (price_trend.iloc[-1] - price_trend.iloc[-12]) / price_trend.iloc[-12] * 100 if price_trend.iloc[-12] != 0 else 0
+                        st.metric("12mo Growth Rate (%)", f"{growth:.2f}%")
+                # Recent price range (last 6 months)
+                if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
+                    last_6mo = filtered[filtered['Evidence Date'] >= (pd.Timestamp.now() - pd.DateOffset(months=6))]
+                    last_6mo = pd.DataFrame(last_6mo)
+                    if not last_6mo.empty:
+                        min_price = last_6mo['Price (AED/sq ft)'].min()
+                        max_price = last_6mo['Price (AED/sq ft)'].max()
+                        median_price = pd.Series(last_6mo['Price (AED/sq ft)']).median()
+                        st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
+                st.markdown("---")
 
 import logging
 logger = logging.getLogger(__name__)
