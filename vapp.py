@@ -1295,9 +1295,10 @@ with tab3:
 
     with st.expander("Forecast & Listings Filters", expanded=False):
         prophet_last_n_days = st.number_input(
-            "",
+            "Prophet: Last N Days",
             min_value=30, max_value=3650, step=30, value=1095, key="prophet_last_n_days",
-            help="Prophet: Last N Days"
+            help="Prophet: Last N Days",
+            label_visibility="visible"
         )
         # Live Listings Filters
         verified_only = st.checkbox(
@@ -1881,7 +1882,7 @@ with tab5:
                     continue
                 # Average sales per month (demand)
                 if 'Evidence Date' in filtered.columns:
-                    monthly_counts = filtered.set_index('Evidence Date').resample('M').size()
+                    monthly_counts = filtered.set_index('Evidence Date').resample('ME').size()
                     avg_sales_per_month = monthly_counts.mean() if not monthly_counts.empty else 0
                     st.metric("Avg Sales/Month", f"{avg_sales_per_month:.2f}")
                     # Improved Plotly bar chart
@@ -1916,11 +1917,11 @@ with tab5:
                     st.plotly_chart(bar_fig, use_container_width=True, key=f"bar_chart_{card_key}")
                 # Average price per sq ft over time (trend)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
-                    price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
-                    st.line_chart(price_trend, use_container_width=True, key=f"trend_chart_{card_key}")
+                    price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('ME').mean()
+                    st.line_chart(price_trend, use_container_width=True)
                 # Growth rate (last 12 months)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
-                    price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
+                    price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('ME').mean()
                     if len(price_trend) >= 12:
                         growth = (price_trend.iloc[-1] - price_trend.iloc[-12]) / price_trend.iloc[-12] * 100 if price_trend.iloc[-12] != 0 else 0
                         st.metric("12mo Growth Rate (%)", f"{growth:.2f}%")
