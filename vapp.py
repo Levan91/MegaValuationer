@@ -1813,27 +1813,27 @@ with tab5:
                 filter_cols1 = st.columns(3)
                 with filter_cols1[0]:
                     selected_unit = st.selectbox(f"Unit No.", [""] + unit_no_options, key=f"unit_{card_key}")
-                if selected_unit:
-                    unit_row = all_transactions[all_transactions['Unit No.'].astype(str) == selected_unit]
-                    unit_row = pd.DataFrame(unit_row)
-                    if not unit_row.empty:
-                        autofill['development'] = unit_row['All Developments'].iloc[0] if 'All Developments' in unit_row.columns else ''
-                        autofill['community'] = unit_row['Community/Building'].iloc[0] if 'Community/Building' in unit_row.columns else ''
-                        autofill['subcommunity'] = unit_row['Sub Community / Building'].iloc[0] if 'Sub Community / Building' in unit_row.columns else ''
-                        autofill['layout_type'] = unit_row['Layout Type'].iloc[0] if 'Layout Type' in unit_row.columns else ''
-                        autofill['bedrooms'] = str(unit_row['Beds'].iloc[0]) if 'Beds' in unit_row.columns else ''
                 with filter_cols1[1]:
-                    development = st.selectbox("Development", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{card_key}")
+                    development = st.selectbox("Development", [""] + dev_options, key=f"dev_{card_key}")
                 with filter_cols1[2]:
-                    community = st.selectbox("Community", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{card_key}")
+                    community = st.selectbox("Community", [""] + com_options, key=f"com_{card_key}")
                 # Second row: Subcommunity, Layout Type, Bedrooms
                 filter_cols2 = st.columns(3)
                 with filter_cols2[0]:
-                    subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{card_key}")
+                    subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, key=f"subcom_{card_key}")
                 with filter_cols2[1]:
-                    layout_type = st.selectbox("Layout Type", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{card_key}")
+                    layout_type = st.selectbox("Layout Type", [""] + layout_options, key=f"layout_{card_key}")
                 with filter_cols2[2]:
-                    bedrooms = st.selectbox("Bedrooms", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{card_key}")
+                    bedrooms = st.selectbox("Bedrooms", [""] + bed_options, key=f"beds_{card_key}")
+
+                # Robust guard clause for empty filters (treat empty string, None, and empty list as empty)
+                def is_empty(val):
+                    return val is None or val == "" or (isinstance(val, (list, tuple, set)) and len(val) == 0)
+                if all(is_empty(x) for x in [selected_unit, development, community, subcommunity, layout_type, bedrooms]):
+                    st.info("Please select at least one filter to see metrics for this card.")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    continue
+
                 card_filters.append({
                     'development': development,
                     'community': community,
