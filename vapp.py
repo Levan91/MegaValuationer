@@ -1788,15 +1788,18 @@ with tab5:
         for i in range(2):
             idx = row_start + i
             if idx >= n_cards:
+                # If odd number of cards, leave the last column empty
                 row_cols[i].empty()
                 continue
             card_key = card_keys[idx]
             with row_cols[i]:
+                # Card border container using st.markdown and st.container
                 with st.container():
                     st.markdown(f"""
                         <div style='border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 8px; background: #fafbfc; min-width: 350px; max-width: 100%; box-sizing: border-box;'>
                     """, unsafe_allow_html=True)
                 st.subheader(f"Comparison Card {idx+1}")
+                # Remove button (only if more than 2 cards)
                 if n_cards > 2:
                     if st.button("🗑️ Remove", key=f"remove_card_{card_key}"):
                         remove_card_idx = idx
@@ -1807,62 +1810,25 @@ with tab5:
                 bed_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
                 unit_no_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().astype(str).unique()) if not all_transactions.empty else []
 
-                # --- Autofill logic for card ---
-                # Use session_state to persist per-card filter values
-                card_state_prefix = f"comp_card_{card_key}_"
-                # Get current values from session_state or default
-                selected_unit = st.session_state.get(card_state_prefix + "unit", "")
-                development = st.session_state.get(card_state_prefix + "dev", "")
-                community = st.session_state.get(card_state_prefix + "com", "")
-                subcommunity = st.session_state.get(card_state_prefix + "subcom", "")
-                layout_type = st.session_state.get(card_state_prefix + "layout", "")
-                bedrooms = st.session_state.get(card_state_prefix + "beds", "")
-
-                # If unit is selected, autofill other fields from all_transactions
-                if selected_unit:
-                    unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
-                    if not unit_row.empty:
-                        unit_row = unit_row.iloc[0]
-                        # Only autofill if the field is empty
-                        if not development:
-                            development = unit_row.get('All Developments', "")
-                        if not community:
-                            community = unit_row.get('Community/Building', "")
-                        if not subcommunity:
-                            subcommunity = unit_row.get('Sub Community / Building', "")
-                        if not layout_type:
-                            layout_type = unit_row.get('Layout Type', "")
-                        if not bedrooms:
-                            bedrooms = str(unit_row.get('Beds', ""))
-
+                # Autofill logic
+                selected_unit = None
+                autofill = {'development': '', 'community': '', 'subcommunity': '', 'layout_type': '', 'bedrooms': ''}
                 # First row: Unit No., Development, Community
                 filter_cols1 = st.columns(3)
                 with filter_cols1[0]:
-                    selected_unit = st.selectbox(
-                        f"Unit No.", [""] + unit_no_options,
-                        key=f"unit_{card_key}",
-                        index=([""] + unit_no_options).index(selected_unit) if selected_unit in unit_no_options else 0,
-                        on_change=autofill_card_fields,
-                        args=(card_key,)
-                    )
-                    st.session_state[card_state_prefix + "unit"] = selected_unit
+                    selected_unit = st.selectbox(f"Unit No.", [""] + unit_no_options, key=f"unit_{card_key}")
                 with filter_cols1[1]:
-                    development = st.selectbox("Development", [""] + dev_options, key=f"dev_{card_key}", index=([""] + dev_options).index(development) if development in dev_options else 0)
-                    st.session_state[card_state_prefix + "dev"] = development
+                    development = st.selectbox("Development", [""] + dev_options, key=f"dev_{card_key}")
                 with filter_cols1[2]:
-                    community = st.selectbox("Community", [""] + com_options, key=f"com_{card_key}", index=([""] + com_options).index(community) if community in com_options else 0)
-                    st.session_state[card_state_prefix + "com"] = community
+                    community = st.selectbox("Community", [""] + com_options, key=f"com_{card_key}")
                 # Second row: Subcommunity, Layout Type, Bedrooms
                 filter_cols2 = st.columns(3)
                 with filter_cols2[0]:
-                    subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, key=f"subcom_{card_key}", index=([""] + subcom_options).index(subcommunity) if subcommunity in subcom_options else 0)
-                    st.session_state[card_state_prefix + "subcom"] = subcommunity
+                    subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, key=f"subcom_{card_key}")
                 with filter_cols2[1]:
-                    layout_type = st.selectbox("Layout Type", [""] + layout_options, key=f"layout_{card_key}", index=([""] + layout_options).index(layout_type) if layout_type in layout_options else 0)
-                    st.session_state[card_state_prefix + "layout"] = layout_type
+                    layout_type = st.selectbox("Layout Type", [""] + layout_options, key=f"layout_{card_key}")
                 with filter_cols2[2]:
-                    bedrooms = st.selectbox("Bedrooms", [""] + bed_options, key=f"beds_{card_key}", index=([""] + bed_options).index(bedrooms) if bedrooms in bed_options else 0)
-                    st.session_state[card_state_prefix + "beds"] = bedrooms
+                    bedrooms = st.selectbox("Bedrooms", [""] + bed_options, key=f"beds_{card_key}")
 
                 # Robust guard clause for empty filters (treat empty string, None, and empty list as empty)
                 def is_empty(val):
@@ -1894,7 +1860,7 @@ with tab5:
                     filtered = filtered[filtered['Layout Type'] == filters['layout_type']]
                 if filters['bedrooms']:
                     filtered = filtered[filtered['Beds'].astype(str) == filters['bedrooms']]
-                filtered = pd.DataFrame(filtered)
+                filtered = filtered.copy()
                 # Calculate total units of this type (ignore date filter)
                 total_units_df = pd.DataFrame(filtered.copy())
                 n_units = int(total_units_df['Unit No.'].nunique()) if not total_units_df.empty and 'Unit No.' in total_units_df.columns else 0
@@ -1991,122 +1957,114 @@ with tab5:
                 # Prophet forecast chart for this card (like Trend & Valuation, chart only)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     prophet_df = filtered[['Evidence Date', 'Price (AED/sq ft)']].dropna()
-                    # Ensure prophet_df is a DataFrame
-                    import pandas as pd
-                    if not isinstance(prophet_df, pd.DataFrame):
-                        prophet_df = pd.DataFrame(prophet_df)
-                    st.write('Prophet input data:', prophet_df.head(), f'Rows: {len(prophet_df)}')
-                    if len(prophet_df) < 6:
-                        st.warning('Not enough data for Prophet forecast (need at least 6 rows).')
-                    else:
-                        prophet_df = prophet_df.rename(columns={'Evidence Date': 'ds', 'Price (AED/sq ft)': 'y'})
-                        prophet_df['ds'] = pd.to_datetime(prophet_df['ds'], errors='coerce')
-                        prophet_df['y'] = pd.to_numeric(prophet_df['y'], errors='coerce')
-                        monthly_df_prophet = prophet_df.set_index('ds')['y'].resample('ME').mean().reset_index()
-                        monthly_df_prophet = monthly_df_prophet.rename(columns={'ds': 'ds', 'y': 'y'})
-                        from prophet import Prophet
-                        m = Prophet()
-                        try:
-                            m.fit(monthly_df_prophet)
-                            future = m.make_future_dataframe(periods=6, freq='M')
-                            forecast = m.predict(future)
-                            import plotly.graph_objects as go
-                            fig = go.Figure()
-                            # Historical
+                    prophet_df = prophet_df.rename(columns={'Evidence Date': 'ds', 'Price (AED/sq ft)': 'y'})
+                    prophet_df['ds'] = pd.to_datetime(prophet_df['ds'], errors='coerce')
+                    prophet_df['y'] = pd.to_numeric(prophet_df['y'], errors='coerce')
+                    monthly_df_prophet = prophet_df.set_index('ds')['y'].resample('ME').mean().reset_index()
+                    monthly_df_prophet = monthly_df_prophet.rename(columns={'ds': 'ds', 'y': 'y'})
+                    from prophet import Prophet
+                    m = Prophet()
+                    try:
+                        m.fit(monthly_df_prophet)
+                        future = m.make_future_dataframe(periods=6, freq='M')
+                        forecast = m.predict(future)
+                        import plotly.graph_objects as go
+                        fig = go.Figure()
+                        # Historical
+                        fig.add_trace(go.Scatter(
+                            x=monthly_df_prophet['ds'], y=monthly_df_prophet['y'],
+                            mode='lines+markers', name='Historical',
+                            line=dict(color='blue'), marker=dict(color='blue')
+                        ))
+                        # Forecast
+                        fig.add_trace(go.Scatter(
+                            x=forecast['ds'], y=forecast['yhat'],
+                            mode='lines+markers', name='Forecast',
+                            line=dict(color='lightblue'), marker=dict(color='lightblue')
+                        ))
+                        # CI band
+                        fig.add_trace(go.Scatter(
+                            x=forecast['ds'], y=forecast['yhat_upper'],
+                            mode='lines', name='Upper CI',
+                            line=dict(width=0), showlegend=False
+                        ))
+                        fig.add_trace(go.Scatter(
+                            x=forecast['ds'], y=forecast['yhat_lower'],
+                            mode='lines', name='Lower CI',
+                            fill='tonexty', fillcolor='rgba(173,216,230,0.2)',
+                            line=dict(width=0), showlegend=False
+                        ))
+                        # Transactions as blue dots
+                        if 'Evidence Date' in filtered.columns and 'Price (AED)' in filtered.columns:
+                            txn_df = filtered[['Evidence Date', 'Price (AED)']].dropna()
+                            txn_df['Evidence Date'] = pd.to_datetime(txn_df['Evidence Date'], errors='coerce')
                             fig.add_trace(go.Scatter(
-                                x=monthly_df_prophet['ds'], y=monthly_df_prophet['y'],
-                                mode='lines+markers', name='Historical',
-                                line=dict(color='blue'), marker=dict(color='blue')
+                                x=txn_df['Evidence Date'], y=txn_df['Price (AED)'],
+                                mode='markers', marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
+                                name='Transactions',
+                                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<extra></extra>"
                             ))
-                            # Forecast
-                            fig.add_trace(go.Scatter(
-                                x=forecast['ds'], y=forecast['yhat'],
-                                mode='lines+markers', name='Forecast',
-                                line=dict(color='lightblue'), marker=dict(color='lightblue')
-                            ))
-                            # CI band
-                            fig.add_trace(go.Scatter(
-                                x=forecast['ds'], y=forecast['yhat_upper'],
-                                mode='lines', name='Upper CI',
-                                line=dict(width=0), showlegend=False
-                            ))
-                            fig.add_trace(go.Scatter(
-                                x=forecast['ds'], y=forecast['yhat_lower'],
-                                mode='lines', name='Lower CI',
-                                fill='tonexty', fillcolor='rgba(173,216,230,0.2)',
-                                line=dict(width=0), showlegend=False
-                            ))
-                            # Transactions as blue dots
-                            if 'Evidence Date' in filtered.columns and 'Price (AED)' in filtered.columns:
-                                txn_df = filtered[['Evidence Date', 'Price (AED)']].dropna()
-                                txn_df['Evidence Date'] = pd.to_datetime(txn_df['Evidence Date'], errors='coerce')
+                        # Listings as green/red diamonds (if available)
+                        listings_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+                        if not listings_df.empty:
+                            # Filter listings by card filters (development, community, subcommunity, layout_type, bedrooms)
+                            if filters['development']:
+                                listings_df = listings_df[listings_df['Development'] == filters['development']]
+                            if filters['community']:
+                                listings_df = listings_df[listings_df['Community'] == filters['community']]
+                            if filters['subcommunity']:
+                                listings_df = listings_df[listings_df['Subcommunity'] == filters['subcommunity']]
+                            if filters['layout_type']:
+                                listings_df = listings_df[listings_df['Layout Type'] == filters['layout_type']]
+                            if filters['bedrooms']:
+                                listings_df = listings_df[listings_df['Beds'].astype(str) == filters['bedrooms']]
+                            # Verified listings (green)
+                            if 'Verified' in listings_df.columns:
+                                ver_df = listings_df[listings_df['Verified'].str.lower() == 'yes']
+                                nonver_df = listings_df[listings_df['Verified'].str.lower() != 'yes']
+                            else:
+                                ver_df = listings_df.copy()
+                                nonver_df = listings_df.iloc[0:0]
+                            if not ver_df.empty:
                                 fig.add_trace(go.Scatter(
-                                    x=txn_df['Evidence Date'], y=txn_df['Price (AED)'],
-                                    mode='markers', marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
-                                    name='Transactions',
-                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<extra></extra>"
+                                    x=ver_df["Listed When"] if "Listed When" in ver_df.columns else ver_df.get("Listing Date", ver_df.index),
+                                    y=ver_df['Price (AED)'],
+                                    mode='markers',
+                                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
+                                    name='Verified Listings',
+                                    customdata=ver_df["URL"] if "URL" in ver_df.columns else None,
+                                    text=ver_df.apply(lambda row: " | ".join(filter(None, [
+                                        f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
+                                        f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
+                                        f'{row["Community"]}' if pd.notnull(row.get("Community")) else "",
+                                        f'{row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
+                                    ])), axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
+                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
                                 ))
-                            # Listings as green/red diamonds (if available)
-                            listings_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
-                            if not listings_df.empty:
-                                # Filter listings by card filters (development, community, subcommunity, layout_type, bedrooms)
-                                if filters['development']:
-                                    listings_df = listings_df[listings_df['Development'] == filters['development']]
-                                if filters['community']:
-                                    listings_df = listings_df[listings_df['Community'] == filters['community']]
-                                if filters['subcommunity']:
-                                    listings_df = listings_df[listings_df['Subcommunity'] == filters['subcommunity']]
-                                if filters['layout_type']:
-                                    listings_df = listings_df[listings_df['Layout Type'] == filters['layout_type']]
-                                if filters['bedrooms']:
-                                    listings_df = listings_df[listings_df['Beds'].astype(str) == filters['bedrooms']]
-                                # Verified listings (green)
-                                if 'Verified' in listings_df.columns:
-                                    ver_df = listings_df[listings_df['Verified'].str.lower() == 'yes']
-                                    nonver_df = listings_df[listings_df['Verified'].str.lower() != 'yes']
-                                else:
-                                    ver_df = listings_df.copy()
-                                    nonver_df = listings_df.iloc[0:0]
-                                if not ver_df.empty:
-                                    fig.add_trace(go.Scatter(
-                                        x=ver_df["Listed When"] if "Listed When" in ver_df.columns else ver_df.get("Listing Date", ver_df.index),
-                                        y=ver_df['Price (AED)'],
-                                        mode='markers',
-                                        marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
-                                        name='Verified Listings',
-                                        customdata=ver_df["URL"],
-                                        text=ver_df.apply(lambda row: " | ".join(filter(None, [
-                                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
-                                            f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
-                                            f'{row["Community"]}' if pd.notnull(row.get("Community")) else "",
-                                            f'{row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
-                                        ])), axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
-                                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
-                                    ))
-                                if not nonver_df.empty:
-                                    fig.add_trace(go.Scatter(
-                                        x=nonver_df["Listed When"] if "Listed When" in nonver_df.columns else nonver_df.get("Listing Date", nonver_df.index),
-                                        y=nonver_df['Price (AED)'],
-                                        mode='markers',
-                                        marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
-                                        name='Non-verified Listings',
-                                        customdata=nonver_df["URL"],
-                                        text=nonver_df.apply(lambda row: " | ".join(filter(None, [
-                                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
-                                            f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
-                                            f'{row["Community"]}' if pd.notnull(row.get("Community")) else "",
-                                            f'{row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
-                                        ])), axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
-                                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
-                                    ))
-                            fig.update_layout(
-                                title='Prophet Forecast (AED/sq ft)',
-                                xaxis_title='Month', yaxis_title='AED/sq ft',
-                                height=350
-                            )
-                            st.plotly_chart(fig, use_container_width=True, key=f"prophet_chart_{card_key}")
-                        except Exception as e:
-                            st.error(f"Prophet forecast failed: {e}")
+                            if not nonver_df.empty:
+                                fig.add_trace(go.Scatter(
+                                    x=nonver_df["Listed When"] if "Listed When" in nonver_df.columns else nonver_df.get("Listing Date", nonver_df.index),
+                                    y=nonver_df['Price (AED)'],
+                                    mode='markers',
+                                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
+                                    name='Non-verified Listings',
+                                    customdata=nonver_df["URL"] if "URL" in nonver_df.columns else None,
+                                    text=nonver_df.apply(lambda row: " | ".join(filter(None, [
+                                        f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
+                                        f'{row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
+                                        f'{row["Community"]}' if pd.notnull(row.get("Community")) else "",
+                                        f'{row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
+                                    ])), axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
+                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                                ))
+                        fig.update_layout(
+                            title='Prophet Forecast (AED/sq ft)',
+                            xaxis_title='Month', yaxis_title='AED/sq ft',
+                            height=350
+                        )
+                        st.plotly_chart(fig, use_container_width=True, key=f"prophet_chart_{card_key}")
+                    except Exception as e:
+                        st.warning(f"Prophet forecast failed: {e}")
                 st.markdown("---")
                 st.markdown("</div>", unsafe_allow_html=True)
     # Remove card if requested
@@ -2330,21 +2288,5 @@ if 'tune_prophet_hyperparameters' not in globals():
 
 # Move this outside the expander so it's always defined
 monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
-
-# Add this function near the top of the file (after imports)
-def autofill_card_fields(card_key):
-    card_state_prefix = f"comp_card_{card_key}_"
-    selected_unit = st.session_state.get(f"unit_{card_key}", "")
-    import pandas as pd
-    if selected_unit:
-        unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
-        if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
-            unit_row = unit_row.iloc[0]
-            st.session_state[card_state_prefix + "dev"] = unit_row.get('All Developments', "")
-            st.session_state[card_state_prefix + "com"] = unit_row.get('Community/Building', "")
-            st.session_state[card_state_prefix + "subcom"] = unit_row.get('Sub Community / Building', "")
-            st.session_state[card_state_prefix + "layout"] = unit_row.get('Layout Type', "")
-            st.session_state[card_state_prefix + "beds"] = str(unit_row.get('Beds', ""))
-            st.experimental_rerun()
 
 
