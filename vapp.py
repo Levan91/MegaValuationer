@@ -2218,11 +2218,17 @@ def autofill_card_fields(card_key):
         unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
         if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
             unit_row = unit_row.iloc[0]
-            st.session_state[f"dev_{card_key}"] = unit_row.get('All Developments', "")
-            st.session_state[f"com_{card_key}"] = unit_row.get('Community/Building', "")
-            st.session_state[f"subcom_{card_key}"] = unit_row.get('Sub Community / Building', "")
-            st.session_state[f"layout_{card_key}"] = unit_row.get('Layout Type', "")
-            st.session_state[f"beds_{card_key}"] = str(unit_row.get('Beds', ""))
+            # Normalize values to match selectbox options
+            dev = str(unit_row.get('All Developments', "")).strip()
+            com = str(unit_row.get('Community/Building', "")).strip()
+            subcom = str(unit_row.get('Sub Community / Building', "")).strip()
+            layout = str(unit_row.get('Layout Type', "")).strip()
+            beds = str(unit_row.get('Beds', "")).strip()
+            st.session_state[f"dev_{card_key}"] = dev
+            st.session_state[f"com_{card_key}"] = com
+            st.session_state[f"subcom_{card_key}"] = subcom
+            st.session_state[f"layout_{card_key}"] = layout
+            st.session_state[f"beds_{card_key}"] = beds
     st.rerun()
 
 # 2. In tab5, update the Unit No. selectbox to use on_change=autofill_card_fields
@@ -2314,5 +2320,19 @@ if remove_card_idx is not None and n_cards > 2:
     st.session_state['comp_card_keys'].pop(remove_card_idx)
     st.rerun()
 # ...
+
+# After the selectboxes in each comparison card, add debug output
+st.write({
+    'autofill_dev': st.session_state.get(f'dev_{card_key}', ''),
+    'dev_options': dev_options,
+    'autofill_com': st.session_state.get(f'com_{card_key}', ''),
+    'com_options': com_options,
+    'autofill_subcom': st.session_state.get(f'subcom_{card_key}', ''),
+    'subcom_options': subcom_options,
+    'autofill_layout': st.session_state.get(f'layout_{card_key}', ''),
+    'layout_options': layout_options,
+    'autofill_beds': st.session_state.get(f'beds_{card_key}', ''),
+    'bed_options': bed_options
+})
 
 
