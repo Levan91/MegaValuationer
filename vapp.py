@@ -1788,6 +1788,11 @@ with tab5:
             idx = row_start + i
             card_key = card_keys[idx]
             with col:
+                # Card border container using st.markdown and st.container
+                with st.container():
+                    st.markdown(f"""
+                        <div style='border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 8px; background: #fafbfc;'>
+                    """, unsafe_allow_html=True)
                 st.subheader(f"Comparison Card {idx+1}")
                 # Remove button (only if more than 2 cards)
                 if n_cards > 2:
@@ -1872,6 +1877,7 @@ with tab5:
                 st.metric("Transactions in selected period", n_transactions)
                 if filtered.empty:
                     st.info("No data for selected filters.")
+                    st.markdown("</div>", unsafe_allow_html=True)
                     continue
                 # Average sales per month (demand)
                 if 'Evidence Date' in filtered.columns:
@@ -1882,12 +1888,13 @@ with tab5:
                     import plotly.graph_objects as go
                     # Ensure x-axis is formatted as month-year
                     x_vals = monthly_counts.index
-                    if hasattr(x_vals, 'to_timestamp'):
-                        x_vals = x_vals.to_timestamp()
-                    if hasattr(x_vals, 'strftime'):
-                        x_labels = x_vals.strftime('%b %Y')
+                    if len(x_vals) > 0:
+                        try:
+                            x_labels = pd.to_datetime(x_vals).strftime('%b %Y')
+                        except Exception:
+                            x_labels = [str(x) for x in x_vals]
                     else:
-                        x_labels = [str(x) for x in x_vals]
+                        x_labels = []
                     bar_fig = go.Figure()
                     bar_fig.add_trace(go.Bar(
                         x=x_labels,
@@ -1906,7 +1913,7 @@ with tab5:
                         margin=dict(l=20, r=20, t=40, b=40),
                         height=300
                     )
-                    st.plotly_chart(bar_fig, use_container_width=True)
+                    st.plotly_chart(bar_fig, use_container_width=True, key=f"bar_chart_{card_key}")
                 # Average price per sq ft over time (trend)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
@@ -1927,6 +1934,7 @@ with tab5:
                         median_price = pd.Series(last_6mo['Price (AED/sq ft)']).median()
                         st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
                 st.markdown("---")
+                st.markdown("</div>", unsafe_allow_html=True)
     # Remove card if requested
     if remove_card_idx is not None and n_cards > 2:
         st.session_state['comp_card_count'] -= 1
