@@ -1800,10 +1800,13 @@ with tab5:
                 bed_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
                 unit_no_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().astype(str).unique()) if not all_transactions.empty else []
 
-                # Unit selector
-                selected_unit = st.selectbox(f"Unit No. (Card {idx+1})", [""] + unit_no_options, key=f"unit_{card_key}")
                 # Autofill logic
+                selected_unit = None
                 autofill = {'development': '', 'community': '', 'subcommunity': '', 'layout_type': '', 'bedrooms': ''}
+                # First row: Unit No., Development, Community
+                filter_cols1 = st.columns(3)
+                with filter_cols1[0]:
+                    selected_unit = st.selectbox(f"Unit No.", [""] + unit_no_options, key=f"unit_{card_key}")
                 if selected_unit:
                     unit_row = all_transactions[all_transactions['Unit No.'].astype(str) == selected_unit]
                     unit_row = pd.DataFrame(unit_row)
@@ -1813,12 +1816,18 @@ with tab5:
                         autofill['subcommunity'] = unit_row['Sub Community / Building'].iloc[0] if 'Sub Community / Building' in unit_row.columns else ''
                         autofill['layout_type'] = unit_row['Layout Type'].iloc[0] if 'Layout Type' in unit_row.columns else ''
                         autofill['bedrooms'] = str(unit_row['Beds'].iloc[0]) if 'Beds' in unit_row.columns else ''
-                # Use autofill as default, but allow manual override
-                development = st.selectbox(f"Development (Card {idx+1})", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{card_key}")
-                community = st.selectbox(f"Community (Card {idx+1})", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{card_key}")
-                subcommunity = st.selectbox(f"Subcommunity (Card {idx+1})", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{card_key}")
-                layout_type = st.selectbox(f"Layout Type (Card {idx+1})", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{card_key}")
-                bedrooms = st.selectbox(f"Bedrooms (Card {idx+1})", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{card_key}")
+                with filter_cols1[1]:
+                    development = st.selectbox("Development", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{card_key}")
+                with filter_cols1[2]:
+                    community = st.selectbox("Community", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{card_key}")
+                # Second row: Subcommunity, Layout Type, Bedrooms
+                filter_cols2 = st.columns(3)
+                with filter_cols2[0]:
+                    subcommunity = st.selectbox("Subcommunity", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{card_key}")
+                with filter_cols2[1]:
+                    layout_type = st.selectbox("Layout Type", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{card_key}")
+                with filter_cols2[2]:
+                    bedrooms = st.selectbox("Bedrooms", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{card_key}")
                 card_filters.append({
                     'development': development,
                     'community': community,
