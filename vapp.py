@@ -1923,14 +1923,21 @@ with tab5:
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('ME').mean()
                     st.line_chart(price_trend, use_container_width=True)
-                # Growth rate (last 12 months)
+                # Growth rate (last 12 months, fallback to 6mo or first-to-last if less data)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('ME').mean()
-                    if len(price_trend) >= 12:
+                    n_months = len(price_trend)
+                    if n_months >= 12:
                         growth = (price_trend.iloc[-1] - price_trend.iloc[-12]) / price_trend.iloc[-12] * 100 if price_trend.iloc[-12] != 0 else 0
                         st.metric("12mo Growth Rate (%)", f"{growth:.2f}%")
+                    elif n_months >= 6:
+                        growth = (price_trend.iloc[-1] - price_trend.iloc[-6]) / price_trend.iloc[-6] * 100 if price_trend.iloc[-6] != 0 else 0
+                        st.metric("6mo Growth Rate (%)", f"{growth:.2f}%")
+                    elif n_months >= 2:
+                        growth = (price_trend.iloc[-1] - price_trend.iloc[0]) / price_trend.iloc[0] * 100 if price_trend.iloc[0] != 0 else 0
+                        st.metric("Growth (first to last) (%)", f"{growth:.2f}%")
                     else:
-                        st.metric("12mo Growth Rate (%)", "N/A (need 12+ months)")
+                        st.metric("Growth Rate", "N/A (need 2+ months)")
                 # Recent price range (last 6 months)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     last_6mo = filtered[filtered['Evidence Date'] >= (pd.Timestamp.now() - pd.DateOffset(months=6))]
