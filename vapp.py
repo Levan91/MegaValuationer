@@ -1023,7 +1023,7 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Other"])
+tab1, tab2, tab3 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation"])
 
 with tab1:
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
@@ -1741,223 +1741,915 @@ if 'Development' in listing_df.columns and development:
 
 
 
-with tab4:
-    st.write("Placeholder for other functionality.")
 
-import logging
-logger = logging.getLogger(__name__)
 
-def safe_operation(func):
-    """Decorator for safe operations with proper error handling"""
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            st.error(f"Operation failed: {str(e)}")
-            return None
-    return wrapper
 
-def enhanced_similarity_model(df, numeric_features, categorical_features, weights=None):
-    """Enhanced similarity model with feature weighting"""
-    # Add feature importance calculation
-    # Implement custom distance metrics
-    # Add similarity score confidence intervals
 
-def auto_tune_prophet(monthly_df, max_evals=50):
-    """Automatically tune Prophet hyperparameters"""
-    # Implement Bayesian optimization
-    # Add model comparison (Prophet vs other models)
-    # Include seasonality detection
 
-def validate_data_quality(df, required_columns):
-    """Validate data quality and completeness"""
-    missing_cols = [col for col in required_columns if col not in df.columns]
-    if missing_cols:
-        st.error(f"Missing required columns: {missing_cols}")
-        return False
-    
-    # Check for data types, ranges, outliers
-    # Return validation report
-    return True
 
-# Add ML pipeline for automated valuation
-class ValuationPipeline:
-    def __init__(self):
-        self.models = {
-            'similarity': None,
-            'prophet': None,
-            'regression': None
-        }
-    
-    def fit_all_models(self, data):
-        """Fit all models in parallel"""
-        # Implementation
 
-# Add real-time data refresh capabilities
-@st.cache_data(ttl=300)  # 5 minutes
-def get_live_data():
-    """Fetch live data from external APIs"""
-    # Implementation
 
-# Track user interactions for improvement
-def track_user_behavior(action, details):
-    """Track user interactions for analytics"""
-    # Implementation
 
-def detect_outliers_iqr(df, column='y', factor=1.5):
-    """Detect outliers using IQR method"""
-    Q1 = df[column].quantile(0.25)
-    Q3 = df[column].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - factor * IQR
-    upper_bound = Q3 + factor * IQR
-    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
 
-def calculate_forecast_metrics(actual, predicted):
-    """Calculate multiple forecast accuracy metrics"""
-    mape = mean_absolute_percentage_error(actual, predicted) * 100
-    mae = mean_absolute_error(actual, predicted)
-    rmse = np.sqrt(mean_squared_error(actual, predicted))
-    return {
-        'MAPE': mape,
-        'MAE': mae,
-        'RMSE': rmse,
-        'R2': r2_score(actual, predicted)
-    }
 
-def detect_seasonality(monthly_df):
-    """Detect if data has significant seasonality"""
-    try:
-        from statsmodels.tsa.seasonal import seasonal_decompose
-        decomposition = seasonal_decompose(monthly_df['y'], period=12)
-        seasonal_strength = np.std(decomposition.seasonal) / np.std(decomposition.resid)
-        return seasonal_strength > 0.1  # Threshold for significant seasonality
-    except ImportError:
-        # statsmodels not available, return False
-        return False
-    except Exception:
-        # Other errors, return False
-        return False
 
-def compare_prophet_models(monthly_df):
-    """Compare different Prophet configurations"""
-    models = {
-        'Linear': {'growth': 'linear'},
-        'Logistic': {'growth': 'logistic', 'cap': monthly_df['y'].max() * 1.2},
-        'Custom': {'growth': 'linear', 'changepoint_prior_scale': 0.01}
-    }
-    
-    results = {}
-    for name, config in models.items():
-        m = Prophet(**config)
-        m.fit(monthly_df)
-        # Cross-validation
-        df_cv = cross_validation(m, initial='730 days', period='180 days', horizon='365 days')
-        results[name] = performance_metrics(df_cv)
-    
-    return results
 
-# ADD: Better uncertainty handling
-def calculate_forecast_uncertainty(forecast, confidence_level=0.8):
-    """Calculate forecast uncertainty with custom confidence intervals"""
-    z_score = norm.ppf((1 + confidence_level) / 2)
-    forecast['custom_lower'] = forecast['yhat'] - z_score * forecast['yhat_lower']
-    forecast['custom_upper'] = forecast['yhat'] + z_score * forecast['yhat_upper']
-    return forecast
 
-# ENHANCE: Better changepoint visualization
-def analyze_changepoints(m, monthly_df):
-    """Analyze and visualize changepoints"""
-    fig = m.plot_components(forecast)
-    
-    # Add changepoint significance
-    changepoint_dates = m.changepoints
-    changepoint_effects = m.params['delta'].flatten()
-    
-    # Filter significant changepoints
-    significant_changes = changepoint_effects[np.abs(changepoint_effects) > np.std(changepoint_effects)]
-    
-    return fig, significant_changes
 
-# ADD: Memory-efficient data processing
-@st.cache_data(ttl=3600)
-def process_large_dataset(df, chunk_size=10000):
-    """Process large datasets in chunks"""
-    chunks = []
-    for i in range(0, len(df), chunk_size):
-        chunk = df.iloc[i:i+chunk_size].copy()
-        # Process chunk
-        chunks.append(chunk)
-    return pd.concat(chunks, ignore_index=True)
 
-# IMPROVE: Better error handling for Prophet
-@safe_operation
-def safe_prophet_fit(monthly_df, **kwargs):
-    """Safely fit Prophet model with error handling"""
-    try:
-        m = Prophet(**kwargs)
-        m.fit(monthly_df)
-        return m
-    except Exception as e:
-        st.error(f"Prophet fitting failed: {e}")
-        # Fallback to simple model
-        return Prophet(growth='linear')
 
-# ADD: Comprehensive data validation
-def validate_prophet_data(monthly_df):
-    """Validate data for Prophet forecasting"""
-    issues = []
-    
-    if len(monthly_df) < 6:
-        issues.append("Insufficient data points (< 6 months)")
-    
-    if monthly_df['y'].isnull().sum() > 0:
-        issues.append("Missing values detected")
-    
-    if monthly_df['y'].std() == 0:
-        issues.append("No variance in target variable")
-    
-    if monthly_df['y'].min() <= 0:
-        issues.append("Non-positive values detected")
-    
-    return issues
 
-# ISSUE: Mixed frequency usage
-# FIX: Ensure consistent frequency
 
-# CURRENT: Simple capacity calculation
-default_cap = int(monthly_df['y'].max() * 1.1)
 
-# IMPROVEMENT: More sophisticated capacity estimation
-def estimate_capacity(monthly_df, method='percentile'):
-    """Estimate capacity for logistic growth"""
-    if method == 'percentile':
-        return monthly_df['y'].quantile(0.95) * 1.1
-    elif method == 'trend':
-        # Extrapolate trend
-        return monthly_df['y'].iloc[-1] * 1.2
-    elif method == 'market':
-        # Use market analysis
-        return monthly_df['y'].max() * 1.15
 
-# IMPROVE: Better event handling
-def create_market_events():
-    """Create market-specific events for Prophet"""
-    events = pd.DataFrame({
-        'holiday': ['Eid Al Fitr', 'Eid Al Adha', 'New Year'],
-        'ds': ['2024-04-10', '2024-06-17', '2024-01-01'],
-        'lower_window': [-7, -7, -14],
-        'upper_window': [7, 7, 7]
-    })
-    return events
 
-# Place the stub for tune_prophet_hyperparameters here, before any use
-if 'tune_prophet_hyperparameters' not in globals():
-    def tune_prophet_hyperparameters(monthly_df):
-        return None, None
 
-# Move this outside the expander so it's always defined
-monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
