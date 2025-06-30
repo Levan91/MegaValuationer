@@ -1796,6 +1796,7 @@ with tab5:
         with col:
             filters = card_filters[idx]
             filtered = all_transactions.copy()
+            filtered = pd.DataFrame(filtered)
             if filters['development']:
                 filtered = filtered[filtered['All Developments'] == filters['development']]
             if filters['community']:
@@ -1813,6 +1814,11 @@ with tab5:
             # Metrics
             st.markdown("---")
             st.markdown(f"### Metrics for Card {idx+1}")
+            # Show number of units of this type in selection
+            filtered = pd.DataFrame(filtered)
+            if not filtered.empty and 'Unit No.' in filtered.columns:
+                n_units = int(filtered['Unit No.'].nunique())
+                st.metric("Units of this type in selection", n_units)
             if filtered.empty:
                 st.info("No data for selected filters.")
                 continue
