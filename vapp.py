@@ -2212,23 +2212,16 @@ monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
 # 1. Add autofill_card_fields function after imports
 
 def autofill_card_fields(card_key):
-    card_state_prefix = f"comp_card_{card_key}_"
     selected_unit = st.session_state.get(f"unit_{card_key}", "")
     if selected_unit:
         unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
-        if isinstance(unit_row, pd.DataFrame) and not unit_row.empty:
+        if hasattr(unit_row, "empty") and not unit_row.empty:
             unit_row = unit_row.iloc[0]
-            # Normalize values to match selectbox options
-            dev = str(unit_row.get('All Developments', "")).strip()
-            com = str(unit_row.get('Community/Building', "")).strip()
-            subcom = str(unit_row.get('Sub Community / Building', "")).strip()
-            layout = str(unit_row.get('Layout Type', "")).strip()
-            beds = str(unit_row.get('Beds', "")).strip()
-            st.session_state[f"dev_{card_key}"] = dev
-            st.session_state[f"com_{card_key}"] = com
-            st.session_state[f"subcom_{card_key}"] = subcom
-            st.session_state[f"layout_{card_key}"] = layout
-            st.session_state[f"beds_{card_key}"] = beds
+            st.session_state[f"dev_{card_key}"] = str(unit_row.get('All Developments', "")).strip()
+            st.session_state[f"com_{card_key}"] = str(unit_row.get('Community/Building', "")).strip()
+            st.session_state[f"subcom_{card_key}"] = str(unit_row.get('Sub Community / Building', "")).strip()
+            st.session_state[f"layout_{card_key}"] = str(unit_row.get('Layout Type', "")).strip()
+            st.session_state[f"beds_{card_key}"] = str(unit_row.get('Beds', "")).strip()
     st.rerun()
 
 # 2. In tab5, update the Unit No. selectbox to use on_change=autofill_card_fields
