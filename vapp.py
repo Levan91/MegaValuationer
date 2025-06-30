@@ -1917,7 +1917,8 @@ with tab5:
                 # Average price per sq ft over time (trend)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
-                    st.line_chart(price_trend, use_container_width=True)
+-                    st.line_chart(price_trend, use_container_width=True)
++                    st.line_chart(price_trend, use_container_width=True, key=f"trend_chart_{card_key}")
                 # Growth rate (last 12 months)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     price_trend = filtered.set_index('Evidence Date')['Price (AED/sq ft)'].resample('M').mean()
