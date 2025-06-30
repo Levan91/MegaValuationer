@@ -1774,12 +1774,25 @@ with tab5:
 
     # Render cards in rows of 2
     card_filters = []
+    card_keys = st.session_state.get('comp_card_keys', list(range(n_cards)))
+    # Ensure card_keys matches n_cards
+    if len(card_keys) < n_cards:
+        card_keys += list(range(max(card_keys, default=-1)+1, max(card_keys, default=-1)+1+n_cards-len(card_keys)))
+    elif len(card_keys) > n_cards:
+        card_keys = card_keys[:n_cards]
+    st.session_state['comp_card_keys'] = card_keys
+    remove_card_idx = None
     for row_start in range(0, n_cards, 2):
         row_cols = st.columns(min(2, n_cards - row_start))
         for i, col in enumerate(row_cols):
             idx = row_start + i
+            card_key = card_keys[idx]
             with col:
                 st.subheader(f"Comparison Card {idx+1}")
+                # Remove button (only if more than 2 cards)
+                if n_cards > 2:
+                    if st.button("🗑️ Remove", key=f"remove_card_{card_key}"):
+                        remove_card_idx = idx
                 dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
                 com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
                 subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
@@ -1788,7 +1801,7 @@ with tab5:
                 unit_no_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().astype(str).unique()) if not all_transactions.empty else []
 
                 # Unit selector
-                selected_unit = st.selectbox(f"Unit No. (Card {idx+1})", [""] + unit_no_options, key=f"unit_{idx}")
+                selected_unit = st.selectbox(f"Unit No. (Card {idx+1})", [""] + unit_no_options, key=f"unit_{card_key}")
                 # Autofill logic
                 autofill = {'development': '', 'community': '', 'subcommunity': '', 'layout_type': '', 'bedrooms': ''}
                 if selected_unit:
@@ -1801,11 +1814,11 @@ with tab5:
                         autofill['layout_type'] = unit_row['Layout Type'].iloc[0] if 'Layout Type' in unit_row.columns else ''
                         autofill['bedrooms'] = str(unit_row['Beds'].iloc[0]) if 'Beds' in unit_row.columns else ''
                 # Use autofill as default, but allow manual override
-                development = st.selectbox(f"Development (Card {idx+1})", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{idx}")
-                community = st.selectbox(f"Community (Card {idx+1})", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{idx}")
-                subcommunity = st.selectbox(f"Subcommunity (Card {idx+1})", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{idx}")
-                layout_type = st.selectbox(f"Layout Type (Card {idx+1})", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{idx}")
-                bedrooms = st.selectbox(f"Bedrooms (Card {idx+1})", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{idx}")
+                development = st.selectbox(f"Development (Card {idx+1})", [""] + dev_options, index=([""] + dev_options).index(autofill['development']) if autofill['development'] in dev_options else 0, key=f"dev_{card_key}")
+                community = st.selectbox(f"Community (Card {idx+1})", [""] + com_options, index=([""] + com_options).index(autofill['community']) if autofill['community'] in com_options else 0, key=f"com_{card_key}")
+                subcommunity = st.selectbox(f"Subcommunity (Card {idx+1})", [""] + subcom_options, index=([""] + subcom_options).index(autofill['subcommunity']) if autofill['subcommunity'] in subcom_options else 0, key=f"subcom_{card_key}")
+                layout_type = st.selectbox(f"Layout Type (Card {idx+1})", [""] + layout_options, index=([""] + layout_options).index(autofill['layout_type']) if autofill['layout_type'] in layout_options else 0, key=f"layout_{card_key}")
+                bedrooms = st.selectbox(f"Bedrooms (Card {idx+1})", [""] + bed_options, index=([""] + bed_options).index(autofill['bedrooms']) if autofill['bedrooms'] in bed_options else 0, key=f"beds_{card_key}")
                 card_filters.append({
                     'development': development,
                     'community': community,
@@ -1813,14 +1826,8 @@ with tab5:
                     'layout_type': layout_type,
                     'bedrooms': bedrooms
                 })
-
-    from datetime import datetime, timedelta
-    card_idx = 0
-    for row_start in range(0, n_cards, 2):
-        row_cols = st.columns(min(2, n_cards - row_start))
-        for i, col in enumerate(row_cols):
-            idx = row_start + i
-            with col:
+                # --- Metrics and charts for this card ---
+                from datetime import datetime, timedelta
                 filters = card_filters[idx]
                 filtered = all_transactions.copy()
                 filtered = pd.DataFrame(filtered)
@@ -1864,9 +1871,17 @@ with tab5:
                     st.metric("Avg Sales/Month", f"{avg_sales_per_month:.2f}")
                     # Improved Plotly bar chart
                     import plotly.graph_objects as go
+                    # Ensure x-axis is formatted as month-year
+                    x_vals = monthly_counts.index
+                    if hasattr(x_vals, 'to_timestamp'):
+                        x_vals = x_vals.to_timestamp()
+                    if hasattr(x_vals, 'strftime'):
+                        x_labels = x_vals.strftime('%b %Y')
+                    else:
+                        x_labels = [str(x) for x in x_vals]
                     bar_fig = go.Figure()
                     bar_fig.add_trace(go.Bar(
-                        x=monthly_counts.index.strftime('%b %Y'),
+                        x=x_labels,
                         y=monthly_counts.values,
                         marker_color='#1f77b4',
                         text=monthly_counts.values,
@@ -1903,6 +1918,11 @@ with tab5:
                         median_price = pd.Series(last_6mo['Price (AED/sq ft)']).median()
                         st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
                 st.markdown("---")
+    # Remove card if requested
+    if remove_card_idx is not None and n_cards > 2:
+        st.session_state['comp_card_count'] -= 1
+        st.session_state['comp_card_keys'].pop(remove_card_idx)
+        st.experimental_rerun()
 
 import logging
 logger = logging.getLogger(__name__)
