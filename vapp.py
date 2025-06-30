@@ -1023,7 +1023,7 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Other"])
+tab1, tab2, tab3 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation"])
 
 with tab1:
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
@@ -1740,9 +1740,6 @@ if 'Development' in listing_df.columns and development:
 
 
 
-
-with tab4:
-    st.write("Placeholder for other functionality.")
 
 import logging
 logger = logging.getLogger(__name__)
