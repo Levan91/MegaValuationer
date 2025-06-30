@@ -1744,11 +1744,6 @@ if 'Development' in listing_df.columns and development:
 import logging
 logger = logging.getLogger(__name__)
 
-        'ds': ['2024-04-10', '2024-06-17', '2024-01-01'],
-        'lower_window': [-7, -7, -14],
-        'upper_window': [7, 7, 7]
-    })
-    return events
 
 # Place the stub for tune_prophet_hyperparameters here, before any use
 if 'tune_prophet_hyperparameters' not in globals():
