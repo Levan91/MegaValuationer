@@ -1525,7 +1525,13 @@ if 'Development' in listing_df.columns and development:
                 marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
                 name='Verified Listings',
                 customdata=ver_df["URL"],
-                text=ver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
+                text=ver_df.apply(lambda row: " | ".join(filter(None, [
+                    f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
+                    f'Layout: {row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
+                    f'Development: {row["Development"]}' if pd.notnull(row.get("Development")) else "",
+                    f'Community: {row["Community"]}' if pd.notnull(row.get("Community")) else "",
+                    f'Subcommunity: {row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
+                ])), axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
                 hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
             ))
         if not nonver_df.empty:
@@ -1536,7 +1542,13 @@ if 'Development' in listing_df.columns and development:
                 marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
                 name='Non-verified Listings',
                 customdata=nonver_df["URL"],
-                text=nonver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
+                text=nonver_df.apply(lambda row: " | ".join(filter(None, [
+                    f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else "",
+                    f'Layout: {row["Layout Type"]}' if pd.notnull(row.get("Layout Type")) else "",
+                    f'Development: {row["Development"]}' if pd.notnull(row.get("Development")) else "",
+                    f'Community: {row["Community"]}' if pd.notnull(row.get("Community")) else "",
+                    f'Subcommunity: {row["Subcommunity"]}' if pd.notnull(row.get("Subcommunity")) else "",
+                ])), axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
                 hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
             ))
         fig.update_layout(
