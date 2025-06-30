@@ -2217,12 +2217,45 @@ def autofill_card_fields(card_key):
         unit_row = all_transactions[all_transactions['Unit No.'] == selected_unit]
         if hasattr(unit_row, "empty") and not unit_row.empty:
             unit_row = unit_row.iloc[0]
-            st.session_state[f"dev_{card_key}"] = str(unit_row.get('All Developments', "")).strip()
-            st.session_state[f"com_{card_key}"] = str(unit_row.get('Community/Building', "")).strip()
-            st.session_state[f"subcom_{card_key}"] = str(unit_row.get('Sub Community / Building', "")).strip()
-            st.session_state[f"layout_{card_key}"] = str(unit_row.get('Layout Type', "")).strip()
-            st.session_state[f"beds_{card_key}"] = str(unit_row.get('Beds', "")).strip()
+            dev = str(unit_row.get('All Developments', "")).strip()
+            com = str(unit_row.get('Community/Building', "")).strip()
+            subcom = str(unit_row.get('Sub Community / Building', "")).strip()
+            layout = str(unit_row.get('Layout Type', "")).strip()
+            beds = str(unit_row.get('Beds', "")).strip()
+            # Get options from session_state (populated in card loop)
+            dev_options = st.session_state.get(f"dev_options_{card_key}", [])
+            com_options = st.session_state.get(f"com_options_{card_key}", [])
+            subcom_options = st.session_state.get(f"subcom_options_{card_key}", [])
+            layout_options = st.session_state.get(f"layout_options_{card_key}", [])
+            bed_options = st.session_state.get(f"bed_options_{card_key}", [])
+            st.session_state[f"dev_{card_key}"] = dev if dev in dev_options else ""
+            st.session_state[f"com_{card_key}"] = com if com in com_options else ""
+            st.session_state[f"subcom_{card_key}"] = subcom if subcom in subcom_options else ""
+            st.session_state[f"layout_{card_key}"] = layout if layout in layout_options else ""
+            st.session_state[f"beds_{card_key}"] = beds if beds in bed_options else ""
     st.rerun()
+
+# In the card loop, after creating the options lists, store them in session_state for the callback to use
+st.session_state[f"dev_options_{card_key}"] = [""] + dev_options
+st.session_state[f"com_options_{card_key}"] = [""] + com_options
+st.session_state[f"subcom_options_{card_key}"] = [""] + subcom_options
+st.session_state[f"layout_options_{card_key}"] = [""] + layout_options
+st.session_state[f"bed_options_{card_key}"] = [""] + bed_options
+
+# After selectboxes, print debug output
+st.write({
+    "selected_unit": selected_unit,
+    "autofill_dev": st.session_state.get(f"dev_{card_key}", ""),
+    "dev_options": dev_options,
+    "autofill_com": st.session_state.get(f"com_{card_key}", ""),
+    "com_options": com_options,
+    "autofill_subcom": st.session_state.get(f"subcom_{card_key}", ""),
+    "subcom_options": subcom_options,
+    "autofill_layout": st.session_state.get(f"layout_{card_key}", ""),
+    "layout_options": layout_options,
+    "autofill_beds": st.session_state.get(f"beds_{card_key}", ""),
+    "bed_options": bed_options
+})
 
 # 2. In tab5, update the Unit No. selectbox to use on_change=autofill_card_fields
 # 3. For all other selectboxes, set their value from session_state (if present)
