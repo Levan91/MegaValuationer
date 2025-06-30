@@ -1765,7 +1765,7 @@ with tab5:
 
     # Date filter section
     st.markdown("### Date Filter for All Cards")
-    date_filter_mode = st.radio("Date Filter Mode", ["Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
+    date_filter_mode = st.radio("Date Filter Mode", ["All History", "Last N Days", "After Date"], horizontal=True, key="comp_date_mode")
     last_n_days = 365
     after_date = None
     if date_filter_mode == "Last N Days":
@@ -1861,7 +1861,7 @@ with tab5:
                 total_units_df = pd.DataFrame(filtered.copy())
                 n_units = int(total_units_df['Unit No.'].nunique()) if not total_units_df.empty and 'Unit No.' in total_units_df.columns else 0
                 # Apply date filter
-                if 'Evidence Date' in filtered.columns:
+                if 'Evidence Date' in filtered.columns and date_filter_mode != "All History":
                     filtered['Evidence Date'] = pd.to_datetime(filtered['Evidence Date'], errors='coerce')
                     today = datetime.today()
                     if date_filter_mode == "Last N Days" and last_n_days:
