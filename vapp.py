@@ -1980,6 +1980,114 @@ with tab5:
                         st.write(f"Last 6mo Price Range: Min {min_price:.0f}, Max {max_price:.0f}, Median {median_price:.0f}")
                 st.markdown("---")
                 st.markdown("</div>", unsafe_allow_html=True)
+
+                # After metrics for each comparison card in tab5, add a Plotly chart for sales history and live listings (verified and not verified)
+                import plotly.graph_objects as go
+                import streamlit.components.v1 as components
+
+                # ... inside the card loop, after metrics ...
+                # Filter transactions for this card
+                filtered_txn = all_transactions.copy()
+                if filters['development']:
+                    filtered_txn = filtered_txn[filtered_txn['All Developments'] == filters['development']]
+                if filters['community']:
+                    filtered_txn = filtered_txn[filtered_txn['Community/Building'] == filters['community']]
+                if filters['subcommunity']:
+                    filtered_txn = filtered_txn[filtered_txn['Sub Community / Building'] == filters['subcommunity']]
+                if filters['layout_type']:
+                    filtered_txn = filtered_txn[filtered_txn['Layout Type'] == filters['layout_type']]
+                if filters['bedrooms']:
+                    filtered_txn = filtered_txn[filtered_txn['Beds'].astype(str) == filters['bedrooms']]
+                filtered_txn = filtered_txn.copy()
+
+                # Filter listings for this card
+                filtered_listings = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+                if not filtered_listings.empty:
+                    if filters['development'] and 'Development' in filtered_listings.columns:
+                        filtered_listings = filtered_listings[filtered_listings['Development'] == filters['development']]
+                    if filters['community'] and 'Community' in filtered_listings.columns:
+                        filtered_listings = filtered_listings[filtered_listings['Community'] == filters['community']]
+                    if filters['subcommunity'] and 'Subcommunity' in filtered_listings.columns:
+                        filtered_listings = filtered_listings[filtered_listings['Subcommunity'] == filters['subcommunity']]
+                    if filters['layout_type'] and 'Layout Type' in filtered_listings.columns:
+                        filtered_listings = filtered_listings[filtered_listings['Layout Type'] == filters['layout_type']]
+                    if filters['bedrooms'] and 'Beds' in filtered_listings.columns:
+                        filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == filters['bedrooms']]
+
+                # Prepare chart
+                fig = go.Figure()
+                # Sales history (transactions)
+                if not filtered_txn.empty and 'Evidence Date' in filtered_txn.columns and 'Price (AED)' in filtered_txn.columns:
+                    txn_df = filtered_txn.copy()
+                    txn_df['Evidence Date'] = pd.to_datetime(txn_df['Evidence Date'], errors='coerce')
+                    txn_df = txn_df.dropna(subset=['Evidence Date', 'Price (AED)'])
+                    fig.add_trace(go.Scatter(
+                        x=txn_df['Evidence Date'],
+                        y=txn_df['Price (AED)'],
+                        mode='markers',
+                        marker=dict(symbol='circle', size=7, opacity=0.7, color='blue'),
+                        name='Sales',
+                        text=txn_df.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
+                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                    ))
+                # Live listings (verified and not verified)
+                if not filtered_listings.empty and 'Price (AED)' in filtered_listings.columns:
+                    # Ensure date column
+                    if 'Days Listed' in filtered_listings.columns:
+                        filtered_listings['Days Listed'] = pd.to_numeric(filtered_listings['Days Listed'], errors='coerce')
+                        filtered_listings['Listing Date'] = pd.to_datetime(datetime.today() - pd.to_timedelta(filtered_listings['Days Listed'], unit='D'))
+                    else:
+                        filtered_listings['Listing Date'] = pd.NaT
+                    # Verified
+                    if 'Verified' in filtered_listings.columns:
+                        ver_df = filtered_listings[filtered_listings['Verified'].str.lower() == 'yes']
+                        nonver_df = filtered_listings[filtered_listings['Verified'].str.lower() != 'yes']
+                    else:
+                        ver_df = filtered_listings.copy()
+                        nonver_df = filtered_listings.iloc[0:0]
+                    if not ver_df.empty:
+                        fig.add_trace(go.Scatter(
+                            x=ver_df['Listing Date'],
+                            y=ver_df['Price (AED)'],
+                            mode='markers',
+                            marker=dict(symbol='diamond', size=10, opacity=0.8, color='green'),
+                            name='Verified Listings',
+                            customdata=ver_df['URL'] if 'URL' in ver_df.columns else None,
+                            text=ver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago<br>{row.get('Layout Type','')}<br>{row.get('Community','')}<br>{row.get('Subcommunity','')}", axis=1) if 'Days Listed' in ver_df.columns and 'Layout Type' in ver_df.columns else "",
+                            hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                        ))
+                    if not nonver_df.empty:
+                        fig.add_trace(go.Scatter(
+                            x=nonver_df['Listing Date'],
+                            y=nonver_df['Price (AED)'],
+                            mode='markers',
+                            marker=dict(symbol='diamond', size=10, opacity=0.8, color='red'),
+                            name='Non-verified Listings',
+                            customdata=nonver_df['URL'] if 'URL' in nonver_df.columns else None,
+                            text=nonver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago<br>{row.get('Layout Type','')}<br>{row.get('Community','')}<br>{row.get('Subcommunity','')}", axis=1) if 'Days Listed' in nonver_df.columns and 'Layout Type' in nonver_df.columns else "",
+                            hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                        ))
+                fig.update_layout(
+                    title='Sales & Listings',
+                    xaxis_title='Date',
+                    yaxis_title='AED',
+                    showlegend=True,
+                    margin=dict(l=20, r=20, t=40, b=40),
+                    height=400
+                )
+                # Render interactive Plotly chart with clickable listings
+                html_str = fig.to_html(include_plotlyjs='cdn')
+                components.html(f"""
+                    {html_str}
+                    <script>
+                      const gd = document.querySelectorAll('.plotly-graph-div')[0];
+                      gd.on('plotly_click', function(event) {{
+                        const url = event.points[0].customdata;
+                        if (url) window.open(url);
+                      }});
+                    </script>
+                """, height=500, scrolling=True)
+
     # Remove card if requested
     if remove_card_idx is not None and n_cards > 2:
         st.session_state['comp_card_count'] -= 1
