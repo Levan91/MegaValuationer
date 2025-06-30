@@ -1751,7 +1751,77 @@ with tab4:
 
 with tab5:
     st.header("Comparisons")
-    st.write("This tab will allow you to compare units, listings, and forecasts side by side. Future features will include side-by-side price, trend, and attribute comparisons.")
+    st.write("Select multiple units (from transactions) or listings (from live listings) to compare their key attributes side by side.")
+
+    st.subheader("Compare Transaction Units")
+    if not all_transactions.empty:
+        unit_no_col = all_transactions['Unit No.']
+        if not isinstance(unit_no_col, pd.Series):
+            unit_no_col = pd.Series(unit_no_col)
+        unit_options = unit_no_col.dropna().astype(str).unique().tolist()
+        selected_units = st.multiselect(
+            "Select units to compare (from transactions):",
+            options=unit_options,
+            key="compare_units"
+        )
+        if selected_units:
+            unit_no_series = all_transactions['Unit No.']
+            if not isinstance(unit_no_series, pd.Series):
+                unit_no_series = pd.Series(unit_no_series)
+            compare_df = all_transactions[unit_no_series.astype(str).isin(selected_units)]
+            compare_df = pd.DataFrame(compare_df)
+            # Show only key columns
+            key_cols = [
+                'Unit No.', 'All Developments', 'Community/Building', 'Sub Community / Building',
+                'Layout Type', 'Unit Type', 'Beds', 'Unit Size (sq ft)', 'Plot Size (sq ft)',
+                'Floor Level', 'Price (AED)', 'Evidence Date'
+            ]
+            show_cols = [col for col in key_cols if col in compare_df.columns]
+            st.dataframe(compare_df[show_cols])
+            st.download_button(
+                "Download Comparison as CSV",
+                compare_df[show_cols].to_csv(index=False).encode(),
+                file_name="unit_comparison.csv"
+            )
+        else:
+            st.info("Select units above to compare.")
+    else:
+        st.warning("No transaction data available.")
+
+    st.subheader("Compare Live Listings")
+    if not all_listings.empty:
+        listing_no_col = all_listings['Unit No.']
+        if not isinstance(listing_no_col, pd.Series):
+            listing_no_col = pd.Series(listing_no_col)
+        listing_options = listing_no_col.dropna().astype(str).unique().tolist()
+        selected_listings = st.multiselect(
+            "Select listings to compare (from live listings):",
+            options=listing_options,
+            key="compare_listings"
+        )
+        if selected_listings:
+            listing_no_series = all_listings['Unit No.']
+            if not isinstance(listing_no_series, pd.Series):
+                listing_no_series = pd.Series(listing_no_series)
+            compare_listings_df = all_listings[listing_no_series.astype(str).isin(selected_listings)]
+            compare_listings_df = pd.DataFrame(compare_listings_df)
+            # Show only key columns
+            key_cols = [
+                'Unit No.', 'Development', 'Community', 'Subcommunity',
+                'Layout Type', 'Type', 'Beds', 'BUA', 'Plot Size',
+                'Floor Level', 'Price (AED)', 'Days Listed', 'Verified', 'URL'
+            ]
+            show_cols = [col for col in key_cols if col in compare_listings_df.columns]
+            st.dataframe(compare_listings_df[show_cols])
+            st.download_button(
+                "Download Listing Comparison as CSV",
+                compare_listings_df[show_cols].to_csv(index=False).encode(),
+                file_name="listing_comparison.csv"
+            )
+        else:
+            st.info("Select listings above to compare.")
+    else:
+        st.warning("No live listings data available.")
 
 import logging
 logger = logging.getLogger(__name__)
