@@ -1784,15 +1784,19 @@ with tab5:
     st.session_state['comp_card_keys'] = card_keys
     remove_card_idx = None
     for row_start in range(0, n_cards, 2):
-        row_cols = st.columns(min(2, n_cards - row_start))
-        for i, col in enumerate(row_cols):
+        row_cols = st.columns(2)
+        for i in range(2):
             idx = row_start + i
+            if idx >= n_cards:
+                # If odd number of cards, leave the last column empty
+                row_cols[i].empty()
+                continue
             card_key = card_keys[idx]
-            with col:
+            with row_cols[i]:
                 # Card border container using st.markdown and st.container
                 with st.container():
                     st.markdown(f"""
-                        <div style='border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 8px; background: #fafbfc;'>
+                        <div style='border: 2px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 8px; background: #fafbfc; min-width: 350px; max-width: 100%; box-sizing: border-box;'>
                     """, unsafe_allow_html=True)
                 st.subheader(f"Comparison Card {idx+1}")
                 # Remove button (only if more than 2 cards)
