@@ -1929,6 +1929,8 @@ with tab5:
                     if len(price_trend) >= 12:
                         growth = (price_trend.iloc[-1] - price_trend.iloc[-12]) / price_trend.iloc[-12] * 100 if price_trend.iloc[-12] != 0 else 0
                         st.metric("12mo Growth Rate (%)", f"{growth:.2f}%")
+                    else:
+                        st.metric("12mo Growth Rate (%)", "N/A (need 12+ months)")
                 # Recent price range (last 6 months)
                 if 'Evidence Date' in filtered.columns and 'Price (AED/sq ft)' in filtered.columns:
                     last_6mo = filtered[filtered['Evidence Date'] >= (pd.Timestamp.now() - pd.DateOffset(months=6))]
