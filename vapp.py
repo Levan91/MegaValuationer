@@ -1614,7 +1614,7 @@ with tab3:
             if not isinstance(nonver_other, pd.DataFrame):
                 nonver_other = pd.DataFrame(nonver_other)
             if not ver_sel.empty:
-                # Helper to build location string for listings
+                # Helper to build location string for listings (move to top of listing plotting section)
                 def get_location_str(row):
                     comm = row.get('Community') or row.get('Community/Building')
                     subcomm = row.get('Subcommunity') or row.get('Sub Community / Building')
