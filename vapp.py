@@ -1509,68 +1509,177 @@ with tab3:
             line=dict(color='lightblue'),
             marker=dict(color='lightblue')
         ))
-        # Overlay transactions as blue dots
+        # --- Highlighted Transactions by Subcommunity ---
         filtered_transactions = pd.DataFrame(filtered_transactions)
+        selected_subcommunity = None
+        if unit_number:
+            # Get the subcommunity for the selected unit
+            try:
+                selected_subcommunity = all_transactions.loc[
+                    all_transactions['Unit No.'] == unit_number, 'Sub Community / Building'
+                ].iloc[0]
+            except Exception:
+                selected_subcommunity = None
+        # Split transactions
         if not filtered_transactions.empty and 'Evidence Date' in filtered_transactions.columns and 'Price (AED)' in filtered_transactions.columns:
             transaction_df = filtered_transactions.copy()
             transaction_df = pd.DataFrame(transaction_df)
             transaction_df['Evidence Date'] = pd.to_datetime(transaction_df['Evidence Date'], errors='coerce')
             transaction_df = transaction_df.dropna(subset=['Evidence Date', 'Price (AED)'])
-            fig.add_trace(go.Scatter(
-                x=transaction_df['Evidence Date'],
-                y=transaction_df['Price (AED)'],
-                mode='markers',
-                marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
-                name='Transactions',
-                text=transaction_df.apply(
-                    lambda row: " | ".join(filter(None, [
-                        f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
-                        f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
-                        (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
-                        (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
-                    ])),
-                    axis=1
-                ),
-                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-            ))
-        # Scenario line (only if adjustment is nonzero)
-        if scenario_pct != 0:
-            forecast['yhat_scenario'] = forecast['yhat_actual'] * (1 + scenario_pct/100)
-            fig.add_trace(go.Scatter(
-                x=forecast['ds'], y=forecast['yhat_scenario'],
-                mode='lines+markers', name=f"Scenario ({scenario_pct:+}%)",
-                line=dict(dash='dot')
-            ))
-        # Overlay live listings: verified (green) vs non-verified (red)
+            if selected_subcommunity:
+                txn_sel = transaction_df[transaction_df['Sub Community / Building'] == selected_subcommunity]
+                txn_other = transaction_df[transaction_df['Sub Community / Building'] != selected_subcommunity]
+                # Selected subcommunity (yellow)
+                if not txn_sel.empty:
+                    fig.add_trace(go.Scatter(
+                        x=txn_sel['Evidence Date'],
+                        y=txn_sel['Price (AED)'],
+                        mode='markers',
+                        marker=dict(symbol='circle', size=8, opacity=0.9, color='yellow'),
+                        name=f'Transactions ({selected_subcommunity})',
+                        text=txn_sel.apply(
+                            lambda row: " | ".join(filter(None, [
+                                f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                                f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                                (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                                (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                            ])),
+                            axis=1
+                        ),
+                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                    ))
+                # Other subcommunities (blue)
+                if not txn_other.empty:
+                    fig.add_trace(go.Scatter(
+                        x=txn_other['Evidence Date'],
+                        y=txn_other['Price (AED)'],
+                        mode='markers',
+                        marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
+                        name='Transactions (Other)',
+                        text=txn_other.apply(
+                            lambda row: " | ".join(filter(None, [
+                                f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                                f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                                (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                                (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                            ])),
+                            axis=1
+                        ),
+                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                    ))
+            else:
+                # No selected subcommunity, plot all as blue
+                fig.add_trace(go.Scatter(
+                    x=transaction_df['Evidence Date'],
+                    y=transaction_df['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
+                    name='Transactions',
+                    text=transaction_df.apply(
+                        lambda row: " | ".join(filter(None, [
+                            f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                            f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                            (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                            (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                        ])),
+                        axis=1
+                    ),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                ))
+        # --- Highlighted Listings by Subcommunity and Verification ---
         if not listing_df.empty and 'Verified' in listing_df.columns:
             ver_df = listing_df[listing_df['Verified'].str.lower() == 'yes']
             nonver_df = listing_df[listing_df['Verified'].str.lower() != 'yes']
         else:
             ver_df = listing_df.copy()
             nonver_df = listing_df.iloc[0:0]
-
-        if not ver_df.empty:
-            fig.add_trace(go.Scatter(
-                x=ver_df["Listed When"] if "Listed When" in ver_df.columns else ver_df.get("Listing Date", ver_df.index),
-                y=ver_df['Price (AED)'],
-                mode='markers',
-                marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
-                name='Verified Listings',
-                customdata=ver_df["URL"],
-                text=ver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
-                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
-            ))
-        if not nonver_df.empty:
-            fig.add_trace(go.Scatter(
-                x=nonver_df["Listed When"] if "Listed When" in nonver_df.columns else nonver_df.get("Listing Date", nonver_df.index),
-                y=nonver_df['Price (AED)'],
-                mode='markers',
-                marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
-                name='Non-verified Listings',
-                customdata=nonver_df["URL"],
-                text=nonver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
-                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
-            ))
+        # Listings: split by selected subcommunity and verification
+        subcol = 'Subcommunity' if 'Subcommunity' in listing_df.columns else 'Sub Community / Building'
+        if selected_subcommunity and subcol in listing_df.columns:
+            # Verified in selected subcommunity (yellow)
+            ver_sel = ver_df[ver_df[subcol] == selected_subcommunity]
+            if not isinstance(ver_sel, pd.DataFrame):
+                ver_sel = pd.DataFrame(ver_sel)
+            # Non-verified in selected subcommunity (orange)
+            nonver_sel = nonver_df[nonver_df[subcol] == selected_subcommunity]
+            if not isinstance(nonver_sel, pd.DataFrame):
+                nonver_sel = pd.DataFrame(nonver_sel)
+            # Verified in other subcommunities (green)
+            ver_other = ver_df[ver_df[subcol] != selected_subcommunity]
+            if not isinstance(ver_other, pd.DataFrame):
+                ver_other = pd.DataFrame(ver_other)
+            # Non-verified in other subcommunities (red)
+            nonver_other = nonver_df[nonver_df[subcol] != selected_subcommunity]
+            if not isinstance(nonver_other, pd.DataFrame):
+                nonver_other = pd.DataFrame(nonver_other)
+            if not ver_sel.empty:
+                fig.add_trace(go.Scatter(
+                    x=ver_sel["Listed When"] if "Listed When" in ver_sel.columns else ver_sel.get("Listing Date", ver_sel.index),
+                    y=ver_sel['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=10, opacity=0.95, color='yellow'),
+                    name=f'Verified Listings ({selected_subcommunity})',
+                    customdata=ver_sel["URL"],
+                    text=ver_sel.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_sel.columns and "Layout Type" in ver_sel.columns else "",
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                ))
+            if not nonver_sel.empty:
+                fig.add_trace(go.Scatter(
+                    x=nonver_sel["Listed When"] if "Listed When" in nonver_sel.columns else nonver_sel.get("Listing Date", nonver_sel.index),
+                    y=nonver_sel['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=10, opacity=0.95, color='orange'),
+                    name=f'Non-verified Listings ({selected_subcommunity})',
+                    customdata=nonver_sel["URL"],
+                    text=nonver_sel.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in nonver_sel.columns and "Layout Type" in nonver_sel.columns else "",
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                ))
+            if not ver_other.empty:
+                fig.add_trace(go.Scatter(
+                    x=ver_other["Listed When"] if "Listed When" in ver_other.columns else ver_other.get("Listing Date", ver_other.index),
+                    y=ver_other['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
+                    name='Verified Listings (Other)',
+                    customdata=ver_other["URL"],
+                    text=ver_other.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_other.columns and "Layout Type" in ver_other.columns else "",
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                ))
+            if not nonver_other.empty:
+                fig.add_trace(go.Scatter(
+                    x=nonver_other["Listed When"] if "Listed When" in nonver_other.columns else nonver_other.get("Listing Date", nonver_other.index),
+                    y=nonver_other['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
+                    name='Non-verified Listings (Other)',
+                    customdata=nonver_other["URL"],
+                    text=nonver_other.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in nonver_other.columns and "Layout Type" in nonver_other.columns else "",
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                ))
+        else:
+            # No selected subcommunity, use default coloring
+            if not ver_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=ver_df["Listed When"] if "Listed When" in ver_df.columns else ver_df.get("Listing Date", ver_df.index),
+                    y=ver_df['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
+                    name='Verified Listings',
+                    customdata=ver_df["URL"],
+                    text=ver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_df.columns and "Layout Type" in ver_df.columns else "",
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                ))
+            if not nonver_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=nonver_df["Listed When"] if "Listed When" in nonver_df.columns else nonver_df.get("Listing Date", nonver_df.index),
+                    y=nonver_df['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
+                    name='Non-verified Listings',
+                    customdata=nonver_df["URL"],
+                    text=nonver_df.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in nonver_df.columns and "Layout Type" in nonver_df.columns else "",
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                ))
         fig.update_layout(
             title='Prophet Forecast (Actual Value)',
             xaxis_title='Month', yaxis_title='AED'
@@ -1766,22 +1875,3 @@ with tab3:
     # Use use_params for main Prophet forecast below
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
-
-# --- Helper for comparison card autofill ---
-def autofill_comparison_card(card_id):
-    unit_key = f"unit_no_{card_id}"
-    dev_key = f"development_{card_id}"
-    com_key = f"community_{card_id}"
-    subcom_key = f"subcommunity_{card_id}"
-    layout_key = f"layout_type_{card_id}"
-    beds_key = f"bedrooms_{card_id}"
-    selected_unit = st.session_state.get(unit_key, "")
-    if selected_unit:
-        row = all_transactions[all_transactions['Unit No.'] == selected_unit]
-        if isinstance(row, pd.DataFrame) and len(row) > 0:
-            row = row.iloc[0]
-            st.session_state[dev_key] = row.get('All Developments', "")
-            st.session_state[com_key] = row.get('Community/Building', "")
-            st.session_state[subcom_key] = row.get('Sub Community / Building', "")
-            st.session_state[layout_key] = layout_map.get(selected_unit, "") if 'layout_map' in globals() else row.get('Layout Type', "")
-            st.session_state[beds_key] = str(row.get('Beds', ""))
