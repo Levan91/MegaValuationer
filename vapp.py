@@ -1989,7 +1989,18 @@ with tab4:
                                     hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
                                 ))
                         fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
-                        st.plotly_chart(fig, use_container_width=True)
+                        # Render interactive Plotly chart with clickable listings (restore previous behavior)
+                        html_str = fig.to_html(include_plotlyjs='include')
+                        components.html(f"""
+                            {html_str}
+                            <script>
+                              const gd = document.querySelectorAll('.plotly-graph-div')[0];
+                              gd.on('plotly_click', function(event) {{
+                                const url = event.points[0].customdata;
+                                if (url) window.open(url);
+                              }});
+                            </script>
+                        """, height=400, scrolling=True)
                         # --- METRICS AND HISTOGRAM FOR THIS CARD ---
                         # 1. Total units matching parameters (from layout_map_df, the inventory), filtered by all selected filters
                         inventory_df = layout_map_df.copy()
