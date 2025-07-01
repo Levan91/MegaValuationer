@@ -1991,19 +1991,18 @@ with tab4:
                         fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
                         st.plotly_chart(fig, use_container_width=True)
                         # --- METRICS AND HISTOGRAM FOR THIS CARD ---
-                        # 1. Total units matching parameters (from all_transactions, not time-filtered)
-                        all_units = all_transactions.copy()
-                        if development:
-                            all_units = all_units[all_units['All Developments'] == development]
-                        if community:
-                            all_units = all_units[all_units['Community/Building'] == community]
-                        if subcommunity:
-                            all_units = all_units[all_units['Sub Community / Building'] == subcommunity]
+                        # 1. Total units matching parameters (from layout_map_df, the inventory)
+                        inventory_df = layout_map_df.copy()
+                        if development and 'Project' in inventory_df.columns:
+                            inventory_df = inventory_df[inventory_df['Project'].str.lower() == development.lower()]
                         if layout_type:
-                            all_units = all_units[all_units['Layout Type'] == layout_type]
-                        if bedrooms:
-                            all_units = all_units[all_units['Beds'].astype(str) == bedrooms]
-                        total_units = all_units['Unit No.'].nunique() if 'Unit No.' in all_units.columns else all_units.shape[0]
+                            inventory_df = inventory_df[inventory_df['Layout Type'] == layout_type]
+                        if bedrooms and 'Unit No.' in inventory_df.columns and 'Beds' in all_transactions.columns:
+                            # Map Unit No. to Beds using all_transactions (best effort)
+                            unit_beds = all_transactions[['Unit No.', 'Beds']].drop_duplicates()
+                            inventory_df = inventory_df.merge(unit_beds, on='Unit No.', how='left')
+                            inventory_df = inventory_df[inventory_df['Beds'].astype(str) == bedrooms]
+                        total_units = inventory_df['Unit No.'].nunique() if 'Unit No.' in inventory_df.columns else inventory_df.shape[0]
                         # 2. Total sold during time period (filtered_txns)
                         total_sold = filtered_txns['Unit No.'].nunique() if 'Unit No.' in filtered_txns.columns else filtered_txns.shape[0]
                         # 3. Total listings (listings_df)
