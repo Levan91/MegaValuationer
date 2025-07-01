@@ -1991,14 +1991,19 @@ with tab4:
                         fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
                         st.plotly_chart(fig, use_container_width=True)
                         # --- METRICS AND HISTOGRAM FOR THIS CARD ---
-                        # 1. Total units matching parameters (from layout_map_df, the inventory)
+                        # 1. Total units matching parameters (from layout_map_df, the inventory), filtered by all selected filters
                         inventory_df = layout_map_df.copy()
+                        # Filter by development/project
                         if development and 'Project' in inventory_df.columns:
                             inventory_df = inventory_df[inventory_df['Project'].str.lower() == development.lower()]
+                        # Filter by subcommunity if present
+                        if subcommunity and 'Sub Community / Building' in inventory_df.columns:
+                            inventory_df = inventory_df[inventory_df['Sub Community / Building'] == subcommunity]
+                        # Filter by layout type
                         if layout_type:
                             inventory_df = inventory_df[inventory_df['Layout Type'] == layout_type]
+                        # Filter by bedrooms (map Unit No. to Beds using all_transactions)
                         if bedrooms and 'Unit No.' in inventory_df.columns and 'Beds' in all_transactions.columns:
-                            # Map Unit No. to Beds using all_transactions (best effort)
                             unit_beds = all_transactions[['Unit No.', 'Beds']].drop_duplicates()
                             inventory_df = inventory_df.merge(unit_beds, on='Unit No.', how='left')
                             inventory_df = inventory_df[inventory_df['Beds'].astype(str) == bedrooms]
