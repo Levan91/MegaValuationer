@@ -1529,13 +1529,13 @@ with tab3:
             if selected_subcommunity:
                 txn_sel = transaction_df[transaction_df['Sub Community / Building'] == selected_subcommunity]
                 txn_other = transaction_df[transaction_df['Sub Community / Building'] != selected_subcommunity]
-                # Selected subcommunity (yellow)
+                # Selected subcommunity (light purple)
                 if not txn_sel.empty:
                     fig.add_trace(go.Scatter(
                         x=txn_sel['Evidence Date'],
                         y=txn_sel['Price (AED)'],
                         mode='markers',
-                        marker=dict(symbol='circle', size=8, opacity=0.9, color='yellow'),
+                        marker=dict(symbol='circle', size=8, opacity=0.9, color='#B266FF'),
                         name=f'Transactions ({selected_subcommunity})',
                         text=txn_sel.apply(
                             lambda row: " | ".join(filter(None, [
@@ -1596,7 +1596,7 @@ with tab3:
         # Listings: split by selected subcommunity and verification
         subcol = 'Subcommunity' if 'Subcommunity' in listing_df.columns else 'Sub Community / Building'
         if selected_subcommunity and subcol in listing_df.columns:
-            # Verified in selected subcommunity (yellow)
+            # Verified in selected subcommunity (light purple)
             ver_sel = ver_df[ver_df[subcol] == selected_subcommunity]
             if not isinstance(ver_sel, pd.DataFrame):
                 ver_sel = pd.DataFrame(ver_sel)
@@ -1617,7 +1617,7 @@ with tab3:
                     x=ver_sel["Listed When"] if "Listed When" in ver_sel.columns else ver_sel.get("Listing Date", ver_sel.index),
                     y=ver_sel['Price (AED)'],
                     mode='markers',
-                    marker=dict(symbol='diamond', size=10, opacity=0.95, color='yellow'),
+                    marker=dict(symbol='diamond', size=10, opacity=0.95, color='#B266FF'),
                     name=f'Verified Listings ({selected_subcommunity})',
                     customdata=ver_sel["URL"],
                     text=ver_sel.apply(lambda row: f'{int(row["Days Listed"])} days ago | {row["Layout Type"]}' if pd.notnull(row.get("Days Listed")) and pd.notnull(row.get("Layout Type")) else "", axis=1) if "Days Listed" in ver_sel.columns and "Layout Type" in ver_sel.columns else "",
