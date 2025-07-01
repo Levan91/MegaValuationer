@@ -1910,7 +1910,11 @@ with tab4:
                             unit_txns = filtered_all_transactions[filtered_all_transactions['Unit No.'] == unit_no]
                         unit_txns = pd.DataFrame(unit_txns)
 
-                        # ... (rest of chart code, using filtered_txns and unit_txns as before) ...
+                        if filtered_txns.empty and unit_txns.empty:
+                            st.warning("No data matches the selected filters.")
+                        else:
+                            # ... (rest of chart code, using filtered_txns and unit_txns as before) ...
+                            pass
                     else:
                         st.info("Please select at least one filter to display data.")
 
