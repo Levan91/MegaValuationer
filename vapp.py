@@ -1891,9 +1891,7 @@ with tab4:
                     def is_empty(val):
                         return (val is None) or (isinstance(val, str) and val.strip() == "") or (isinstance(val, (list, tuple, set)) and len(val) == 0)
 
-                    if all(is_empty(x) for x in [unit_no, development, community, subcommunity, layout_type, bedrooms]):
-                        st.info("Please select at least one filter to display data.")
-                    else:
+                    if any(not is_empty(x) for x in [unit_no, development, community, subcommunity, layout_type, bedrooms]):
                         filtered_txns = filtered_all_transactions.copy()
                         if development:
                             filtered_txns = filtered_txns[filtered_txns['All Developments'] == development]
@@ -1913,5 +1911,7 @@ with tab4:
                         unit_txns = pd.DataFrame(unit_txns)
 
                         # ... (rest of chart code, using filtered_txns and unit_txns as before) ...
+                    else:
+                        st.info("Please select at least one filter to display data.")
 
     st.markdown("<!-- COMPARISONS TAB END -->")
