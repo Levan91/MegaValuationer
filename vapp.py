@@ -1352,8 +1352,8 @@ with tab3:
         days_listed_col = listing_df['Days Listed']
         if not isinstance(days_listed_col, pd.Series):
             days_listed_col = pd.Series(days_listed_col)
-        listing_df['Listing Date'] = datetime.now() - pd.to_timedelta(days_listed_col, unit='D')
-        cutoff_listings = datetime.now() - timedelta(days=listings_days)
+        listing_df['Listing Date'] = pd.Timestamp.now() - pd.to_timedelta(days_listed_col, unit='D')
+        cutoff_listings = pd.Timestamp.now() - pd.Timedelta(days=listings_days)
         listing_df = listing_df[listing_df['Listing Date'] >= cutoff_listings]
 
     listing_df = pd.DataFrame(listing_df)
@@ -1859,20 +1859,22 @@ with tab4:
                         cards.remove(card_id)
                         st.session_state['comparison_cards'] = cards
                         st.rerun()
-                # Stack filters and chart vertically for each card
-                # --- Filters ---
-                unit_options = sorted(pd.Series(filtered_all_transactions['Unit No.']).dropna().unique()) if not filtered_all_transactions.empty else []
-                st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}", on_change=autofill_comparison_card, args=(card_id,))
-                dev_options = sorted(pd.Series(filtered_all_transactions['All Developments']).dropna().unique()) if not filtered_all_transactions.empty else []
-                st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
-                com_options = sorted(pd.Series(filtered_all_transactions['Community/Building']).dropna().unique()) if not filtered_all_transactions.empty else []
-                st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
-                subcom_options = sorted(pd.Series(filtered_all_transactions['Sub Community / Building']).dropna().unique()) if not filtered_all_transactions.empty else []
-                st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
-                layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
-                st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
-                beds_options = sorted(pd.Series(filtered_all_transactions['Beds']).dropna().astype(str).unique()) if not filtered_all_transactions.empty else []
-                st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
+                # Compact 2-column filter layout for each card
+                col1, col2 = st.columns(2)
+                with col1:
+                    unit_options = sorted(pd.Series(filtered_all_transactions['Unit No.']).dropna().unique()) if not filtered_all_transactions.empty else []
+                    st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}", on_change=autofill_comparison_card, args=(card_id,))
+                    dev_options = sorted(pd.Series(filtered_all_transactions['All Developments']).dropna().unique()) if not filtered_all_transactions.empty else []
+                    st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
+                    com_options = sorted(pd.Series(filtered_all_transactions['Community/Building']).dropna().unique()) if not filtered_all_transactions.empty else []
+                    st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
+                with col2:
+                    subcom_options = sorted(pd.Series(filtered_all_transactions['Sub Community / Building']).dropna().unique()) if not filtered_all_transactions.empty else []
+                    st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
+                    layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
+                    st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
+                    beds_options = sorted(pd.Series(filtered_all_transactions['Beds']).dropna().astype(str).unique()) if not filtered_all_transactions.empty else []
+                    st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
                 # --- Chart below filters ---
                 import plotly.graph_objects as go
                 unit_no = st.session_state.get(f"unit_no_{card_id}", "")
@@ -1910,11 +1912,18 @@ with tab4:
                         # --- Chart code as before ---
                         listings_days = st.session_state.get('comparisons_listings_days', 120)
                         listings_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+                        if isinstance(listings_df, np.ndarray):
+                            listings_df = pd.DataFrame(listings_df)
                         if not listings_df.empty:
                             if 'Days Listed' in listings_df.columns:
-                                listings_df['Days Listed'] = pd.to_numeric(listings_df['Days Listed'], errors='coerce')
-                                listings_df['Listing Date'] = datetime.now() - pd.to_timedelta(listings_df['Days Listed'], unit='D')
-                                cutoff_listings = datetime.now() - timedelta(days=listings_days)
+                                days_listed_numeric = pd.to_numeric(listings_df['Days Listed'], errors='coerce')
+                                if not isinstance(days_listed_numeric, pd.Series):
+                                    days_listed_numeric = pd.Series(days_listed_numeric)
+                                if days_listed_numeric.notnull().any():
+                                    listings_df['Listing Date'] = pd.Timestamp.now() - pd.to_timedelta(days_listed_numeric.fillna(0), unit='D')
+                                else:
+                                    listings_df['Listing Date'] = pd.NaT
+                                cutoff_listings = pd.Timestamp.now() - pd.Timedelta(days=listings_days)
                                 listings_df = listings_df[listings_df['Listing Date'] >= cutoff_listings]
                             if development and 'Development' in listings_df.columns:
                                 listings_df = listings_df[listings_df['Development'] == development]
