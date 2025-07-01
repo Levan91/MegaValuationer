@@ -1225,7 +1225,13 @@ with tab2:
     else:
         st.info("No live listings data found.")
 
+# All Prophet/chart/forecast code is strictly inside tab3 below
 with tab3:
+    # ... (all Prophet/chart/forecast code as in previous block) ...
+    # (No Prophet/chart/forecast code outside this block)
+    # (No monthly_df, forecast, fig, st.plotly_chart, st.table, st.download_button, Prophet parameter UI, etc. outside this block)
+    # (Only function definitions and imports may remain outside)
+
     # ALL Prophet/chart/forecast code goes here!
     with st.expander("Forecast & Listings Filters", expanded=False):
         prophet_last_n_days = st.number_input(
