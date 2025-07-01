@@ -1975,6 +1975,7 @@ with tab4:
                                     mode='markers',
                                     marker=dict(symbol='diamond', size=10, color='green'),
                                     name='Verified Listing',
+                                    customdata=ver_df['URL'],
                                     text=ver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in ver_df.columns and 'Layout Type' in ver_df.columns else "",
                                     hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
                                 ))
@@ -1985,6 +1986,7 @@ with tab4:
                                     mode='markers',
                                     marker=dict(symbol='diamond', size=10, color='red'),
                                     name='Non-verified Listing',
+                                    customdata=nonver_df['URL'],
                                     text=nonver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in nonver_df.columns and 'Layout Type' in nonver_df.columns else "",
                                     hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
                                 ))
