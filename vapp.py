@@ -1118,6 +1118,58 @@ with tab1:
     else:
         st.info("No transactions match the current filters.")
 
+    # --- METRICS AND HISTOGRAM ---
+    # Prepare monthly transaction data
+    txn_df = filtered_transactions.copy()
+    if 'Evidence Date' in txn_df.columns:
+        txn_df['Evidence Date'] = pd.to_datetime(txn_df['Evidence Date'], errors='coerce')
+        txn_df = txn_df.dropna(subset=['Evidence Date'])
+        txn_df['YearMonth'] = txn_df['Evidence Date'].dt.to_period('M')
+        # Group by month
+        monthly_counts = txn_df.groupby('YearMonth').size()
+        monthly_median = txn_df.groupby('YearMonth')['Price (AED)'].median()
+        monthly_mean = txn_df.groupby('YearMonth')['Price (AED)'].mean()
+        monthly_median_sqft = txn_df.groupby('YearMonth')['Price (AED/sq ft)'].median() if 'Price (AED/sq ft)' in txn_df.columns else None
+        monthly_mean_sqft = txn_df.groupby('YearMonth')['Price (AED/sq ft)'].mean() if 'Price (AED/sq ft)' in txn_df.columns else None
+        # Current and previous month
+        if not monthly_median.empty:
+            current_month = monthly_median.index.max()
+            prev_month = current_month - 1
+            current_median = monthly_median.loc[current_month]
+            prev_median = monthly_median.loc[prev_month] if prev_month in monthly_median.index else None
+            median_change = ((current_median - prev_median) / prev_median * 100) if prev_median and prev_median != 0 else None
+        else:
+            current_median = prev_median = median_change = None
+        if not monthly_mean.empty:
+            current_mean = monthly_mean.loc[current_month]
+            prev_mean = monthly_mean.loc[prev_month] if prev_month in monthly_mean.index else None
+            mean_change = ((current_mean - prev_mean) / prev_mean * 100) if prev_mean and prev_mean != 0 else None
+        else:
+            current_mean = prev_mean = mean_change = None
+        # Price per sqft
+        if monthly_median_sqft is not None and not monthly_median_sqft.empty:
+            current_median_sqft = monthly_median_sqft.loc[current_month]
+        else:
+            current_median_sqft = None
+        if monthly_mean_sqft is not None and not monthly_mean_sqft.empty:
+            current_mean_sqft = monthly_mean_sqft.loc[current_month]
+        else:
+            current_mean_sqft = None
+        # Metrics row
+        col1, col2, col3, col4, col5 = st.columns(5)
+        col1.metric("Median Price (This Month)", f"{current_median:,.0f} AED" if current_median is not None else "-")
+        col2.metric("Average Price (This Month)", f"{current_mean:,.0f} AED" if current_mean is not None else "-")
+        col3.metric("Median Price Change", f"{median_change:.1f}%" if median_change is not None else "-")
+        col4.metric("Median Price/sqft", f"{current_median_sqft:,.0f} AED/sqft" if current_median_sqft is not None else "-")
+        col5.metric("Average Price/sqft", f"{current_mean_sqft:,.0f} AED/sqft" if current_mean_sqft is not None else "-")
+        # Histogram for transactions per month
+        import plotly.graph_objects as go
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=monthly_counts.index.astype(str), y=monthly_counts.values, name='Transactions'))
+        fig.update_layout(title='Transactions per Month', xaxis_title='Month', yaxis_title='Count', height=300)
+        st.plotly_chart(fig, use_container_width=True)
+    # --- END METRICS AND HISTOGRAM ---
+
     st.markdown("<!-- DASHBOARD TAB END -->")
 
 with tab2:
