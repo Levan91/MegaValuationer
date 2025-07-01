@@ -2005,7 +2005,7 @@ with tab4:
                                   }});
                                 </script>
                                 </div>
-                            """, height=400, width="100%", scrolling=True)
+                            """, height=400, scrolling=True)
                             # --- End Chart Code ---
                     else:
                         st.info("Please select at least one filter to display data.")
