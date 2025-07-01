@@ -1913,8 +1913,98 @@ with tab4:
                         if filtered_txns.empty and unit_txns.empty:
                             st.warning("No data matches the selected filters.")
                         else:
-                            # ... (rest of chart code, using filtered_txns and unit_txns as before) ...
-                            pass
+                            # --- Begin Chart Code ---
+                            # Prepare listings filtered for this card
+                            listings_days = st.session_state.get('comparisons_listings_days', 120)
+                            listings_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+                            if not listings_df.empty:
+                                if 'Days Listed' in listings_df.columns:
+                                    listings_df['Days Listed'] = pd.to_numeric(listings_df['Days Listed'], errors='coerce')
+                                    listings_df['Listing Date'] = datetime.now() - pd.to_timedelta(listings_df['Days Listed'], unit='D')
+                                    cutoff_listings = datetime.now() - timedelta(days=listings_days)
+                                    listings_df = listings_df[listings_df['Listing Date'] >= cutoff_listings]
+                                # Filter by card filters
+                                if development and 'Development' in listings_df.columns:
+                                    listings_df = listings_df[listings_df['Development'] == development]
+                                if community and 'Community' in listings_df.columns:
+                                    listings_df = listings_df[listings_df['Community'] == community]
+                                if subcommunity and 'Subcommunity' in listings_df.columns:
+                                    listings_df = listings_df[listings_df['Subcommunity'] == subcommunity]
+                                if layout_type and 'Layout Type' in listings_df.columns:
+                                    listings_df = listings_df[listings_df['Layout Type'] == layout_type]
+                                if bedrooms and 'Beds' in listings_df.columns:
+                                    listings_df = listings_df[listings_df['Beds'].astype(str) == bedrooms]
+                                listings_df = pd.DataFrame(listings_df)
+                            # Plotly chart
+                            fig = go.Figure()
+                            # Blue dots: filtered sales
+                            if not filtered_txns.empty and 'Evidence Date' in filtered_txns.columns and 'Price (AED)' in filtered_txns.columns:
+                                fig.add_trace(go.Scatter(
+                                    x=filtered_txns['Evidence Date'],
+                                    y=filtered_txns['Price (AED)'],
+                                    mode='markers',
+                                    marker=dict(color='blue', size=5),
+                                    name='Similar Sales',
+                                    text=filtered_txns.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
+                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                                ))
+                            # Gold stars: unit sales
+                            if not unit_txns.empty and 'Evidence Date' in unit_txns.columns and 'Price (AED)' in unit_txns.columns:
+                                fig.add_trace(go.Scatter(
+                                    x=unit_txns['Evidence Date'],
+                                    y=unit_txns['Price (AED)'],
+                                    mode='markers',
+                                    marker=dict(color='gold', size=12, symbol='star'),
+                                    name='Unit Sales',
+                                    text=unit_txns.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
+                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                                ))
+                            # Listings: green/red diamonds
+                            if not listings_df.empty and 'Price (AED)' in listings_df.columns and 'Listing Date' in listings_df.columns:
+                                if 'Verified' in listings_df.columns:
+                                    ver_df = listings_df[listings_df['Verified'].str.lower() == 'yes']
+                                    nonver_df = listings_df[listings_df['Verified'].str.lower() != 'yes']
+                                else:
+                                    ver_df = listings_df.copy()
+                                    nonver_df = listings_df.iloc[0:0]
+                                # Green diamonds: verified
+                                if not ver_df.empty:
+                                    fig.add_trace(go.Scatter(
+                                        x=ver_df['Listing Date'],
+                                        y=ver_df['Price (AED)'],
+                                        mode='markers',
+                                        marker=dict(symbol='diamond', size=10, color='green'),
+                                        name='Verified Listing',
+                                        customdata=ver_df['URL'] if 'URL' in ver_df.columns else None,
+                                        text=ver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in ver_df.columns and 'Layout Type' in ver_df.columns else "",
+                                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                                    ))
+                                # Red diamonds: non-verified
+                                if not nonver_df.empty:
+                                    fig.add_trace(go.Scatter(
+                                        x=nonver_df['Listing Date'],
+                                        y=nonver_df['Price (AED)'],
+                                        mode='markers',
+                                        marker=dict(symbol='diamond', size=10, color='red'),
+                                        name='Non-verified Listing',
+                                        customdata=nonver_df['URL'] if 'URL' in nonver_df.columns else None,
+                                        text=nonver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in nonver_df.columns and 'Layout Type' in nonver_df.columns else "",
+                                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                                    ))
+                            fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+                            # Render interactive Plotly chart with clickable listings
+                            html_str = fig.to_html(include_plotlyjs='cdn')
+                            components.html(f"""
+                                {html_str}
+                                <script>
+                                  const gd = document.querySelectorAll('.plotly-graph-div')[0];
+                                  gd.on('plotly_click', function(event) {{
+                                    const url = event.points[0].customdata;
+                                    if (url) window.open(url);
+                                  }});
+                                </script>
+                            """, height=400, scrolling=True)
+                            # --- End Chart Code ---
                     else:
                         st.info("Please select at least one filter to display data.")
 
