@@ -1774,92 +1774,68 @@ with tab4:
     
     st.markdown("<!-- COMPARISONS TAB START -->")
     st.header("Comparisons")
-    st.markdown("Compare property segments side by side.")
+    st.markdown("Compare up to 4 property segments side by side. Select filters for each card.")
     
-    # Comparison Card
-    with st.container():
-        st.subheader("Comparison Filters")
-        
-        # Create two columns for filters
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Unit No
-            unit_no_comparison = st.text_input("Unit No", key="comp_unit_no")
-            
-            # Development
-            dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
-            development_comparison = st.selectbox(
-                "Development",
-                options=[""] + dev_options,
-                key="comp_development"
-            )
-            
-            # Community
-            com_options = []
-            if development_comparison and not all_transactions.empty:
-                com_options = sorted(all_transactions[all_transactions['All Developments'] == development_comparison]['Community/Building'].dropna().unique())
-            community_comparison = st.multiselect(
-                "Community",
-                options=com_options,
-                key="comp_community"
-            )
-            
-            # Property Type
-            prop_type_options = sorted(pd.Series(all_transactions['Unit Type']).dropna().unique()) if not all_transactions.empty else []
-            property_type_comparison = st.selectbox(
-                "Property Type",
-                options=[""] + prop_type_options,
-                key="comp_property_type"
-            )
-        
-        with col2:
-            # Subcommunity
-            subcom_options = []
-            if community_comparison and not all_transactions.empty:
-                subcom_options = sorted(all_transactions[all_transactions['Community/Building'].isin(community_comparison)]['Sub Community / Building'].dropna().unique())
-            subcommunity_comparison = st.multiselect(
-                "Subcommunity",
-                options=subcom_options,
-                key="comp_subcommunity"
-            )
-            
-            # Layout Type
-            layout_options = []
-            if community_comparison and not all_transactions.empty:
-                # Get unit numbers from selected communities
-                community_units = all_transactions[all_transactions['Community/Building'].isin(community_comparison)]['Unit No.'].dropna().unique()
-                # Get layout types for these units
-                layout_options = sorted(layout_map_df[layout_map_df['Unit No.'].isin(community_units)]['Layout Type'].dropna().unique())
-            layout_type_comparison = st.multiselect(
-                "Layout Type",
-                options=layout_options,
-                key="comp_layout_type"
-            )
-            
-            # Bedrooms
-            beds_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
-            bedrooms_comparison = st.selectbox(
-                "Bedrooms",
-                options=[""] + beds_options,
-                key="comp_bedrooms"
-            )
-        
-        # Action buttons
-        st.markdown("---")
-        col_reset, col_apply, col_spacer = st.columns([1, 1, 2])
-        
-        with col_reset:
-            if st.button("🔄 Reset Filters", key="comp_reset"):
-                # Clear all comparison filters
-                for key in ["comp_unit_no", "comp_development", "comp_community", "comp_subcommunity", 
-                           "comp_property_type", "comp_layout_type", "comp_bedrooms"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()
-        
-        with col_apply:
-            if st.button("✅ Apply Filters", key="comp_apply"):
-                st.info("Filters applied! (Metrics will be added here)")
+    # Global listings time filter
+    if 'comparisons_listings_days' not in st.session_state:
+        st.session_state['comparisons_listings_days'] = 120
+    st.number_input(
+        "Show listings from last N days (applies to all cards)",
+        min_value=1, max_value=365, step=1, value=st.session_state['comparisons_listings_days'],
+        key="comparisons_listings_days"
+    )
+    
+    # Card management (up to 4)
+    if 'comparison_cards' not in st.session_state:
+        st.session_state['comparison_cards'] = [0, 1]
+    cards = st.session_state['comparison_cards']
+    
+    col_add, _ = st.columns([1, 5])
+    if len(cards) < 4:
+        if col_add.button("+ Add Card", key="add_comparison_card"):
+            next_id = max(cards) + 1 if cards else 0
+            cards.append(next_id)
+            st.session_state['comparison_cards'] = cards
+            st.rerun()
+    
+    # Display cards in rows of 2
+    for i in range(0, len(cards), 2):
+        cols = st.columns(2)
+        for j, card_id in enumerate(cards[i:i+2]):
+            with cols[j]:
+                st.markdown(f"### Card {card_id + 1}")
+                if len(cards) > 2:
+                    if st.button("Remove", key=f"remove_card_{card_id}"):
+                        cards.remove(card_id)
+                        st.session_state['comparison_cards'] = cards
+                        st.rerun()
+                
+                # Card filters (independent per card)
+                # Unit No
+                unit_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().unique()) if not all_transactions.empty else []
+                st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}")
+                
+                # Development
+                dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
+                st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
+                
+                # Community
+                com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
+                st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
+                
+                # Subcommunity
+                subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
+                st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
+                
+                # Layout Type
+                layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
+                st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
+                
+                # Bedrooms
+                beds_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
+                st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
+                
+                # Transaction Time Filter
+                st.selectbox("Transaction Time Filter", options=["", "Last N Days", "After Date", "From Date to Date"], key=f"txn_time_filter_{card_id}")
     
     st.markdown("<!-- COMPARISONS TAB END -->")
