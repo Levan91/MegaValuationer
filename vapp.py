@@ -1774,5 +1774,92 @@ with tab4:
     
     st.markdown("<!-- COMPARISONS TAB START -->")
     st.header("Comparisons")
-    st.markdown("Compare up to 4 property segments side by side.")
+    st.markdown("Compare property segments side by side.")
+    
+    # Comparison Card
+    with st.container():
+        st.subheader("Comparison Filters")
+        
+        # Create two columns for filters
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Unit No
+            unit_no_comparison = st.text_input("Unit No", key="comp_unit_no")
+            
+            # Development
+            dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
+            development_comparison = st.selectbox(
+                "Development",
+                options=[""] + dev_options,
+                key="comp_development"
+            )
+            
+            # Community
+            com_options = []
+            if development_comparison and not all_transactions.empty:
+                com_options = sorted(all_transactions[all_transactions['All Developments'] == development_comparison]['Community/Building'].dropna().unique())
+            community_comparison = st.multiselect(
+                "Community",
+                options=com_options,
+                key="comp_community"
+            )
+            
+            # Property Type
+            prop_type_options = sorted(pd.Series(all_transactions['Unit Type']).dropna().unique()) if not all_transactions.empty else []
+            property_type_comparison = st.selectbox(
+                "Property Type",
+                options=[""] + prop_type_options,
+                key="comp_property_type"
+            )
+        
+        with col2:
+            # Subcommunity
+            subcom_options = []
+            if community_comparison and not all_transactions.empty:
+                subcom_options = sorted(all_transactions[all_transactions['Community/Building'].isin(community_comparison)]['Sub Community / Building'].dropna().unique())
+            subcommunity_comparison = st.multiselect(
+                "Subcommunity",
+                options=subcom_options,
+                key="comp_subcommunity"
+            )
+            
+            # Layout Type
+            layout_options = []
+            if community_comparison and not all_transactions.empty:
+                # Get unit numbers from selected communities
+                community_units = all_transactions[all_transactions['Community/Building'].isin(community_comparison)]['Unit No.'].dropna().unique()
+                # Get layout types for these units
+                layout_options = sorted(layout_map_df[layout_map_df['Unit No.'].isin(community_units)]['Layout Type'].dropna().unique())
+            layout_type_comparison = st.multiselect(
+                "Layout Type",
+                options=layout_options,
+                key="comp_layout_type"
+            )
+            
+            # Bedrooms
+            beds_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
+            bedrooms_comparison = st.selectbox(
+                "Bedrooms",
+                options=[""] + beds_options,
+                key="comp_bedrooms"
+            )
+        
+        # Action buttons
+        st.markdown("---")
+        col_reset, col_apply, col_spacer = st.columns([1, 1, 2])
+        
+        with col_reset:
+            if st.button("🔄 Reset Filters", key="comp_reset"):
+                # Clear all comparison filters
+                for key in ["comp_unit_no", "comp_development", "comp_community", "comp_subcommunity", 
+                           "comp_property_type", "comp_layout_type", "comp_bedrooms"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.rerun()
+        
+        with col_apply:
+            if st.button("✅ Apply Filters", key="comp_apply"):
+                st.info("Filters applied! (Metrics will be added here)")
+    
     st.markdown("<!-- COMPARISONS TAB END -->")
