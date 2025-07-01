@@ -1026,6 +1026,13 @@ if not all_listings.empty:
 tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Comparisons"])
 
 with tab1:
+    # Explicitly clear any Prophet/chart/forecast variables to prevent leakage
+    if 'monthly_df' in locals(): del monthly_df
+    if 'forecast' in locals(): del forecast
+    if 'fig' in locals(): del fig
+    if 'display_df' in locals(): del display_df
+    
+    st.markdown("<!-- DASHBOARD TAB START -->")
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
     st.title("Real Estate Valuation Dashboard")
 
@@ -1113,8 +1120,16 @@ with tab1:
     else:
         st.info("No transactions match the current filters.")
 
+    st.markdown("<!-- DASHBOARD TAB END -->")
 
 with tab2:
+    # Explicitly clear any Prophet/chart/forecast variables to prevent leakage
+    if 'monthly_df' in locals(): del monthly_df
+    if 'forecast' in locals(): del forecast
+    if 'fig' in locals(): del fig
+    if 'display_df' in locals(): del display_df
+    
+    st.markdown("<!-- LIVE LISTINGS TAB START -->")
     if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
         st.subheader("All Live Listings")
         # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
@@ -1224,9 +1239,11 @@ with tab2:
                 )
     else:
         st.info("No live listings data found.")
+    st.markdown("<!-- LIVE LISTINGS TAB END -->")
 
 # All Prophet/chart/forecast code is strictly inside tab3 below
 with tab3:
+    st.markdown("<!-- TREND & VALUATION TAB START -->")
     # ... (all Prophet/chart/forecast code as in previous block) ...
     # (No Prophet/chart/forecast code outside this block)
     # (No monthly_df, forecast, fig, st.plotly_chart, st.table, st.download_button, Prophet parameter UI, etc. outside this block)
@@ -1327,10 +1344,10 @@ with tab3:
     st.header("Trend & Valuation")
 
     # Prepare filtered listing DataFrame
-listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
-if verified_only and 'Verified' in listing_df.columns:
+    listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+    if verified_only and 'Verified' in listing_df.columns:
         listing_df = listing_df[listing_df['Verified'].str.lower() == 'yes']
-if 'Days Listed' in listing_df.columns:
+    if 'Days Listed' in listing_df.columns:
         # Ensure Days Listed is numeric for pd.to_timedelta
         listing_df['Days Listed'] = pd.to_numeric(listing_df['Days Listed'], errors='coerce')
         # Ensure Days Listed is a pandas Series before calling pd.to_timedelta
@@ -1341,35 +1358,35 @@ if 'Days Listed' in listing_df.columns:
         cutoff_listings = datetime.today() - timedelta(days=listings_days)
         listing_df = listing_df[listing_df['Listing Date'] >= cutoff_listings]
 
-listing_df = pd.DataFrame(listing_df)
+    listing_df = pd.DataFrame(listing_df)
     # Sync listings context to selected unit
-mask = pd.Series(True, index=listing_df.index)
-# Development match
-if 'Development' in listing_df.columns and development:
-    mask &= listing_df['Development'] == development
-    # Community match
-    if 'Community' in listing_df.columns and community:
-        comm_list = community if isinstance(community, list) else [community]
-        community_col = listing_df['Community']
-        if not isinstance(community_col, pd.Series):
-            community_col = pd.Series(community_col)
-        mask &= community_col.isin(comm_list)
-    # Subcommunity match
-    subcol = 'Subcommunity' if 'Subcommunity' in listing_df.columns else 'Sub Community / Building'
-    if subcol in listing_df.columns and subcommunity:
-        subcommunity_col = listing_df[subcol]
-        if not isinstance(subcommunity_col, pd.Series):
-            subcommunity_col = pd.Series(subcommunity_col)
-        if isinstance(subcommunity, (list, tuple)):
-            mask &= subcommunity_col.isin(subcommunity)
-        else:
-            mask &= subcommunity_col == subcommunity
-    listing_df = listing_df[mask]
-    if layout_type:
-        layout_col = listing_df['Layout Type'] if 'Layout Type' in listing_df.columns else pd.Series([])
-        if not isinstance(layout_col, pd.Series):
-            layout_col = pd.Series(layout_col)
-        listing_df = listing_df[layout_col.isin(layout_type)]
+    mask = pd.Series(True, index=listing_df.index)
+    # Development match
+    if 'Development' in listing_df.columns and development:
+        mask &= listing_df['Development'] == development
+        # Community match
+        if 'Community' in listing_df.columns and community:
+            comm_list = community if isinstance(community, list) else [community]
+            community_col = listing_df['Community']
+            if not isinstance(community_col, pd.Series):
+                community_col = pd.Series(community_col)
+            mask &= community_col.isin(comm_list)
+        # Subcommunity match
+        subcol = 'Subcommunity' if 'Subcommunity' in listing_df.columns else 'Sub Community / Building'
+        if subcol in listing_df.columns and subcommunity:
+            subcommunity_col = listing_df[subcol]
+            if not isinstance(subcommunity_col, pd.Series):
+                subcommunity_col = pd.Series(subcommunity_col)
+            if isinstance(subcommunity, (list, tuple)):
+                mask &= subcommunity_col.isin(subcommunity)
+            else:
+                mask &= subcommunity_col == subcommunity
+        listing_df = listing_df[mask]
+        if layout_type:
+            layout_col = listing_df['Layout Type'] if 'Layout Type' in listing_df.columns else pd.Series([])
+            if not isinstance(layout_col, pd.Series):
+                layout_col = pd.Series(layout_col)
+            listing_df = listing_df[layout_col.isin(layout_type)]
 
     # Compute median listing price per sqft and AED
     listing_df = pd.DataFrame(listing_df)
@@ -1746,6 +1763,16 @@ if 'Development' in listing_df.columns and development:
 
     # Use use_params for main Prophet forecast below
 
+    st.markdown("<!-- TREND & VALUATION TAB END -->")
+
 with tab4:
+    # Explicitly clear any Prophet/chart/forecast variables to prevent leakage
+    if 'monthly_df' in locals(): del monthly_df
+    if 'forecast' in locals(): del forecast
+    if 'fig' in locals(): del fig
+    if 'display_df' in locals(): del display_df
+    
+    st.markdown("<!-- COMPARISONS TAB START -->")
     st.header("Comparisons")
     st.markdown("Compare up to 4 property segments side by side.")
+    st.markdown("<!-- COMPARISONS TAB END -->")
