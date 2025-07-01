@@ -251,12 +251,7 @@ def _on_subcommunity_change():
         import pandas as pd
         subcommunity_col = all_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
-            # If ndarray, convert to Series
-            import numpy as np
-            if isinstance(subcommunity_col, np.ndarray):
-                subcommunity_col = pd.Series(subcommunity_col)
-            else:
-                subcommunity_col = pd.Series(subcommunity_col)
+            subcommunity_col = pd.Series(subcommunity_col)
         mask = subcommunity_col.isin(subcommunity)
         if not isinstance(mask, pd.Series):
             mask = pd.Series(mask)
@@ -886,9 +881,7 @@ if filter_mode == "Unit Selection":
         subcommunity_col = filtered_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
             subcommunity_col = pd.Series(subcommunity_col)
-        # Ensure subcommunity is a list for .isin()
-        subcom_list = subcommunity if isinstance(subcommunity, (list, tuple, set)) else [subcommunity]
-        filtered_transactions = filtered_transactions[subcommunity_col.isin(subcom_list)]
+        filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
     if property_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
     if bedrooms:
@@ -1193,90 +1186,7 @@ with tab2:
             if not isinstance(filtered_listings, pd.DataFrame):
                 filtered_listings = pd.DataFrame(filtered_listings)
 
-        # --- Metrics: Median/Average Listing and Transaction Prices ---
-        import numpy as np
-        filtered_transactions = all_transactions.copy()
-        if development:
-            filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
-        if community:
-            community_col = filtered_transactions['Community/Building']
-            if not isinstance(community_col, pd.Series):
-                community_col = pd.Series(community_col)
-            filtered_transactions = filtered_transactions[community_col.isin(community)]
-        if subcommunity:
-            subcommunity_col = filtered_transactions['Sub Community / Building']
-            if not isinstance(subcommunity_col, pd.Series):
-                subcommunity_col = pd.Series(subcommunity_col)
-            filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
-        if property_type:
-            filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
-        if bedrooms:
-            filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
-        if layout_type:
-            filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]
-        # Only use transactions with price
-        filtered_transactions = filtered_transactions[pd.to_numeric(filtered_transactions['Price (AED)'], errors='coerce').notnull()]
-        filtered_listings = filtered_listings[pd.to_numeric(filtered_listings['Price (AED)'], errors='coerce').notnull()]
-        # Median/Average
-        median_listing = filtered_listings['Price (AED)'].median() if not filtered_listings.empty else np.nan
-        mean_listing = filtered_listings['Price (AED)'].mean() if not filtered_listings.empty else np.nan
-        median_txn = filtered_transactions['Price (AED)'].median() if not filtered_transactions.empty else np.nan
-        mean_txn = filtered_transactions['Price (AED)'].mean() if not filtered_transactions.empty else np.nan
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Median Listing Price", f"{median_listing:,.0f} AED" if not np.isnan(median_listing) else "-")
-        col2.metric("Average Listing Price", f"{mean_listing:,.0f} AED" if not np.isnan(mean_listing) else "-")
-        col3.metric("Median Transaction Price", f"{median_txn:,.0f} AED" if not np.isnan(median_txn) else "-")
-        col4.metric("Average Transaction Price", f"{mean_txn:,.0f} AED" if not np.isnan(mean_txn) else "-")
-
-        # --- Combined Chart: Listings vs Transactions ---
-        import plotly.graph_objects as go
-        fig = go.Figure()
-        # Transaction prices (blue)
-        if not filtered_transactions.empty:
-            fig.add_trace(go.Scatter(
-                x=filtered_transactions['Evidence Date'] if 'Evidence Date' in filtered_transactions.columns else None,
-                y=filtered_transactions['Price (AED)'],
-                mode='markers',
-                marker=dict(color='blue', size=8, opacity=0.7),
-                name='Transactions',
-                text=filtered_transactions.apply(lambda row: f"Unit: {row['Unit No.']}<br>Date: {row['Evidence Date']}<br>Price: {row['Price (AED)']:,.0f}", axis=1) if 'Unit No.' in filtered_transactions.columns and 'Evidence Date' in filtered_transactions.columns else None,
-                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-            ))
-        # Listing prices (green for verified, red for non-verified if available)
-        if not filtered_listings.empty:
-            if 'Verified' in filtered_listings.columns:
-                ver_df = filtered_listings[filtered_listings['Verified'].str.lower() == 'yes']
-                nonver_df = filtered_listings[filtered_listings['Verified'].str.lower() != 'yes']
-            else:
-                ver_df = filtered_listings.copy()
-                nonver_df = filtered_listings.iloc[0:0]
-            if not ver_df.empty:
-                fig.add_trace(go.Scatter(
-                    x=ver_df['Listed When'] if 'Listed When' in ver_df.columns else ver_df.index,
-                    y=ver_df['Price (AED)'],
-                    mode='markers',
-                    marker=dict(symbol='diamond', size=10, color='green'),
-                    name='Verified Listings',
-                    text=ver_df.apply(lambda row: f"{row['Layout Type']}<br>Price: {row['Price (AED)']:,.0f}", axis=1) if 'Layout Type' in ver_df.columns else None,
-                    hovertemplate="Listing: %{x}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-                ))
-            if not nonver_df.empty:
-                fig.add_trace(go.Scatter(
-                    x=nonver_df['Listed When'] if 'Listed When' in nonver_df.columns else nonver_df.index,
-                    y=nonver_df['Price (AED)'],
-                    mode='markers',
-                    marker=dict(symbol='diamond', size=10, color='red'),
-                    name='Non-verified Listings',
-                    text=nonver_df.apply(lambda row: f"{row['Layout Type']}<br>Price: {row['Price (AED)']:,.0f}", axis=1) if 'Layout Type' in nonver_df.columns else None,
-                    hovertemplate="Listing: %{x}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-                ))
-        # Optionally, add bars for median/average
-        fig.add_hline(y=median_listing, line_dash="dot", line_color="green", annotation_text="Median Listing", annotation_position="top left")
-        fig.add_hline(y=median_txn, line_dash="dot", line_color="blue", annotation_text="Median Transaction", annotation_position="top right")
-        fig.update_layout(title='Listings vs Transactions', xaxis_title='Date/Index', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, height=400)
-        st.plotly_chart(fig, use_container_width=True)
-
-        # --- Hide certain columns but keep them in the DataFrame (do NOT filter by Days Listed or any date here)
+        # Hide certain columns but keep them in the DataFrame (do NOT filter by Days Listed or any date here)
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
 
