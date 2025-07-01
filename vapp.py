@@ -1888,7 +1888,10 @@ with tab4:
                     bedrooms = st.session_state.get(f"bedrooms_{card_id}", "")
 
                     # If all filters are empty, show info and skip chart/metrics
-                    if not (unit_no or development or community or subcommunity or layout_type or bedrooms):
+                    def is_empty(val):
+                        return (val is None) or (isinstance(val, str) and val.strip() == "") or (isinstance(val, (list, tuple, set)) and len(val) == 0)
+
+                    if all(is_empty(x) for x in [unit_no, development, community, subcommunity, layout_type, bedrooms]):
                         st.info("Please select at least one filter to display data.")
                     else:
                         filtered_txns = filtered_all_transactions.copy()
