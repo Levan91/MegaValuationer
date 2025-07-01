@@ -1226,6 +1226,28 @@ with tab2:
         st.info("No live listings data found.")
 
 with tab3:
+    # ALL Prophet/chart/forecast code goes here!
+    with st.expander("Forecast & Listings Filters", expanded=False):
+        prophet_last_n_days = st.number_input(
+            "",
+            min_value=30, max_value=3650, step=30, value=1095, key="prophet_last_n_days",
+            help="Prophet: Last N Days"
+        )
+        # Live Listings Filters
+        verified_only = st.checkbox(
+            "Use Only Verified Listings",
+            value=True,
+            help="Filter to listings marked as verified."
+        )
+        listings_days = st.number_input(
+            "Recent Listings: Last N Days",
+            min_value=1, max_value=365, step=1, value=90,
+            help="Include only listings not older than N days."
+        )
+    # Immediately after the expander, before any use of monthly_df
+    monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
+    # ... move all Prophet/chart/forecast code here ...
+
     # Ensure listing_df is defined for this tab
     listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
     # Determine BUA for info and actual values
@@ -1297,26 +1319,6 @@ with tab3:
     if info_parts:
         st.markdown(" | ".join(info_parts))
     st.header("Trend & Valuation")
-
-    with st.expander("Forecast & Listings Filters", expanded=False):
-        prophet_last_n_days = st.number_input(
-            "",
-            min_value=30, max_value=3650, step=30, value=1095, key="prophet_last_n_days",
-            help="Prophet: Last N Days"
-        )
-        # Live Listings Filters
-        verified_only = st.checkbox(
-            "Use Only Verified Listings",
-            value=True,
-            help="Filter to listings marked as verified."
-        )
-        listings_days = st.number_input(
-            "Recent Listings: Last N Days",
-            min_value=1, max_value=365, step=1, value=90,
-            help="Include only listings not older than N days."
-        )
-# Immediately after the expander, before any use of monthly_df
-monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
 
     # Prepare filtered listing DataFrame
 listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
