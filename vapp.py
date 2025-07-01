@@ -1859,140 +1859,125 @@ with tab4:
                         cards.remove(card_id)
                         st.session_state['comparison_cards'] = cards
                         st.rerun()
-                # Compact 2-column filter layout
-                col1, col2 = st.columns(2)
-                with col1:
-                    unit_options = sorted(pd.Series(filtered_all_transactions['Unit No.']).dropna().unique()) if not filtered_all_transactions.empty else []
-                    st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}", on_change=autofill_comparison_card, args=(card_id,))
-                    dev_options = sorted(pd.Series(filtered_all_transactions['All Developments']).dropna().unique()) if not filtered_all_transactions.empty else []
-                    st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
-                    com_options = sorted(pd.Series(filtered_all_transactions['Community/Building']).dropna().unique()) if not filtered_all_transactions.empty else []
-                    st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
-                with col2:
-                    subcom_options = sorted(pd.Series(filtered_all_transactions['Sub Community / Building']).dropna().unique()) if not filtered_all_transactions.empty else []
-                    st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
-                    layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
-                    st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
-                    beds_options = sorted(pd.Series(filtered_all_transactions['Beds']).dropna().astype(str).unique()) if not filtered_all_transactions.empty else []
-                    st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
-                    # (Removed Transaction Time Filter from card)
+                # Stack filters and chart vertically for each card
+                # --- Filters ---
+                unit_options = sorted(pd.Series(filtered_all_transactions['Unit No.']).dropna().unique()) if not filtered_all_transactions.empty else []
+                st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}", on_change=autofill_comparison_card, args=(card_id,))
+                dev_options = sorted(pd.Series(filtered_all_transactions['All Developments']).dropna().unique()) if not filtered_all_transactions.empty else []
+                st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
+                com_options = sorted(pd.Series(filtered_all_transactions['Community/Building']).dropna().unique()) if not filtered_all_transactions.empty else []
+                st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
+                subcom_options = sorted(pd.Series(filtered_all_transactions['Sub Community / Building']).dropna().unique()) if not filtered_all_transactions.empty else []
+                st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
+                layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
+                st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
+                beds_options = sorted(pd.Series(filtered_all_transactions['Beds']).dropna().astype(str).unique()) if not filtered_all_transactions.empty else []
+                st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
+                # --- Chart below filters ---
+                import plotly.graph_objects as go
+                unit_no = st.session_state.get(f"unit_no_{card_id}", "")
+                development = st.session_state.get(f"development_{card_id}", "")
+                community = st.session_state.get(f"community_{card_id}", "")
+                subcommunity = st.session_state.get(f"subcommunity_{card_id}", "")
+                layout_type = st.session_state.get(f"layout_type_{card_id}", "")
+                bedrooms = st.session_state.get(f"bedrooms_{card_id}", "")
 
-                    # --- Chart below filters ---
-                    import plotly.graph_objects as go
-                    import streamlit.components.v1 as components
-                    unit_no = st.session_state.get(f"unit_no_{card_id}", "")
-                    development = st.session_state.get(f"development_{card_id}", "")
-                    community = st.session_state.get(f"community_{card_id}", "")
-                    subcommunity = st.session_state.get(f"subcommunity_{card_id}", "")
-                    layout_type = st.session_state.get(f"layout_type_{card_id}", "")
-                    bedrooms = st.session_state.get(f"bedrooms_{card_id}", "")
+                def is_empty(val):
+                    return (val is None) or (isinstance(val, str) and val.strip() == "") or (isinstance(val, (list, tuple, set)) and len(val) == 0)
 
-                    # If all filters are empty, show info and skip chart/metrics
-                    def is_empty(val):
-                        return (val is None) or (isinstance(val, str) and val.strip() == "") or (isinstance(val, (list, tuple, set)) and len(val) == 0)
+                if any(not is_empty(x) for x in [unit_no, development, community, subcommunity, layout_type, bedrooms]):
+                    filtered_txns = filtered_all_transactions.copy()
+                    if development:
+                        filtered_txns = filtered_txns[filtered_txns['All Developments'] == development]
+                    if community:
+                        filtered_txns = filtered_txns[filtered_txns['Community/Building'] == community]
+                    if subcommunity:
+                        filtered_txns = filtered_txns[filtered_txns['Sub Community / Building'] == subcommunity]
+                    if layout_type:
+                        filtered_txns = filtered_txns[filtered_txns['Layout Type'] == layout_type]
+                    if bedrooms:
+                        filtered_txns = filtered_txns[filtered_txns['Beds'].astype(str) == bedrooms]
+                    filtered_txns = pd.DataFrame(filtered_txns)
 
-                    if any(not is_empty(x) for x in [unit_no, development, community, subcommunity, layout_type, bedrooms]):
-                        filtered_txns = filtered_all_transactions.copy()
-                        if development:
-                            filtered_txns = filtered_txns[filtered_txns['All Developments'] == development]
-                        if community:
-                            filtered_txns = filtered_txns[filtered_txns['Community/Building'] == community]
-                        if subcommunity:
-                            filtered_txns = filtered_txns[filtered_txns['Sub Community / Building'] == subcommunity]
-                        if layout_type:
-                            filtered_txns = filtered_txns[filtered_txns['Layout Type'] == layout_type]
-                        if bedrooms:
-                            filtered_txns = filtered_txns[filtered_txns['Beds'].astype(str) == bedrooms]
-                        filtered_txns = pd.DataFrame(filtered_txns)
+                    unit_txns = pd.DataFrame()
+                    if unit_no:
+                        unit_txns = filtered_all_transactions[filtered_all_transactions['Unit No.'] == unit_no]
+                    unit_txns = pd.DataFrame(unit_txns)
 
-                        unit_txns = pd.DataFrame()
-                        if unit_no:
-                            unit_txns = filtered_all_transactions[filtered_all_transactions['Unit No.'] == unit_no]
-                        unit_txns = pd.DataFrame(unit_txns)
-
-                        if filtered_txns.empty and unit_txns.empty:
-                            st.warning("No data matches the selected filters.")
-                        else:
-                            # --- Begin Chart Code ---
-                            # Prepare listings filtered for this card
-                            listings_days = st.session_state.get('comparisons_listings_days', 120)
-                            listings_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
-                            if not listings_df.empty:
-                                if 'Days Listed' in listings_df.columns:
-                                    listings_df['Days Listed'] = pd.to_numeric(listings_df['Days Listed'], errors='coerce')
-                                    listings_df['Listing Date'] = datetime.now() - pd.to_timedelta(listings_df['Days Listed'], unit='D')
-                                    cutoff_listings = datetime.now() - timedelta(days=listings_days)
-                                    listings_df = listings_df[listings_df['Listing Date'] >= cutoff_listings]
-                                # Filter by card filters
-                                if development and 'Development' in listings_df.columns:
-                                    listings_df = listings_df[listings_df['Development'] == development]
-                                if community and 'Community' in listings_df.columns:
-                                    listings_df = listings_df[listings_df['Community'] == community]
-                                if subcommunity and 'Subcommunity' in listings_df.columns:
-                                    listings_df = listings_df[listings_df['Subcommunity'] == subcommunity]
-                                if layout_type and 'Layout Type' in listings_df.columns:
-                                    listings_df = listings_df[listings_df['Layout Type'] == layout_type]
-                                if bedrooms and 'Beds' in listings_df.columns:
-                                    listings_df = listings_df[listings_df['Beds'].astype(str) == bedrooms]
-                                listings_df = pd.DataFrame(listings_df)
-                            # Plotly chart
-                            fig = go.Figure()
-                            # Blue dots: filtered sales
-                            if not filtered_txns.empty and 'Evidence Date' in filtered_txns.columns and 'Price (AED)' in filtered_txns.columns:
-                                fig.add_trace(go.Scatter(
-                                    x=filtered_txns['Evidence Date'],
-                                    y=filtered_txns['Price (AED)'],
-                                    mode='markers',
-                                    marker=dict(color='blue', size=5),
-                                    name='Similar Sales',
-                                    text=filtered_txns.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
-                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-                                ))
-                            # Gold stars: unit sales
-                            if not unit_txns.empty and 'Evidence Date' in unit_txns.columns and 'Price (AED)' in unit_txns.columns:
-                                fig.add_trace(go.Scatter(
-                                    x=unit_txns['Evidence Date'],
-                                    y=unit_txns['Price (AED)'],
-                                    mode='markers',
-                                    marker=dict(color='gold', size=12, symbol='star'),
-                                    name='Unit Sales',
-                                    text=unit_txns.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
-                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-                                ))
-                            # Listings: green/red diamonds
-                            if not listings_df.empty and 'Price (AED)' in listings_df.columns and 'Listing Date' in listings_df.columns:
-                                if 'Verified' in listings_df.columns:
-                                    ver_df = listings_df[listings_df['Verified'].str.lower() == 'yes']
-                                    nonver_df = listings_df[listings_df['Verified'].str.lower() != 'yes']
-                                else:
-                                    ver_df = listings_df.copy()
-                                    nonver_df = listings_df.iloc[0:0]
-                                # Green diamonds: verified
-                                if not ver_df.empty:
-                                    fig.add_trace(go.Scatter(
-                                        x=ver_df['Listing Date'],
-                                        y=ver_df['Price (AED)'],
-                                        mode='markers',
-                                        marker=dict(symbol='diamond', size=10, color='green'),
-                                        name='Verified Listing',
-                                        text=ver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in ver_df.columns and 'Layout Type' in ver_df.columns else "",
-                                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-                                    ))
-                                # Red diamonds: non-verified
-                                if not nonver_df.empty:
-                                    fig.add_trace(go.Scatter(
-                                        x=nonver_df['Listing Date'],
-                                        y=nonver_df['Price (AED)'],
-                                        mode='markers',
-                                        marker=dict(symbol='diamond', size=10, color='red'),
-                                        name='Non-verified Listing',
-                                        text=nonver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in nonver_df.columns and 'Layout Type' in nonver_df.columns else "",
-                                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-                                    ))
-                            fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
-                            st.plotly_chart(fig, use_container_width=True)
-                            # --- End Chart Code ---
+                    if filtered_txns.empty and unit_txns.empty:
+                        st.warning("No data matches the selected filters.")
                     else:
-                        st.info("Please select at least one filter to display data.")
+                        # --- Chart code as before ---
+                        listings_days = st.session_state.get('comparisons_listings_days', 120)
+                        listings_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+                        if not listings_df.empty:
+                            if 'Days Listed' in listings_df.columns:
+                                listings_df['Days Listed'] = pd.to_numeric(listings_df['Days Listed'], errors='coerce')
+                                listings_df['Listing Date'] = datetime.now() - pd.to_timedelta(listings_df['Days Listed'], unit='D')
+                                cutoff_listings = datetime.now() - timedelta(days=listings_days)
+                                listings_df = listings_df[listings_df['Listing Date'] >= cutoff_listings]
+                            if development and 'Development' in listings_df.columns:
+                                listings_df = listings_df[listings_df['Development'] == development]
+                            if community and 'Community' in listings_df.columns:
+                                listings_df = listings_df[listings_df['Community'] == community]
+                            if subcommunity and 'Subcommunity' in listings_df.columns:
+                                listings_df = listings_df[listings_df['Subcommunity'] == subcommunity]
+                            if layout_type and 'Layout Type' in listings_df.columns:
+                                listings_df = listings_df[listings_df['Layout Type'] == layout_type]
+                            if bedrooms and 'Beds' in listings_df.columns:
+                                listings_df = listings_df[listings_df['Beds'].astype(str) == bedrooms]
+                            listings_df = pd.DataFrame(listings_df)
+                        fig = go.Figure()
+                        if not filtered_txns.empty and 'Evidence Date' in filtered_txns.columns and 'Price (AED)' in filtered_txns.columns:
+                            fig.add_trace(go.Scatter(
+                                x=filtered_txns['Evidence Date'],
+                                y=filtered_txns['Price (AED)'],
+                                mode='markers',
+                                marker=dict(color='blue', size=5),
+                                name='Similar Sales',
+                                text=filtered_txns.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
+                                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                            ))
+                        if not unit_txns.empty and 'Evidence Date' in unit_txns.columns and 'Price (AED)' in unit_txns.columns:
+                            fig.add_trace(go.Scatter(
+                                x=unit_txns['Evidence Date'],
+                                y=unit_txns['Price (AED)'],
+                                mode='markers',
+                                marker=dict(color='gold', size=12, symbol='star'),
+                                name='Unit Sales',
+                                text=unit_txns.apply(lambda row: f"Unit: {row['Unit No.']}<br>Layout: {row.get('Layout Type','')}<br>BUA: {row.get('Unit Size (sq ft)','')}<br>Plot: {row.get('Plot Size (sq ft)','')}", axis=1),
+                                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                            ))
+                        if not listings_df.empty and 'Price (AED)' in listings_df.columns and 'Listing Date' in listings_df.columns:
+                            if 'Verified' in listings_df.columns:
+                                ver_df = listings_df[listings_df['Verified'].str.lower() == 'yes']
+                                nonver_df = listings_df[listings_df['Verified'].str.lower() != 'yes']
+                            else:
+                                ver_df = listings_df.copy()
+                                nonver_df = listings_df.iloc[0:0]
+                            if not ver_df.empty:
+                                fig.add_trace(go.Scatter(
+                                    x=ver_df['Listing Date'],
+                                    y=ver_df['Price (AED)'],
+                                    mode='markers',
+                                    marker=dict(symbol='diamond', size=10, color='green'),
+                                    name='Verified Listing',
+                                    text=ver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in ver_df.columns and 'Layout Type' in ver_df.columns else "",
+                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                                ))
+                            if not nonver_df.empty:
+                                fig.add_trace(go.Scatter(
+                                    x=nonver_df['Listing Date'],
+                                    y=nonver_df['Price (AED)'],
+                                    mode='markers',
+                                    marker=dict(symbol='diamond', size=10, color='red'),
+                                    name='Non-verified Listing',
+                                    text=nonver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in nonver_df.columns and 'Layout Type' in nonver_df.columns else "",
+                                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                                ))
+                        fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Please select at least one filter to display data.")
 
     st.markdown("<!-- COMPARISONS TAB END -->")
