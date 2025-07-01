@@ -141,10 +141,6 @@ from scipy.stats import norm
  
 import numpy as np
 from datetime import datetime, timedelta
-# Removed: import pdfkit
-from fpdf import FPDF
-import tempfile
-from jinja2 import Template
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -1930,56 +1926,4 @@ with tab3:
     # Use use_params for main Prophet forecast below
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
-
-    # --- Report Generation Test Section ---
-    st.markdown("---")
-    st.header("Test: Download Valuation Report (PDF)")
-    # 1. Export Prophet chart as image (using kaleido)
-    prophet_img_path = None
-    try:
-        import plotly.io as pio
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmpfile:
-            fig.write_image(tmpfile.name, engine="kaleido")
-            prophet_img_path = tmpfile.name
-    except Exception as e:
-        st.warning(f"Could not export Prophet chart: {e}")
-    # 2. Gather selected unit info
-    unit_info_dict = {}
-    if unit_number:
-        selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
-        import pandas as pd
-        if not isinstance(selected_unit_data, pd.DataFrame):
-            selected_unit_data = pd.DataFrame(selected_unit_data)
-        if not selected_unit_data.empty:
-            unit_info_dict = selected_unit_data.iloc[0].to_dict()
-    # 3. Personal notes input
-    notes = st.text_area("Valuation Notes (for report)", "", key="report_notes")
-    # 4. Generate PDF using fpdf2
-    pdf_bytes = None
-    try:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=16)
-        pdf.cell(0, 10, "Property Valuation Report", ln=True, align="C")
-        pdf.ln(10)
-        pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, "Selected Unit Info:", ln=True)
-        for k, v in unit_info_dict.items():
-            pdf.cell(0, 8, f"{k}: {v}", ln=True)
-        pdf.ln(5)
-        if prophet_img_path:
-            pdf.cell(0, 10, "Prophet Forecast Chart:", ln=True)
-            pdf.image(prophet_img_path, w=170)
-            pdf.ln(5)
-        pdf.cell(0, 10, "Valuation Notes:", ln=True)
-        pdf.multi_cell(0, 8, notes)
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmpfile:
-            pdf.output(tmpfile.name)
-            with open(tmpfile.name, 'rb') as f:
-                pdf_bytes = f.read()
-    except Exception as e:
-        st.warning(f"Could not generate PDF: {e}")
-    # 5. Download button
-    if pdf_bytes:
-        st.download_button("Download Valuation Report (PDF)", pdf_bytes, file_name="valuation_report.pdf", mime="application/pdf")
 
