@@ -1615,19 +1615,6 @@ with tab3:
                 nonver_other = pd.DataFrame(nonver_other)
             if not ver_sel.empty:
                 # Helper to build location string for listings (move to top of listing plotting section)
-                def get_location_str(row):
-                    comm = row.get('Community') or row.get('Community/Building')
-                    subcomm = row.get('Subcommunity') or row.get('Sub Community / Building')
-                    comm = str(comm) if pd.notnull(comm) else ''
-                    subcomm = str(subcomm) if pd.notnull(subcomm) else ''
-                    if comm and subcomm:
-                        return f"{comm}, {subcomm}"
-                    elif comm:
-                        return comm
-                    elif subcomm:
-                        return subcomm
-                    else:
-                        return ''
                 fig.add_trace(go.Scatter(
                     x=ver_sel["Listed When"] if "Listed When" in ver_sel.columns else ver_sel.get("Listing Date", ver_sel.index),
                     y=ver_sel['Price (AED)'],
@@ -1926,3 +1913,17 @@ with tab3:
     # Use use_params for main Prophet forecast below
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
+
+def get_location_str(row):
+    comm = row.get('Community') or row.get('Community/Building')
+    subcomm = row.get('Subcommunity') or row.get('Sub Community / Building')
+    comm = str(comm) if pd.notnull(comm) else ''
+    subcomm = str(subcomm) if pd.notnull(subcomm) else ''
+    if comm and subcomm:
+        return f"{comm}, {subcomm}"
+    elif comm:
+        return comm
+    elif subcomm:
+        return subcomm
+    else:
+        return ''
