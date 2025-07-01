@@ -1990,6 +1990,41 @@ with tab4:
                                 ))
                         fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
                         st.plotly_chart(fig, use_container_width=True)
+                        # --- METRICS AND HISTOGRAM FOR THIS CARD ---
+                        # 1. Total units matching parameters (from all_transactions, not time-filtered)
+                        all_units = all_transactions.copy()
+                        if development:
+                            all_units = all_units[all_units['All Developments'] == development]
+                        if community:
+                            all_units = all_units[all_units['Community/Building'] == community]
+                        if subcommunity:
+                            all_units = all_units[all_units['Sub Community / Building'] == subcommunity]
+                        if layout_type:
+                            all_units = all_units[all_units['Layout Type'] == layout_type]
+                        if bedrooms:
+                            all_units = all_units[all_units['Beds'].astype(str) == bedrooms]
+                        total_units = all_units['Unit No.'].nunique() if 'Unit No.' in all_units.columns else all_units.shape[0]
+                        # 2. Total sold during time period (filtered_txns)
+                        total_sold = filtered_txns['Unit No.'].nunique() if 'Unit No.' in filtered_txns.columns else filtered_txns.shape[0]
+                        # 3. Total listings (listings_df)
+                        total_listings = listings_df['Unit No.'].nunique() if 'Unit No.' in listings_df.columns else listings_df.shape[0]
+                        # Metrics row
+                        mcol1, mcol2, mcol3 = st.columns(3)
+                        mcol1.metric("Total Units (Matching)", total_units)
+                        mcol2.metric("Units Sold (Period)", total_sold)
+                        mcol3.metric("Listings (Current)", total_listings)
+                        # Histogram: transactions per month
+                        if not filtered_txns.empty and 'Evidence Date' in filtered_txns.columns:
+                            txn_df = filtered_txns.copy()
+                            txn_df['Evidence Date'] = pd.to_datetime(txn_df['Evidence Date'], errors='coerce')
+                            txn_df = txn_df.dropna(subset=['Evidence Date'])
+                            txn_df['YearMonth'] = txn_df['Evidence Date'].dt.to_period('M')
+                            monthly_counts = txn_df.groupby('YearMonth').size()
+                            fig_hist = go.Figure()
+                            fig_hist.add_trace(go.Bar(x=monthly_counts.index.astype(str), y=monthly_counts.values, name='Transactions'))
+                            fig_hist.update_layout(title='Transactions per Month', xaxis_title='Month', yaxis_title='Count', height=220, margin=dict(t=40, b=40))
+                            st.plotly_chart(fig_hist, use_container_width=True)
+                        # --- END METRICS AND HISTOGRAM ---
                 else:
                     st.info("Please select at least one filter to display data.")
 
