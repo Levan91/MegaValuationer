@@ -1765,6 +1765,25 @@ with tab3:
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
 
+# --- Helper for comparison card autofill ---
+def autofill_comparison_card(card_id):
+    unit_key = f"unit_no_{card_id}"
+    dev_key = f"development_{card_id}"
+    com_key = f"community_{card_id}"
+    subcom_key = f"subcommunity_{card_id}"
+    layout_key = f"layout_type_{card_id}"
+    beds_key = f"bedrooms_{card_id}"
+    selected_unit = st.session_state.get(unit_key, "")
+    if selected_unit:
+        row = all_transactions[all_transactions['Unit No.'] == selected_unit]
+        if isinstance(row, pd.DataFrame) and len(row) > 0:
+            row = row.iloc[0]
+            st.session_state[dev_key] = row.get('All Developments', "")
+            st.session_state[com_key] = row.get('Community/Building', "")
+            st.session_state[subcom_key] = row.get('Sub Community / Building', "")
+            st.session_state[layout_key] = layout_map.get(selected_unit, "") if 'layout_map' in globals() else row.get('Layout Type', "")
+            st.session_state[beds_key] = str(row.get('Beds', ""))
+
 with tab4:
     # Explicitly clear any Prophet/chart/forecast variables to prevent leakage
     if 'monthly_df' in locals(): del monthly_df
@@ -1809,33 +1828,23 @@ with tab4:
                         cards.remove(card_id)
                         st.session_state['comparison_cards'] = cards
                         st.rerun()
-                
-                # Card filters (independent per card)
-                # Unit No
-                unit_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().unique()) if not all_transactions.empty else []
-                st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}")
-                
-                # Development
-                dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
-                st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
-                
-                # Community
-                com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
-                st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
-                
-                # Subcommunity
-                subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
-                st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
-                
-                # Layout Type
-                layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
-                st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
-                
-                # Bedrooms
-                beds_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
-                st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
-                
-                # Transaction Time Filter
+                # Compact 2-column filter layout
+                col1, col2 = st.columns(2)
+                with col1:
+                    unit_options = sorted(pd.Series(all_transactions['Unit No.']).dropna().unique()) if not all_transactions.empty else []
+                    st.selectbox("Unit No.", options=[""] + unit_options, key=f"unit_no_{card_id}", on_change=autofill_comparison_card, args=(card_id,))
+                    dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique()) if not all_transactions.empty else []
+                    st.selectbox("Development", options=[""] + dev_options, key=f"development_{card_id}")
+                    com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique()) if not all_transactions.empty else []
+                    st.selectbox("Community", options=[""] + com_options, key=f"community_{card_id}")
+                with col2:
+                    subcom_options = sorted(pd.Series(all_transactions['Sub Community / Building']).dropna().unique()) if not all_transactions.empty else []
+                    st.selectbox("Subcommunity", options=[""] + subcom_options, key=f"subcommunity_{card_id}")
+                    layout_options = sorted(pd.Series(layout_map_df['Layout Type']).dropna().unique()) if not layout_map_df.empty else []
+                    st.selectbox("Layout Type", options=[""] + layout_options, key=f"layout_type_{card_id}")
+                    beds_options = sorted(pd.Series(all_transactions['Beds']).dropna().astype(str).unique()) if not all_transactions.empty else []
+                    st.selectbox("Bedrooms", options=[""] + beds_options, key=f"bedrooms_{card_id}")
+                # Transaction Time Filter at the bottom
                 st.selectbox("Transaction Time Filter", options=["", "Last N Days", "After Date", "From Date to Date"], key=f"txn_time_filter_{card_id}")
     
     st.markdown("<!-- COMPARISONS TAB END -->")
