@@ -141,6 +141,9 @@ from scipy.stats import norm
  
 import numpy as np
 from datetime import datetime, timedelta
+import pdfkit
+from jinja2 import Template
+import tempfile
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -1926,4 +1929,87 @@ with tab3:
     # Use use_params for main Prophet forecast below
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
+
+    # --- Report Generation Test Section ---
+    st.markdown("---")
+    st.header("Test: Download Valuation Report (PDF)")
+    # 1. Export Prophet chart and histogram as images
+    prophet_img_path = None
+    hist_img_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmpfile:
+            fig.write_image(tmpfile.name)
+            prophet_img_path = tmpfile.name
+    except Exception as e:
+        st.warning(f"Could not export Prophet chart: {e}")
+    # For histogram, reuse Prophet chart as placeholder (or add your histogram fig if available)
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmpfile:
+            fig.write_image(tmpfile.name)
+            hist_img_path = tmpfile.name
+    except Exception as e:
+        st.warning(f"Could not export histogram: {e}")
+    # 2. Gather selected unit info
+    unit_info_dict = {}
+    if unit_number:
+        selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
+        if not selected_unit_data.empty:
+            unit_info_dict = selected_unit_data.iloc[0].to_dict()
+    # 3. Personal notes input
+    notes = st.text_area("Valuation Notes (for report)", "", key="report_notes")
+    # 4. HTML template for report
+    html_template = Template('''
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .header { font-size: 2em; font-weight: bold; }
+        .section { margin-top: 30px; }
+        .unit-info { border: 1px solid #eee; padding: 10px; }
+        .notes { background: #f9f9f9; padding: 10px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">Property Valuation Report</div>
+      <div class="section unit-info">
+        <h2>Selected Unit Info</h2>
+        <ul>
+        {% for k, v in unit_info.items() %}
+          <li><b>{{k}}:</b> {{v}}</li>
+        {% endfor %}
+        </ul>
+      </div>
+      <div class="section">
+        <h2>Prophet Forecast</h2>
+        {% if prophet_img %}<img src="{{prophet_img}}" width="600"/>{% endif %}
+      </div>
+      <div class="section">
+        <h2>Sales Activity Histogram</h2>
+        {% if hist_img %}<img src="{{hist_img}}" width="600"/>{% endif %}
+      </div>
+      <div class="section notes">
+        <h2>Valuation Notes</h2>
+        <p>{{notes}}</p>
+      </div>
+    </body>
+    </html>
+    ''')
+    html_str = html_template.render(
+        unit_info=unit_info_dict,
+        prophet_img=prophet_img_path,
+        hist_img=hist_img_path,
+        notes=notes
+    )
+    # 5. Generate PDF from HTML
+    pdf_bytes = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmpfile:
+            pdfkit.from_string(html_str, tmpfile.name)
+            with open(tmpfile.name, 'rb') as f:
+                pdf_bytes = f.read()
+    except Exception as e:
+        st.warning(f"Could not generate PDF: {e}")
+    # 6. Download button
+    if pdf_bytes:
+        st.download_button("Download Valuation Report (PDF)", pdf_bytes, file_name="valuation_report.pdf", mime="application/pdf")
 
