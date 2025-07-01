@@ -1546,7 +1546,8 @@ with tab3:
                             ])),
                             axis=1
                         ),
-                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>",
+                        hoverlabel=dict(font=dict(color='white'))
                     ))
                 # Other subcommunities (blue)
                 if not txn_other.empty:
@@ -1640,7 +1641,8 @@ with tab3:
                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
                             row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
                         ])), axis=1),
-                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
                 ))
             if not nonver_sel.empty:
                 fig.add_trace(go.Scatter(
@@ -1656,7 +1658,8 @@ with tab3:
                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
                             row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
                         ])), axis=1),
-                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
                 ))
             if not ver_other.empty:
                 fig.add_trace(go.Scatter(
@@ -1672,7 +1675,8 @@ with tab3:
                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
                             row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
                         ])), axis=1),
-                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
                 ))
             if not nonver_other.empty:
                 fig.add_trace(go.Scatter(
@@ -1688,7 +1692,8 @@ with tab3:
                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
                             row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
                         ])), axis=1),
-                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
                 ))
         else:
             # No selected subcommunity, use default coloring
@@ -1706,7 +1711,8 @@ with tab3:
                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
                             row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
                         ])), axis=1),
-                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
                 ))
             if not nonver_df.empty:
                 fig.add_trace(go.Scatter(
@@ -1722,7 +1728,8 @@ with tab3:
                             f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
                             row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
                         ])), axis=1),
-                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
                 ))
         fig.update_layout(
             title='Prophet Forecast (Actual Value)',
