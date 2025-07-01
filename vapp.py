@@ -1991,10 +1991,11 @@ with tab4:
                                         text=nonver_df.apply(lambda row: f"{int(row['Days Listed']) if pd.notnull(row.get('Days Listed')) else ''} days ago | {row.get('Layout Type','')}", axis=1) if 'Days Listed' in nonver_df.columns and 'Layout Type' in nonver_df.columns else "",
                                         hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>"
                                     ))
-                            fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+                            fig.update_layout(title='Sales & Listings', xaxis_title='Date', yaxis_title='Price (AED)', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), autosize=True, width=None, height=400)
                             # Render interactive Plotly chart with clickable listings
-                            html_str = fig.to_html(include_plotlyjs='cdn')
+                            html_str = fig.to_html(include_plotlyjs='cdn', full_html=False, config={'responsive': True})
                             components.html(f"""
+                                <div style='width:100%;'>
                                 {html_str}
                                 <script>
                                   const gd = document.querySelectorAll('.plotly-graph-div')[0];
@@ -2003,7 +2004,8 @@ with tab4:
                                     if (url) window.open(url);
                                   }});
                                 </script>
-                            """, height=400, scrolling=True)
+                                </div>
+                            """, height=400, width="100%", scrolling=True)
                             # --- End Chart Code ---
                     else:
                         st.info("Please select at least one filter to display data.")
