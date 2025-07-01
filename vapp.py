@@ -41,6 +41,19 @@ from sklearn.compose import ColumnTransformer
 
 from sklearn.metrics import mean_absolute_percentage_error, mean_absolute_error, mean_squared_error, r2_score
 
+def get_location_str(row):
+    comm = row.get('Community') or row.get('Community/Building')
+    subcomm = row.get('Subcommunity') or row.get('Sub Community / Building')
+    comm = str(comm) if pd.notnull(comm) else ''
+    subcomm = str(subcomm) if pd.notnull(subcomm) else ''
+    if comm and subcomm:
+        return f"{comm}, {subcomm}"
+    elif comm:
+        return comm
+    elif subcomm:
+        return subcomm
+    else:
+        return ''
 def tune_prophet_hyperparameters(monthly_df):
     # Your implementation or stub
     return None, None
@@ -1914,16 +1927,3 @@ with tab3:
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
 
-def get_location_str(row):
-    comm = row.get('Community') or row.get('Community/Building')
-    subcomm = row.get('Subcommunity') or row.get('Sub Community / Building')
-    comm = str(comm) if pd.notnull(comm) else ''
-    subcomm = str(subcomm) if pd.notnull(subcomm) else ''
-    if comm and subcomm:
-        return f"{comm}, {subcomm}"
-    elif comm:
-        return comm
-    elif subcomm:
-        return subcomm
-    else:
-        return ''
