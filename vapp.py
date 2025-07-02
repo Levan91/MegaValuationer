@@ -146,8 +146,9 @@ def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
     df2['ds'] = pd.to_datetime(df2['Evidence Date'])
     df2['y'] = pd.to_numeric(df2['Price (AED/sq ft)'], errors='coerce')
-    monthly = df2.set_index('ds')['y'].resample('ME').mean().reset_index()
-    monthly['y_avg'] = df2['y'].mean()
+    # Use median instead of mean for monthly aggregation
+    monthly = df2.set_index('ds')['y'].resample('ME').median().reset_index()
+    monthly['y_avg'] = df2['y'].median()
     return monthly
 
 # --- Cache monthly DataFrame preparation for Prophet ---
