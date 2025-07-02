@@ -1796,7 +1796,7 @@ with tab3:
                 if (url) window.open(url);
               }});
             </script>
-        """, height=600, scrolling=True)
+        """, height=800, scrolling=True)
         # Table
         fc = forecast[['ds','yhat_actual','yhat_lower_actual','yhat_upper_actual']].tail(6).copy()
         fc = pd.DataFrame(fc)
