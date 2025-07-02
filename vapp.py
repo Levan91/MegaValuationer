@@ -1553,9 +1553,9 @@ with tab3:
         fig.add_trace(go.Scatter(
             x=all_dates,
             y=y_pred,
-            mode='lines+markers',  # Add markers to the linear trend
+            mode='lines+markers',  # Keep markers
             name='Linear Trend',
-            line=dict(color='orange', dash='solid'),  # Solid line
+            line=dict(color='orange', dash='dash'),  # Dashed line
             marker=dict(color='orange', symbol='circle', size=8)
         ))
         # --- Highlight Current Month Value ---
