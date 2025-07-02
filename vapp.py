@@ -1783,7 +1783,8 @@ with tab3:
                 ))
         fig.update_layout(
             title='Prophet Forecast (Actual Value)',
-            xaxis_title='Month', yaxis_title='AED'
+            xaxis_title='Month', yaxis_title='AED',
+            height=800
         )
         # Render interactive Plotly chart with clickable listings
         html_str = fig.to_html(include_plotlyjs='include')
