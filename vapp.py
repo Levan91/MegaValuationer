@@ -2049,18 +2049,18 @@ with tab4:
     ]
     cols_to_show = [c for c in display_cols if c in merged.columns]
     cols_final = ['Status'] + cols_to_show
-    # Add filter for status circle
-    status_options = ['🟢', '🟣', '🟡', '🔴']
-    selected_status = st.multiselect('Filter by Status', status_options, default=status_options)
-    filtered = merged[merged['Status'].isin(selected_status)]
-    gb = GridOptionsBuilder.from_dataframe(filtered[cols_final])
+    # Remove status filter: show all units
+    data_for_aggrid = merged[cols_final]
+    if not isinstance(data_for_aggrid, pd.DataFrame):
+        data_for_aggrid = pd.DataFrame(data_for_aggrid)
+    gb = GridOptionsBuilder.from_dataframe(data_for_aggrid)
     gb.configure_default_column(filter=True, sortable=True, resizable=True)
     gb.configure_column("Status", filter="agSetColumnFilter")
     gb.configure_column("Layout Type", filter="agSetColumnFilter")
     gb.configure_column("Project", filter="agSetColumnFilter")
     grid_options = gb.build()
     AgGrid(
-        filtered[cols_final],
+        data_for_aggrid,
         gridOptions=grid_options,
         enable_enterprise_modules=True,
         theme='alpine'
