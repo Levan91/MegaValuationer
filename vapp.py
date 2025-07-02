@@ -2053,6 +2053,16 @@ with tab4:
     status_options = ['🟢', '🟣', '🟡', '🔴']
     selected_status = st.multiselect('Filter by Status', status_options, default=status_options)
     filtered = merged[merged['Status'].isin(selected_status)]
-    st.dataframe(filtered[cols_final])
+    gb = GridOptionsBuilder.from_dataframe(filtered[cols_final])
+    gb.configure_default_column(filter=True, sortable=True, resizable=True)
+    grid_options = gb.build()
+    AgGrid(
+        filtered[cols_final],
+        gridOptions=grid_options,
+        enable_enterprise_modules=False,
+        update_mode='NO_UPDATE',
+        allow_unsafe_jscode=True,
+        theme='alpine'
+    )
     st.markdown("<!-- RENTALS TAB END -->")
 
