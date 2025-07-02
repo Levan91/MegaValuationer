@@ -1096,6 +1096,9 @@ with tab1:
                 if col in latest_rental and pd.notnull(latest_rental[col]):
                     amount = latest_rental[col]
                     break
+            # Debug: print rent columns and value
+            st.write('DEBUG: Rental columns:', list(latest_rental.index))
+            st.write('DEBUG: Rental amount:', amount)
             if pd.notnull(start) and pd.notnull(end):
                 rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
                 if amount is not None and pd.notnull(amount):
