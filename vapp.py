@@ -1038,14 +1038,9 @@ if not all_listings.empty:
 tab1, tab2, tab3 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation"])
 
 with tab1:
-    # Explicitly clear any Prophet/chart/forecast variables to prevent leakage
-    if 'monthly_df' in locals(): del monthly_df
-    if 'forecast' in locals(): del forecast
-    if 'fig' in locals(): del fig
-    if 'display_df' in locals(): del display_df
-    
-    st.markdown("<!-- DASHBOARD TAB START -->")
+    # Remove unnecessary and error-prone variable deletion
     # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
+    st.markdown("<!-- DASHBOARD TAB START -->")
     st.title("Real Estate Valuation Dashboard")
 
     # Selected Unit Info box
@@ -1063,12 +1058,17 @@ with tab1:
     last_txn_date = None
     if unit_number and "Evidence Date" in all_transactions.columns:
         unit_txns = all_transactions[all_transactions["Unit No."] == unit_number]
+        # Ensure unit_txns is a DataFrame before checking .empty
+        import pandas as pd
+        if not isinstance(unit_txns, pd.DataFrame):
+            unit_txns = pd.DataFrame(unit_txns)
         if not unit_txns.empty:
             # Ensure Evidence Date is datetime
             unit_txns = unit_txns.copy()
             unit_txns["Evidence Date"] = pd.to_datetime(unit_txns["Evidence Date"], errors="coerce")
             last_txn = unit_txns["Evidence Date"].max()
-            if pd.notnull(last_txn):
+            # Ensure last_txn is a scalar Timestamp before formatting
+            if pd.notnull(last_txn) and isinstance(last_txn, pd.Timestamp):
                 last_txn_date = last_txn.strftime("%Y-%m-%d")
     if last_txn_date:
         # Make it bold and orange for visibility
@@ -1153,12 +1153,7 @@ with tab1:
     st.markdown("<!-- DASHBOARD TAB END -->")
 
 with tab2:
-    # Explicitly clear any Prophet/chart/forecast variables to prevent leakage
-    if 'monthly_df' in locals(): del monthly_df
-    if 'forecast' in locals(): del forecast
-    if 'fig' in locals(): del fig
-    if 'display_df' in locals(): del display_df
-    
+    # Remove unnecessary and error-prone variable deletion
     st.markdown("<!-- LIVE LISTINGS TAB START -->")
     if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
         st.subheader("All Live Listings")
@@ -1558,9 +1553,10 @@ with tab3:
         fig.add_trace(go.Scatter(
             x=all_dates,
             y=y_pred,
-            mode='lines',
+            mode='lines+markers',  # Add markers to the linear trend
             name='Linear Trend',
-            line=dict(color='orange', dash='dash')
+            line=dict(color='orange', dash='solid'),  # Solid line
+            marker=dict(color='orange', symbol='circle', size=8)
         ))
         # --- Highlight Current Month Value ---
         import pandas as pd
