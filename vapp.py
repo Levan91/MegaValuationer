@@ -1544,7 +1544,7 @@ with tab3:
         monthly_df = monthly_df.copy()
         monthly_df['month_idx'] = np.arange(len(monthly_df))
         X_hist = monthly_df['month_idx'].values.reshape(-1, 1)
-        y_hist = monthly_df['y'].values
+        y_hist = monthly_df['actual'].values  # Use actual unit values, not price per sqft
         linreg = LinearRegression()
         linreg.fit(X_hist, y_hist)
         # Predict for both historical and future months
