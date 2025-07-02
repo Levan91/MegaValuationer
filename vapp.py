@@ -2062,9 +2062,7 @@ with tab4:
     AgGrid(
         filtered[cols_final],
         gridOptions=grid_options,
-        enable_enterprise_modules=False,
-        update_mode='NO_UPDATE',
-        allow_unsafe_jscode=True,
+        enable_enterprise_modules=True,
         theme='alpine'
     )
     st.markdown("<!-- RENTALS TAB END -->")
