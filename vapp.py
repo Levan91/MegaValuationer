@@ -1090,7 +1090,11 @@ with tab1:
             start = latest_rental['Contract Start']
             end = latest_rental['Contract End']
             # Try to get the rent amount from several possible column names
-            rent_col_candidates = ['Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']
+            rent_col_candidates = [
+                'Annualised Rental Price(AED)',  # no space (actual column in your file)
+                'Annualised Rental Price (AED)', # with space
+                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+            ]
             amount = None
             for col in rent_col_candidates:
                 if col in latest_rental and pd.notnull(latest_rental[col]):
