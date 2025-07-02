@@ -1070,9 +1070,10 @@ with tab1:
             if pd.notnull(last_txn):
                 last_txn_date = last_txn.strftime("%Y-%m-%d")
     if last_txn_date:
-        info_parts.append(f"🕒 Last Transaction: {last_txn_date}")
+        # Make it bold and orange for visibility
+        info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
     if info_parts:
-        st.markdown(" | ".join(info_parts))
+        st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
 
     # Unit details
     if unit_number:
