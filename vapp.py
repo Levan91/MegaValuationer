@@ -1073,8 +1073,28 @@ with tab1:
     if last_txn_date:
         # Make it bold and orange for visibility
         info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
+    rental_info_html = None
+    # Add rental contract start/end dates for this unit in the requested format
+    if unit_number and not rental_df.empty:
+        normalized_unit_number = str(unit_number).strip().upper()
+        unit_rentals = rental_df[rental_df['Unit No.'] == normalized_unit_number]
+        import pandas as pd
+        if not isinstance(unit_rentals, pd.DataFrame):
+            unit_rentals = pd.DataFrame(unit_rentals)
+        # Ensure 'Contract Start' is datetime
+        if 'Contract Start' in unit_rentals.columns:
+            unit_rentals = unit_rentals.copy()
+            unit_rentals['Contract Start'] = pd.to_datetime(unit_rentals['Contract Start'], errors='coerce')
+        if not unit_rentals.empty and 'Contract Start' in unit_rentals.columns:
+            latest_rental = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]
+            start = latest_rental['Contract Start']
+            end = latest_rental['Contract End']
+            if pd.notnull(start) and pd.notnull(end):
+                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}</b>"
     if info_parts:
         st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
+    if rental_info_html:
+        st.markdown(rental_info_html, unsafe_allow_html=True)
 
     # Unit details
     if unit_number:
@@ -1106,24 +1126,6 @@ with tab1:
         st.markdown(f"**BUA:** {bua}")
         st.markdown(f"**Plot Size:** {plot_size}")
         st.markdown(f"**Floor Level:**")
-
-    # Add rental contract start/end dates for this unit in the requested format
-    if unit_number and not rental_df.empty:
-        normalized_unit_number = str(unit_number).strip().upper()
-        unit_rentals = rental_df[rental_df['Unit No.'] == normalized_unit_number]
-        import pandas as pd
-        if not isinstance(unit_rentals, pd.DataFrame):
-            unit_rentals = pd.DataFrame(unit_rentals)
-        # Ensure 'Contract Start' is datetime
-        if 'Contract Start' in unit_rentals.columns:
-            unit_rentals = unit_rentals.copy()
-            unit_rentals['Contract Start'] = pd.to_datetime(unit_rentals['Contract Start'], errors='coerce')
-        if not unit_rentals.empty and 'Contract Start' in unit_rentals.columns:
-            latest_rental = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]
-            start = latest_rental['Contract Start']
-            end = latest_rental['Contract End']
-            if pd.notnull(start) and pd.notnull(end):
-                info_parts.append(f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}</b>")
 
     # Transaction history for selected unit
     if unit_number:
