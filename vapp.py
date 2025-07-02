@@ -1109,7 +1109,8 @@ with tab1:
 
     # Add rental contract start/end dates for this unit in the requested format
     if unit_number and not rental_df.empty:
-        unit_rentals = rental_df[rental_df['Unit No.'] == unit_number]
+        normalized_unit_number = str(unit_number).strip().upper()
+        unit_rentals = rental_df[rental_df['Unit No.'] == normalized_unit_number]
         import pandas as pd
         if not isinstance(unit_rentals, pd.DataFrame):
             unit_rentals = pd.DataFrame(unit_rentals)
