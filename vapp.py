@@ -1537,6 +1537,45 @@ with tab3:
             line=dict(color='lightblue'),
             marker=dict(color='lightblue')
         ))
+        # --- Add Linear Regression Trend ---
+        from sklearn.linear_model import LinearRegression
+        import numpy as np
+        # Prepare X for regression: month index as integer
+        monthly_df = monthly_df.copy()
+        monthly_df['month_idx'] = np.arange(len(monthly_df))
+        X_hist = monthly_df['month_idx'].values.reshape(-1, 1)
+        y_hist = monthly_df['y'].values
+        linreg = LinearRegression()
+        linreg.fit(X_hist, y_hist)
+        # Predict for both historical and future months
+        n_future = len(forecast['ds']) - len(monthly_df)
+        X_all = np.arange(len(monthly_df) + n_future).reshape(-1, 1)
+        y_pred = linreg.predict(X_all)
+        # Prepare dates for future months
+        last_date = monthly_df['ds'].iloc[-1]
+        future_dates = pd.date_range(last_date + pd.offsets.MonthEnd(1), periods=n_future, freq='M')
+        all_dates = pd.concat([monthly_df['ds'], pd.Series(future_dates)], ignore_index=True)
+        fig.add_trace(go.Scatter(
+            x=all_dates,
+            y=y_pred,
+            mode='lines',
+            name='Linear Trend',
+            line=dict(color='orange', dash='dash')
+        ))
+        # --- Highlight Current Month Value ---
+        import pandas as pd
+        now = pd.Timestamp.now().normalize()
+        # Find the current month in monthly_df['ds']
+        current_month = monthly_df[monthly_df['ds'].dt.to_period('M') == now.to_period('M')]
+        if not current_month.empty:
+            fig.add_trace(go.Scatter(
+                x=current_month['ds'],
+                y=current_month['actual'],
+                mode='markers',
+                name='Current Month',
+                marker=dict(color='red', size=14, symbol='star'),
+                showlegend=True
+            ))
         # --- Highlighted Transactions by Subcommunity ---
         filtered_transactions = pd.DataFrame(filtered_transactions)
         selected_subcommunity = None
