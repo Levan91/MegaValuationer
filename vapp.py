@@ -1074,7 +1074,7 @@ with tab1:
         # Make it bold and orange for visibility
         info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
     rental_info_html = None
-    # Add rental contract start/end dates for this unit in the requested format
+    # Add rental contract start/end dates and amount for this unit in the requested format
     if unit_number and not rental_df.empty:
         normalized_unit_number = str(unit_number).strip().upper()
         unit_rentals = rental_df[rental_df['Unit No.'] == normalized_unit_number]
@@ -1089,8 +1089,12 @@ with tab1:
             latest_rental = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]
             start = latest_rental['Contract Start']
             end = latest_rental['Contract End']
+            amount = latest_rental['Rent (AED)'] if 'Rent (AED)' in latest_rental else None
             if pd.notnull(start) and pd.notnull(end):
-                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}</b>"
+                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
+                if amount is not None and pd.notnull(amount):
+                    rental_info_html += f" | Amount: AED {amount:,.0f}"
+                rental_info_html += "</b>"
     if info_parts:
         st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
     if rental_info_html:
