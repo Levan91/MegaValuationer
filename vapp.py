@@ -2037,7 +2037,12 @@ with tab4:
             if pd.notnull(start) and pd.notnull(end):
                 days_left = (end - today).days
                 if start <= today <= end:
-                    return '🟡' if days_left <= 90 else '🔴'
+                    if days_left < 31:
+                        return '🟣'
+                    elif days_left <= 90:
+                        return '🟡'
+                    else:
+                        return '🔴'
             return '🟢'
         df_disp['Status'] = df_disp.apply(rental_status, axis=1)
         # Reorder columns
