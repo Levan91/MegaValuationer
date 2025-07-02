@@ -1058,6 +1058,19 @@ with tab1:
         layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
         if layout_val.size > 0:
             info_parts.append(f"🗂️ {layout_val[0]}")
+    # Add last transaction date for this unit
+    last_txn_date = None
+    if unit_number and "Evidence Date" in all_transactions.columns:
+        unit_txns = all_transactions[all_transactions["Unit No."] == unit_number]
+        if not unit_txns.empty:
+            # Ensure Evidence Date is datetime
+            unit_txns = unit_txns.copy()
+            unit_txns["Evidence Date"] = pd.to_datetime(unit_txns["Evidence Date"], errors="coerce")
+            last_txn = unit_txns["Evidence Date"].max()
+            if pd.notnull(last_txn):
+                last_txn_date = last_txn.strftime("%Y-%m-%d")
+    if last_txn_date:
+        info_parts.append(f"🕒 Last Transaction: {last_txn_date}")
     if info_parts:
         st.markdown(" | ".join(info_parts))
 
