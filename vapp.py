@@ -2018,37 +2018,41 @@ with tab3:
 with tab4:
     st.markdown("<!-- RENTALS TAB START -->")
     st.title("Rental Transactions")
-    if not rental_df.empty:
-        import pandas as pd
-        today = pd.Timestamp.now().normalize()
-        # Prepare a DataFrame for display
-        display_cols = [
-            'Unit No.', 'Contract Start', 'Contract End',
-            'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
-            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
-        ]
-        # Only keep columns that exist
-        cols_to_show = [c for c in display_cols if c in rental_df.columns]
-        df_disp = rental_df.copy()
-        # Status circle logic
-        def rental_status(row):
-            start = row.get('Contract Start')
-            end = row.get('Contract End')
-            if pd.notnull(start) and pd.notnull(end):
-                days_left = (end - today).days
-                if start <= today <= end:
-                    if days_left < 31:
-                        return '🟣'
-                    elif days_left <= 90:
-                        return '🟡'
-                    else:
-                        return '🔴'
-            return '🟢'
-        df_disp['Status'] = df_disp.apply(rental_status, axis=1)
-        # Reorder columns
-        cols_final = ['Status'] + cols_to_show
-        st.dataframe(df_disp[cols_final])
-    else:
-        st.info("No rental data available.")
+    import pandas as pd
+    today = pd.Timestamp.now().normalize()
+    # Use layout_map_df to get all units
+    all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
+    all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
+    # Merge with rental_df on Unit No.
+    rental_df['Unit No.'] = rental_df['Unit No.'].astype(str).str.strip().str.upper()
+    merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
+    # Status circle logic
+    def rental_status(row):
+        start = row.get('Contract Start')
+        end = row.get('Contract End')
+        if pd.notnull(start) and pd.notnull(end):
+            days_left = (end - today).days
+            if start <= today <= end:
+                if days_left < 31:
+                    return '🟣'
+                elif days_left <= 90:
+                    return '🟡'
+                else:
+                    return '🔴'
+        return '🟢'
+    merged['Status'] = merged.apply(rental_status, axis=1)
+    # Columns to show
+    display_cols = [
+        'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
+        'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
+        'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+    ]
+    cols_to_show = [c for c in display_cols if c in merged.columns]
+    cols_final = ['Status'] + cols_to_show
+    # Add filter for status circle
+    status_options = ['🟢', '🟣', '🟡', '🔴']
+    selected_status = st.multiselect('Filter by Status', status_options, default=status_options)
+    filtered = merged[merged['Status'].isin(selected_status)]
+    st.dataframe(filtered[cols_final])
     st.markdown("<!-- RENTALS TAB END -->")
 
