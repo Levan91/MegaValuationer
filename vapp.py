@@ -2055,6 +2055,9 @@ with tab4:
     filtered = merged[merged['Status'].isin(selected_status)]
     gb = GridOptionsBuilder.from_dataframe(filtered[cols_final])
     gb.configure_default_column(filter=True, sortable=True, resizable=True)
+    gb.configure_column("Status", filter="agSetColumnFilter")
+    gb.configure_column("Layout Type", filter="agSetColumnFilter")
+    gb.configure_column("Project", filter="agSetColumnFilter")
     grid_options = gb.build()
     AgGrid(
         filtered[cols_final],
