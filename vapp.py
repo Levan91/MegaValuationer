@@ -1035,7 +1035,7 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation"])
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"])
 
 with tab1:
     # Remove unnecessary and error-prone variable deletion
@@ -2014,4 +2014,36 @@ with tab3:
     # Use use_params for main Prophet forecast below
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
+
+with tab4:
+    st.markdown("<!-- RENTALS TAB START -->")
+    st.title("Rental Transactions")
+    if not rental_df.empty:
+        import pandas as pd
+        today = pd.Timestamp.now().normalize()
+        # Prepare a DataFrame for display
+        display_cols = [
+            'Unit No.', 'Contract Start', 'Contract End',
+            'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
+            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+        ]
+        # Only keep columns that exist
+        cols_to_show = [c for c in display_cols if c in rental_df.columns]
+        df_disp = rental_df.copy()
+        # Status circle logic
+        def rental_status(row):
+            start = row.get('Contract Start')
+            end = row.get('Contract End')
+            if pd.notnull(start) and pd.notnull(end):
+                days_left = (end - today).days
+                if start <= today <= end:
+                    return '🟡' if days_left <= 90 else '🔴'
+            return '🟢'
+        df_disp['Status'] = df_disp.apply(rental_status, axis=1)
+        # Reorder columns
+        cols_final = ['Status'] + cols_to_show
+        st.dataframe(df_disp[cols_final])
+    else:
+        st.info("No rental data available.")
+    st.markdown("<!-- RENTALS TAB END -->")
 
