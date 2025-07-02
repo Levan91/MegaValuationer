@@ -1089,7 +1089,13 @@ with tab1:
             latest_rental = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]
             start = latest_rental['Contract Start']
             end = latest_rental['Contract End']
-            amount = latest_rental['Rent (AED)'] if 'Rent (AED)' in latest_rental else None
+            # Try to get the rent amount from several possible column names
+            rent_col_candidates = ['Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']
+            amount = None
+            for col in rent_col_candidates:
+                if col in latest_rental and pd.notnull(latest_rental[col]):
+                    amount = latest_rental[col]
+                    break
             if pd.notnull(start) and pd.notnull(end):
                 rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
                 if amount is not None and pd.notnull(amount):
