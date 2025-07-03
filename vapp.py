@@ -2092,9 +2092,15 @@ with tab4:
             rent_col = c
             break
     if rent_col:
-        avg_rent = pd.to_numeric(filtered_df.loc[rented_mask, rent_col], errors='coerce').mean()
+        avg_rent_series = pd.to_numeric(filtered_df.loc[rented_mask, rent_col], errors='coerce')
+        if isinstance(avg_rent_series, pd.Series):
+            avg_rent = avg_rent_series.mean()
+            if not isinstance(avg_rent, (float, int)) or pd.isnull(avg_rent):
+                avg_rent = 0.0
+        else:
+            avg_rent = 0.0
     else:
-        avg_rent = 0
+        avg_rent = 0.0
     occupancy_pct = (rented_units / total_units * 100) if total_units > 0 else 0
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Units", total_units)
