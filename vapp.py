@@ -2045,7 +2045,7 @@ with tab4:
     display_cols = [
         'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
         'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
-        'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+        'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
     ]
     cols_to_show = [c for c in display_cols if c in merged.columns]
     cols_final = ['Status'] + cols_to_show
@@ -2063,7 +2063,9 @@ with tab4:
         data_for_aggrid,
         gridOptions=grid_options,
         enable_enterprise_modules=True,
-        theme='alpine'
+        theme='alpine',
+        fit_columns_on_grid_load=True,
+        domLayout='autoHeight'
     )
     st.markdown("<!-- RENTALS TAB END -->")
 
