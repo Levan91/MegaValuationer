@@ -2068,6 +2068,9 @@ with tab4:
         domLayout='autoHeight'
     )
     filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
+    # Ensure contract dates are datetime for comparison
+    filtered_df['Contract Start'] = pd.to_datetime(filtered_df['Contract Start'], errors='coerce')
+    filtered_df['Contract End'] = pd.to_datetime(filtered_df['Contract End'], errors='coerce')
 
     # --- Rental Metrics (based on filtered_df) ---
     total_units = len(filtered_df)
