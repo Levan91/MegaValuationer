@@ -2059,7 +2059,7 @@ with tab4:
     gb.configure_column("Layout Type", filter="agSetColumnFilter")
     gb.configure_column("Project", filter="agSetColumnFilter")
     grid_options = gb.build()
-    AgGrid(
+    grid_response = AgGrid(
         data_for_aggrid,
         gridOptions=grid_options,
         enable_enterprise_modules=True,
@@ -2067,5 +2067,41 @@ with tab4:
         fit_columns_on_grid_load=True,
         domLayout='autoHeight'
     )
+    filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
+
+    # --- Rental Metrics (based on filtered_df) ---
+    total_units = len(filtered_df)
+    today = pd.Timestamp.now().normalize()
+    rented_mask = (
+        pd.notnull(filtered_df['Contract Start']) &
+        pd.notnull(filtered_df['Contract End']) &
+        (filtered_df['Contract Start'] <= today) &
+        (filtered_df['Contract End'] >= today)
+    )
+    rented_units = rented_mask.sum()
+    vacant_units = total_units - rented_units
+    expiring_soon_mask = (
+        pd.notnull(filtered_df['Contract End']) &
+        (filtered_df['Contract End'] > today) &
+        (filtered_df['Contract End'] <= today + pd.Timedelta(days=90))
+    )
+    expiring_soon = expiring_soon_mask.sum()
+    rent_col = None
+    for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
+        if c in filtered_df.columns:
+            rent_col = c
+            break
+    if rent_col:
+        avg_rent = pd.to_numeric(filtered_df.loc[rented_mask, rent_col], errors='coerce').mean()
+    else:
+        avg_rent = 0
+    occupancy_pct = (rented_units / total_units * 100) if total_units > 0 else 0
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total Units", total_units)
+    col2.metric("Rented Units", rented_units)
+    col3.metric("Vacant Units", vacant_units)
+    col4.metric("Expiring Soon (90d)", expiring_soon)
+    col5.metric("Avg Rent (AED)", f"{avg_rent:,.0f}")
+    st.progress(occupancy_pct / 100, text=f"Occupancy: {occupancy_pct:.1f}%")
     st.markdown("<!-- RENTALS TAB END -->")
 
