@@ -1488,6 +1488,29 @@ with tab3:
 
     # Prepare filtered listing DataFrame
     listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+    # Add a switch to filter Prophet/chart listings: all, only unique, only duplicates
+    prophet_filter_mode = st.radio(
+        "Listings to use for Prophet and chart:",
+        ["All listings", "Only unique listings", "Only duplicate listings"],
+        index=1,  # Default to unique listings
+        horizontal=True,
+        key="prophet_listings_filter_mode"
+    )
+    import pandas as pd
+    dld_col = listing_df["DLD Permit Number"] if "DLD Permit Number" in listing_df.columns else pd.Series([])
+    if not isinstance(dld_col, pd.Series):
+        dld_col = pd.Series(dld_col)
+    dld_counts = dld_col.value_counts()
+    unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
+    duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+    if prophet_filter_mode == "Only unique listings":
+        mask = dld_col.notna() & (dld_col.astype(str).str.strip() != "")
+        listing_df = listing_df[mask]
+        listing_df = listing_df.drop_duplicates(subset=["DLD Permit Number"], keep="first")
+    elif prophet_filter_mode == "Only duplicate listings":
+        listing_df = listing_df[listing_df["DLD Permit Number"].isin(duplicate_dlds)]
+    # (rest of Prophet/chart code unchanged)
+
     if verified_only and 'Verified' in listing_df.columns:
         listing_df = listing_df[listing_df['Verified'].str.lower() == 'yes']
     if 'Days Listed' in listing_df.columns:
