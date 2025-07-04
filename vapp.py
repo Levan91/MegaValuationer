@@ -2176,8 +2176,11 @@ with tab4:
     # Use layout_map_df to get all units
     all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
     all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
-    # Merge with rental_df on Unit No.
+    # Preprocess rental_df to keep only the newest contract per unit
     rental_df['Unit No.'] = rental_df['Unit No.'].astype(str).str.strip().str.upper()
+    rental_df['Contract Start'] = pd.to_datetime(rental_df['Contract Start'], errors='coerce')
+    rental_df = rental_df.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
+    # Merge with rental_df on Unit No.
     merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
     # Status circle logic
     def rental_status(row):
