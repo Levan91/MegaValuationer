@@ -1264,21 +1264,8 @@ with tab2:
             unique_dld = dld_col.dropna()
             unique_dld = unique_dld[unique_dld.astype(str).str.strip() != ""]
             total_unique_listings = unique_dld.nunique()
-            # --- Grouping logic ---
-            dld_counts = dld_col.value_counts()
-            duplicate_dlds = dld_counts[dld_counts > 1].index.tolist()
-            group_map = {dld: f"Group {i+1}" for i, dld in enumerate(duplicate_dlds)}
-            def group_label(dld):
-                if pd.isnull(dld) or str(dld).strip() == "":
-                    return ""
-                return group_map.get(dld, "")
-            filtered_listings = filtered_listings.copy()
-            filtered_listings["Group"] = filtered_listings["DLD Permit Number"].apply(group_label)
-            # Sort by DLD Permit Number for visual grouping
-            filtered_listings = filtered_listings.sort_values(by=["DLD Permit Number", "Reference Number"])
         else:
             total_unique_listings = total_listings
-            filtered_listings["Group"] = ""
         st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings**")
 
         # Use AgGrid for clickable selection
