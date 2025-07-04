@@ -1266,7 +1266,8 @@ with tab2:
             total_unique_listings = unique_dld.nunique()
         else:
             total_unique_listings = total_listings
-        st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings**")
+        ratio_str = f"{total_unique_listings}/{total_listings}" if total_listings else "N/A"
+        st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
