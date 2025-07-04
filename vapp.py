@@ -1271,15 +1271,37 @@ with tab2:
             total_unique_listings = total_listings
         st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings**")
 
-        # Use AgGrid for clickable selection
+        # Highlight duplicate DLD Permit Numbers with distinct colors in AgGrid
+        import pandas as pd
+        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        dld_counts = dld_col.value_counts()
+        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+        # Assign a color to each duplicate DLD group
+        pastel_colors = [
+            '#ffe4e1', '#e0ffff', '#fffacd', '#e6e6fa', '#f0fff0', '#f5f5dc', '#f0f8ff', '#ffe4b5', '#e0eee0', '#f5e6ff',
+            '#e6ffe6', '#fff0f5', '#e0e0ff', '#f0e68c', '#e6e6e6', '#f5f5f5', '#e0ffff', '#ffe4e1', '#f0fff0', '#e6e6fa'
+        ]
+        dld_color_map = {dld: pastel_colors[i % len(pastel_colors)] for i, dld in enumerate(duplicate_dlds)}
+        # Prepare rowStyle JS function for AgGrid
+        row_style_js = """
+        function(params) {
+            const dld = params.data['DLD Permit Number'];
+            if (!dld) return {};
+            const colorMap = {REPLACE_COLOR_MAP};
+            if (colorMap[dld]) {
+                return {background: colorMap[dld]};
+            }
+            return {};
+        }
+        """.replace('REPLACE_COLOR_MAP', str(dld_color_map).replace("'", '"'))
+
+        # Use AgGrid for clickable selection, with rowStyle for duplicates
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         grid_options = gb.build()
-
-        # Before passing to AgGrid, ensure DataFrame
-        data_for_aggrid = filtered_listings[visible_columns]
-        if not isinstance(data_for_aggrid, pd.DataFrame):
-            data_for_aggrid = pd.DataFrame(data_for_aggrid)
+        grid_options['getRowStyle'] = row_style_js
         grid_response = AgGrid(
             data_for_aggrid,
             gridOptions=grid_options,
