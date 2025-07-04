@@ -2243,12 +2243,12 @@ with tab4:
     )
     rented_units = rented_mask.sum()
     vacant_units = total_units - rented_units
-    expiring_soon_mask = (
-        pd.notnull(filtered_df['Contract End']) &
-        (filtered_df['Contract End'] > today) &
-        (filtered_df['Contract End'] <= today + pd.Timedelta(days=90))
+    # Expiring in <30 days (matches purple circle logic)
+    expiring_30_mask = (
+        rented_mask &
+        ((filtered_df['Contract End'] - today).dt.days < 31)
     )
-    expiring_soon = expiring_soon_mask.sum()
+    expiring_30 = expiring_30_mask.sum()
     rent_col = None
     for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
         if c in filtered_df.columns:
@@ -2269,7 +2269,7 @@ with tab4:
     col1.metric("Total Units", total_units)
     col2.metric("Rented Units", rented_units)
     col3.metric("Vacant Units", vacant_units)
-    col4.metric("Expiring Soon (90d)", expiring_soon)
+    col4.metric("Expiring in <30 days", expiring_30)
     col5.metric("Avg Rent (AED)", f"{avg_rent:,.0f}")
     st.progress(occupancy_pct / 100, text=f"Occupancy: {occupancy_pct:.1f}%")
     st.markdown("<!-- RENTALS TAB END -->")
