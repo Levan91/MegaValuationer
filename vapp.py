@@ -1310,24 +1310,6 @@ with tab2:
                     ''',
                     height=1600
                 )
-        # Expander: show summary of duplicate DLD Permit Numbers
-        if "DLD Permit Number" in filtered_listings.columns:
-            import pandas as pd
-            dld_col = filtered_listings["DLD Permit Number"]
-            if not isinstance(dld_col, pd.Series):
-                dld_col = pd.Series(dld_col)
-            dld_counts = dld_col.value_counts()
-            duplicate_dlds = dld_counts[dld_counts > 1].index.tolist()
-            if duplicate_dlds:
-                with st.expander("Show listings with duplicate DLD Permit Numbers", expanded=False):
-                    dup_df = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
-                    summary = dup_df.groupby("DLD Permit Number").agg({
-                        "Reference Number": lambda x: ", ".join(x.astype(str)),
-                        "Agent Name": lambda x: ", ".join(x.dropna().astype(str).unique()),
-                        "Group": "first"
-                    }).reset_index()
-                    summary = summary[["Group", "DLD Permit Number", "Reference Number", "Agent Name"]]
-                    st.dataframe(summary)
     else:
         st.info("No live listings data found.")
     st.markdown("<!-- LIVE LISTINGS TAB END -->")
