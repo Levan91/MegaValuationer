@@ -2183,6 +2183,7 @@ with tab4:
     def rental_status(row):
         start = row.get('Contract Start')
         end = row.get('Contract End')
+        recently_vacant_days = 60  # 2 months
         if pd.notnull(start) and pd.notnull(end):
             days_left = (end - today).days
             if start <= today <= end:
@@ -2192,6 +2193,9 @@ with tab4:
                     return '🟡'
                 else:
                     return '🔴'
+            # Blue circle: recently vacant (contract ended within last 60 days)
+            elif 0 < (today - end).days <= recently_vacant_days:
+                return '🔵'
         return '🟢'
     merged['Status'] = merged.apply(rental_status, axis=1)
     # Columns to show
