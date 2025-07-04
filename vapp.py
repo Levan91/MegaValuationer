@@ -141,7 +141,6 @@ from scipy.stats import norm
  
 import numpy as np
 from datetime import datetime, timedelta
-import json
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -1264,53 +1263,20 @@ with tab2:
                 dld_col = pd.Series(dld_col)
             unique_dld = dld_col.dropna()
             unique_dld = unique_dld[unique_dld.astype(str).str.strip() != ""]
-            import pandas as pd
-            if not isinstance(unique_dld, pd.Series):
-                unique_dld = pd.Series(unique_dld)
             total_unique_listings = unique_dld.nunique()
         else:
             total_unique_listings = total_listings
         st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings**")
 
-        # Highlight duplicate DLD Permit Numbers with distinct colors in AgGrid
-        import pandas as pd
-        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
-        if not isinstance(dld_col, pd.Series):
-            dld_col = pd.Series(dld_col)
-        dld_counts = dld_col.value_counts()
-        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-        # Assign a color to each duplicate DLD group
-        pastel_colors = [
-            '#ffe4e1', '#e0ffff', '#fffacd', '#e6e6fa', '#f0fff0', '#f5f5dc', '#f0f8ff', '#ffe4b5', '#e0eee0', '#f5e6ff',
-            '#e6ffe6', '#fff0f5', '#e0e0ff', '#f0e68c', '#e6e6e6', '#f5f5f5', '#e0ffff', '#ffe4e1', '#f0fff0', '#e6e6fa'
-        ]
-        dld_color_map = {dld: pastel_colors[i % len(pastel_colors)] for i, dld in enumerate(duplicate_dlds)}
-        # Prepare rowStyle JS function for AgGrid
-        import json
-        color_map_js = json.dumps({str(k): v for k, v in dld_color_map.items()})  # ensure keys are strings
-        row_style_js = f"""
-        function(params) {{
-            const dld = params.data['DLD Permit Number'];
-            if (!dld) return {{}};
-            const colorMap = {color_map_js};
-            if (colorMap[dld]) {{
-                return {{background: colorMap[dld]}};
-            }}
-            return {{}};
-        }}
-        """
-
-        # Use AgGrid for clickable selection, with rowStyle for duplicates
+        # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         grid_options = gb.build()
-        grid_options['getRowStyle'] = row_style_js
 
-        # Restore data_for_aggrid definition before AgGrid call
+        # Before passing to AgGrid, ensure DataFrame
         data_for_aggrid = filtered_listings[visible_columns]
         if not isinstance(data_for_aggrid, pd.DataFrame):
             data_for_aggrid = pd.DataFrame(data_for_aggrid)
-
         grid_response = AgGrid(
             data_for_aggrid,
             gridOptions=grid_options,
@@ -1344,6 +1310,24 @@ with tab2:
                     ''',
                     height=1600
                 )
+        # Expander: show summary of duplicate DLD Permit Numbers
+        if "DLD Permit Number" in filtered_listings.columns:
+            import pandas as pd
+            dld_col = filtered_listings["DLD Permit Number"]
+            if not isinstance(dld_col, pd.Series):
+                dld_col = pd.Series(dld_col)
+            dld_counts = dld_col.value_counts()
+            duplicate_dlds = dld_counts[dld_counts > 1].index.tolist()
+            if duplicate_dlds:
+                with st.expander("Show listings with duplicate DLD Permit Numbers", expanded=False):
+                    dup_df = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
+                    summary = dup_df.groupby("DLD Permit Number").agg({
+                        "Reference Number": lambda x: ", ".join(x.astype(str)),
+                        "Agent Name": lambda x: ", ".join(x.dropna().astype(str).unique()),
+                        "Group": "first"
+                    }).reset_index()
+                    summary = summary[["Group", "DLD Permit Number", "Reference Number", "Agent Name"]]
+                    st.dataframe(summary)
     else:
         st.info("No live listings data found.")
     st.markdown("<!-- LIVE LISTINGS TAB END -->")
