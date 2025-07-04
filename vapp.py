@@ -1251,7 +1251,7 @@ with tab2:
                 filtered_listings = pd.DataFrame(filtered_listings)
 
         # Hide certain columns but keep them in the DataFrame (do NOT filter by Days Listed or any date here)
-        columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when"]
+        columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
 
         # Show count of live listings
