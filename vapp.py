@@ -1254,8 +1254,19 @@ with tab2:
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
 
-        # Show count of live listings
-        st.markdown(f"**Showing {filtered_listings.shape[0]} live listings**")
+        # Show count of live listings and unique listings
+        total_listings = filtered_listings.shape[0]
+        if "DLD Permit Number" in filtered_listings.columns:
+            dld_col = filtered_listings["DLD Permit Number"]
+            import pandas as pd
+            if not isinstance(dld_col, pd.Series):
+                dld_col = pd.Series(dld_col)
+            unique_dld = dld_col.dropna()
+            unique_dld = unique_dld[unique_dld.astype(str).str.strip() != ""]
+            total_unique_listings = unique_dld.nunique()
+        else:
+            total_unique_listings = total_listings
+        st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings**")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
