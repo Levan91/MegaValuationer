@@ -1288,9 +1288,15 @@ with tab2:
         dld_counts = dld_col.value_counts()
         unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
         duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-        # Filter listings based on switch
+        # Filter listings based on switch (corrected logic)
         if filter_mode == "Only unique listings":
-            filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(unique_dlds)]
+            # For each DLD Permit Number (excluding empty/null), show only the first occurrence
+            mask = (
+                filtered_listings["DLD Permit Number"].notna() &
+                (filtered_listings["DLD Permit Number"].astype(str).str.strip() != "")
+            )
+            filtered_listings = filtered_listings[mask]
+            filtered_listings = filtered_listings.drop_duplicates(subset=["DLD Permit Number"], keep="first")
         elif filter_mode == "Only duplicate listings":
             filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
         # (rest of code unchanged)
