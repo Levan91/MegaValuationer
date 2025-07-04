@@ -1266,8 +1266,34 @@ with tab2:
             total_unique_listings = unique_dld.nunique()
         else:
             total_unique_listings = total_listings
-        ratio_str = f"{total_unique_listings}/{total_listings}" if total_listings else "N/A"
+        if total_listings:
+            ratio_pct = (total_unique_listings / total_listings) * 100
+            ratio_str = f"{ratio_pct:.1f}%"
+        else:
+            ratio_str = "N/A"
         st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
+
+        # Add a switch to filter listings: all, only unique, only duplicates
+        filter_mode = st.radio(
+            "Show:",
+            ["All listings", "Only unique listings", "Only duplicate listings"],
+            index=0,
+            horizontal=True,
+            key="live_listings_filter_mode"
+        )
+        # Compute DLD counts for filtering
+        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        dld_counts = dld_col.value_counts()
+        unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
+        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+        # Filter listings based on switch
+        if filter_mode == "Only unique listings":
+            filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(unique_dlds)]
+        elif filter_mode == "Only duplicate listings":
+            filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
+        # (rest of code unchanged)
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
