@@ -1382,7 +1382,7 @@ with tab2:
             theme='alpine'
         )
 
-        # Open listing URL in new tab when selected (no preview in app)
+        # Handle selection from AgGrid (can be list of dicts or DataFrame)
         sel = grid_response['selected_rows']
         selected_url = None
         if isinstance(sel, list):
@@ -1392,8 +1392,20 @@ with tab2:
             if sel.shape[0] > 0 and "URL" in sel.columns:
                 selected_url = sel.iloc[0]["URL"]
         if selected_url:
-            import streamlit as st
-            st.markdown(f"<script>window.open('{selected_url}', '_blank');</script>", unsafe_allow_html=True)
+            # Foldable Listing Preview
+            with st.expander("Listing Preview", expanded=False):
+                components.html(
+                    f'''
+                    <iframe
+                        src="{selected_url}"
+                        width="100%"
+                        height="1600px"
+                        style="border:none;"
+                        scrolling="yes"
+                    ></iframe>
+                    ''',
+                    height=1600
+                )
     else:
         st.info("No live listings data found.")
     st.markdown("<!-- LIVE LISTINGS TAB END -->")
