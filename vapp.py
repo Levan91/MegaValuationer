@@ -141,6 +141,7 @@ from scipy.stats import norm
  
 import numpy as np
 from datetime import datetime, timedelta
+import json
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -1285,17 +1286,19 @@ with tab2:
         ]
         dld_color_map = {dld: pastel_colors[i % len(pastel_colors)] for i, dld in enumerate(duplicate_dlds)}
         # Prepare rowStyle JS function for AgGrid
-        row_style_js = """
-        function(params) {
+        import json
+        color_map_js = json.dumps({str(k): v for k, v in dld_color_map.items()})  # ensure keys are strings
+        row_style_js = f"""
+        function(params) {{
             const dld = params.data['DLD Permit Number'];
-            if (!dld) return {};
-            const colorMap = {REPLACE_COLOR_MAP};
-            if (colorMap[dld]) {
-                return {background: colorMap[dld]};
-            }
-            return {};
-        }
-        """.replace('REPLACE_COLOR_MAP', str(dld_color_map).replace("'", '"'))
+            if (!dld) return {{}};
+            const colorMap = {color_map_js};
+            if (colorMap[dld]) {{
+                return {{background: colorMap[dld]}};
+            }}
+            return {{}};
+        }}
+        """
 
         # Use AgGrid for clickable selection, with rowStyle for duplicates
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
