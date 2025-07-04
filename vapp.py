@@ -1278,14 +1278,22 @@ with tab2:
         st.subheader("Asking Price Market Metrics")
         asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d")
         # Prepare unique listings DataFrame
-        unique_mask = (
-            filtered_listings["DLD Permit Number"].notna() &
-            (filtered_listings["DLD Permit Number"].astype(str).str.strip() != "")
-        )
-        unique_df = filtered_listings[unique_mask].drop_duplicates(subset=["DLD Permit Number"], keep="first")
+        import pandas as pd
+        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        mask = dld_col.notna() & (dld_col.astype(str).str.strip() != "")
+        filtered_listings = filtered_listings.copy()
+        unique_df = filtered_listings[mask]
+        if not isinstance(unique_df, pd.DataFrame):
+            unique_df = pd.DataFrame(unique_df)
+        unique_df = unique_df.drop_duplicates(subset=["DLD Permit Number"], keep="first")
         # Only consider listings with a valid price
         price_col = "Price (AED)"
-        unique_df = unique_df[unique_df[price_col].notna()]
+        price_series = unique_df[price_col] if price_col in unique_df.columns else pd.Series([])
+        if not isinstance(price_series, pd.Series):
+            price_series = pd.Series(price_series)
+        unique_df = unique_df[price_series.notna()]
         unique_df = unique_df[unique_df[price_col] > 0]
         prices = unique_df[price_col].astype(float)
         n_total = len(prices)
@@ -1293,30 +1301,13 @@ with tab2:
         n_above = (prices > asking_price).sum() if asking_price > 0 else 0
         pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
         pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
-        median_price = prices.median() if n_total else 0
-        diff_aed = asking_price - median_price if asking_price > 0 and n_total else 0
-        diff_pct = (diff_aed / median_price * 100) if median_price else 0
         # Percentile rank
         percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
-        min_price = prices.min() if n_total else 0
-        max_price = prices.max() if n_total else 0
-        # Closest listings
-        if asking_price > 0 and n_total:
-            unique_df["abs_diff"] = (unique_df[price_col] - asking_price).abs()
-            closest = unique_df.nsmallest(3, "abs_diff")
-        else:
-            closest = unique_df.iloc[0:0]
         # Display metrics
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
         col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
-        col3.metric("Median Price", f"{median_price:,.0f} AED")
-        col4.metric("Percentile", f"{percentile:.1f}%")
-        st.markdown(f"**Difference from median:** {diff_aed:,.0f} AED ({diff_pct:+.1f}%)")
-        st.markdown(f"**Lowest price:** {min_price:,.0f} AED | **Highest price:** {max_price:,.0f} AED")
-        if not closest.empty:
-            st.markdown("**Listings closest to asking price:**")
-            st.dataframe(closest[["Reference Number", "DLD Permit Number", price_col, "URL"]])
+        col3.metric("Percentile", f"{percentile:.1f}%")
         st.markdown("---")
 
         # Add a switch to filter listings: all, only unique, only duplicates
