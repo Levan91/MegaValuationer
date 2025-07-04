@@ -1302,6 +1302,12 @@ with tab2:
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         grid_options = gb.build()
         grid_options['getRowStyle'] = row_style_js
+
+        # Restore data_for_aggrid definition before AgGrid call
+        data_for_aggrid = filtered_listings[visible_columns]
+        if not isinstance(data_for_aggrid, pd.DataFrame):
+            data_for_aggrid = pd.DataFrame(data_for_aggrid)
+
         grid_response = AgGrid(
             data_for_aggrid,
             gridOptions=grid_options,
