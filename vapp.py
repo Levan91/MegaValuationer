@@ -1277,17 +1277,43 @@ with tab2:
         st.markdown("---")
         st.subheader("Asking Price Market Metrics")
         asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d")
-        # Prepare unique listings DataFrame
+        # Prepare unique listings DataFrame with custom logic
         import pandas as pd
         dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
         if not isinstance(dld_col, pd.Series):
             dld_col = pd.Series(dld_col)
-        mask = dld_col.notna() & (dld_col.astype(str).str.strip() != "")
         filtered_listings = filtered_listings.copy()
-        unique_df = filtered_listings[mask]
-        if not isinstance(unique_df, pd.DataFrame):
-            unique_df = pd.DataFrame(unique_df)
-        unique_df = unique_df.drop_duplicates(subset=["DLD Permit Number"], keep="first")
+        # Ensure 'Listed When' is datetime for sorting
+        if "Listed When" in filtered_listings.columns:
+            filtered_listings["Listed When"] = pd.to_datetime(filtered_listings["Listed When"], errors="coerce")
+        # Helper to select unique listings by rule
+        def select_unique(df):
+            # Group by DLD Permit Number
+            groups = []
+            for dld, group in df.groupby("DLD Permit Number"):
+                if dld is None or str(dld).strip() == "":
+                    continue
+                # Prefer verified
+                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                if not verified_group.empty:
+                    # Most recent among verified
+                    if "Listed When" in verified_group.columns:
+                        idx = verified_group["Listed When"].idxmax()
+                        groups.append(verified_group.loc[[idx]])
+                    else:
+                        groups.append(verified_group.iloc[[0]])
+                else:
+                    # Most recent among all
+                    if "Listed When" in group.columns:
+                        idx = group["Listed When"].idxmax()
+                        groups.append(group.loc[[idx]])
+                    else:
+                        groups.append(group.iloc[[0]])
+            if groups:
+                return pd.concat(groups, ignore_index=True)
+            else:
+                return pd.DataFrame(columns=df.columns)
+        unique_df = select_unique(filtered_listings)
         # Only consider listings with a valid price
         price_col = "Price (AED)"
         price_series = unique_df[price_col] if price_col in unique_df.columns else pd.Series([])
@@ -1504,9 +1530,32 @@ with tab3:
     unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
     duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
     if prophet_filter_mode == "Only unique listings":
-        mask = dld_col.notna() & (dld_col.astype(str).str.strip() != "")
-        listing_df = listing_df[mask]
-        listing_df = listing_df.drop_duplicates(subset=["DLD Permit Number"], keep="first")
+        # Ensure 'Listed When' is datetime for sorting
+        if "Listed When" in listing_df.columns:
+            listing_df["Listed When"] = pd.to_datetime(listing_df["Listed When"], errors="coerce")
+        def select_unique(df):
+            groups = []
+            for dld, group in df.groupby("DLD Permit Number"):
+                if dld is None or str(dld).strip() == "":
+                    continue
+                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                if not verified_group.empty:
+                    if "Listed When" in verified_group.columns:
+                        idx = verified_group["Listed When"].idxmax()
+                        groups.append(verified_group.loc[[idx]])
+                    else:
+                        groups.append(verified_group.iloc[[0]])
+                else:
+                    if "Listed When" in group.columns:
+                        idx = group["Listed When"].idxmax()
+                        groups.append(group.loc[[idx]])
+                    else:
+                        groups.append(group.iloc[[0]])
+            if groups:
+                return pd.concat(groups, ignore_index=True)
+            else:
+                return pd.DataFrame(columns=df.columns)
+        listing_df = select_unique(listing_df)
     elif prophet_filter_mode == "Only duplicate listings":
         listing_df = listing_df[listing_df["DLD Permit Number"].isin(duplicate_dlds)]
     # (rest of Prophet/chart code unchanged)
