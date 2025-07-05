@@ -2202,15 +2202,6 @@ with tab4:
     st.title("Rental Transactions")
     import pandas as pd
     today = pd.Timestamp.now().normalize()
-    
-    # --- Unit Number Search Field ---
-    st.subheader("🔍 Search by Unit Number")
-    unit_search = st.text_input(
-        "Enter unit number to search:",
-        placeholder="e.g., A101, B205, etc.",
-        help="Search for specific units by their unit number"
-    )
-    
     # Use layout_map_df to get all units
     all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
     all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
@@ -2220,15 +2211,6 @@ with tab4:
     rental_df = rental_df.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
     # Merge with rental_df on Unit No.
     merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
-    
-    # Apply unit number search filter
-    if unit_search:
-        search_term = unit_search.strip().upper()
-        merged = merged[merged['Unit No.'].str.contains(search_term, case=False, na=False)]
-        if merged.empty:
-            st.warning(f"❌ No units found matching '{unit_search}'")
-        else:
-            st.success(f"✅ Found {len(merged)} unit(s) matching '{unit_search}'")
     # Status circle logic
     def rental_status(row):
         start = row.get('Contract Start')
