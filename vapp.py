@@ -358,20 +358,26 @@ def load_all_listings(listings_dir):
 layout_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Layout Types')
 layout_files = [f for f in os.listdir(layout_dir) if f.endswith('.xlsx')]
 layout_dfs = []
+details_dfs = []
 for file in layout_files:
     file_path = os.path.join(layout_dir, file)
     try:
+        # Load Types sheet (for legacy mapping)
         df_l = pd.read_excel(file_path, sheet_name='Types')
-        # Clean column names immediately
         df_l.columns = df_l.columns.str.replace('\xa0', '', regex=False).str.strip()
         project_name = os.path.splitext(file)[0]
         if project_name.lower().endswith('_layouts'):
             project_name = project_name[:-len('_layouts')]
-        # Keep only Unit No. and Layout Type
-        df_l = df_l.loc[:, ['Unit No.', 'Layout Type']]
-        df_l['Unit No.'] = df_l['Unit No.'].astype(str).str.strip()
         df_l['Project'] = project_name
         layout_dfs.append(df_l)
+    except Exception:
+        continue
+    try:
+        # Load Details sheet (for new context-aware mapping)
+        df_d = pd.read_excel(file_path, sheet_name='Details')
+        df_d.columns = df_d.columns.str.replace('\xa0', '', regex=False).str.strip()
+        df_d['Project'] = project_name
+        details_dfs.append(df_d)
     except Exception:
         continue
 if layout_dfs:
@@ -380,6 +386,26 @@ if layout_dfs:
 else:
     layout_map_df = pd.DataFrame(columns=pd.Index(['Unit No.', 'Layout Type', 'Project']))
     layout_map = {}
+if details_dfs:
+    details_df = pd.concat(details_dfs, ignore_index=True)
+else:
+    details_df = pd.DataFrame(columns=pd.Index(['All Developments', 'Community/Building', 'Sub Community / Building', 'Layout Type', 'Beds', 'BUA', 'Type', 'Project']))
+
+def get_unit_details(dev, comm, subcomm, layout_type):
+    """Return dict of details for a given context (dev, comm, subcomm, layout_type) from details_df."""
+    if details_df.empty:
+        return {}
+    mask = (
+        (details_df['All Developments'] == dev) &
+        (details_df['Community/Building'] == comm) &
+        (details_df['Sub Community / Building'] == subcomm) &
+        (details_df['Layout Type'] == layout_type)
+    )
+    row = details_df[mask]
+    if not row.empty:
+        r = row.iloc[0]
+        return dict(Beds=r.get('Beds'), BUA=r.get('BUA'), Type=r.get('Type'))
+    return {}
 
 # Add Layout Type to transactions
 if not all_transactions.empty:
@@ -759,10 +785,13 @@ with st.sidebar:
                 community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
                 subcommunity = unit_row['Sub Community / Building']
 
-            property_type = unit_row['Unit Type']
-            bedrooms = str(unit_row['Beds'])
+            layout_type_val = unit_row['Layout Type'] if 'Layout Type' in unit_row else ''
+            # Use context-aware lookup for Beds, BUA, Type
+            details = get_unit_details(development, community[0] if community else '', subcommunity, layout_type_val)
+            property_type = details.get('Type', unit_row['Unit Type'] if 'Unit Type' in unit_row else '')
+            bedrooms = str(details.get('Beds', unit_row['Beds'] if 'Beds' in unit_row else ''))
+            bua = details.get('BUA', unit_row['Unit Size (sq ft)'] if 'Unit Size (sq ft)' in unit_row else '')
             floor = str(unit_row['Floor Level']) if pd.notna(unit_row['Floor Level']) else ""
-            bua = unit_row['Unit Size (sq ft)'] if pd.notna(unit_row['Unit Size (sq ft)']) else ""
             plot_size = unit_row['Plot Size (sq ft)'] if pd.notna(unit_row['Plot Size (sq ft)']) else ""
         else:
             development = st.session_state.get("development", "")
@@ -2173,6 +2202,15 @@ with tab4:
     st.title("Rental Transactions")
     import pandas as pd
     today = pd.Timestamp.now().normalize()
+    
+    # --- Unit Number Search Field ---
+    st.subheader("🔍 Search by Unit Number")
+    unit_search = st.text_input(
+        "Enter unit number to search:",
+        placeholder="e.g., A101, B205, etc.",
+        help="Search for specific units by their unit number"
+    )
+    
     # Use layout_map_df to get all units
     all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
     all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
@@ -2182,6 +2220,15 @@ with tab4:
     rental_df = rental_df.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
     # Merge with rental_df on Unit No.
     merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
+    
+    # Apply unit number search filter
+    if unit_search:
+        search_term = unit_search.strip().upper()
+        merged = merged[merged['Unit No.'].str.contains(search_term, case=False, na=False)]
+        if merged.empty:
+            st.warning(f"❌ No units found matching '{unit_search}'")
+        else:
+            st.success(f"✅ Found {len(merged)} unit(s) matching '{unit_search}'")
     # Status circle logic
     def rental_status(row):
         start = row.get('Contract Start')
