@@ -610,7 +610,10 @@ with st.sidebar:
             subcommunity_col = unit_df['Sub Community / Building']
             if not isinstance(subcommunity_col, pd.Series):
                 subcommunity_col = pd.Series(subcommunity_col)
-            unit_df = unit_df[subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)]
+            # Ensure current_subcommunity is a list
+            if not isinstance(current_subcommunity, (list, tuple, set)):
+                current_subcommunity = [current_subcommunity] if current_subcommunity else []
+            unit_df = unit_df[subcommunity_col.isin(current_subcommunity)]
         
         unit_no_col = unit_df['Unit No.']
         if not isinstance(unit_no_col, pd.Series):
@@ -951,6 +954,9 @@ if filter_mode == "Unit Selection":
         subcommunity_col = filtered_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
             subcommunity_col = pd.Series(subcommunity_col)
+        # Ensure subcommunity is a list
+        if not isinstance(subcommunity, (list, tuple, set)):
+            subcommunity = [subcommunity] if subcommunity else []
         filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
     if property_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
@@ -1025,6 +1031,9 @@ elif filter_mode == "Manual Selection":
         subcommunity_col = filtered_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
             subcommunity_col = pd.Series(subcommunity_col)
+        # Ensure subcommunity is a list
+        if not isinstance(subcommunity, (list, tuple, set)):
+            subcommunity = [subcommunity] if subcommunity else []
         filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
     if property_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
