@@ -610,10 +610,7 @@ with st.sidebar:
             subcommunity_col = unit_df['Sub Community / Building']
             if not isinstance(subcommunity_col, pd.Series):
                 subcommunity_col = pd.Series(subcommunity_col)
-            # Ensure current_subcommunity is a list
-            if not isinstance(current_subcommunity, (list, tuple, set)):
-                current_subcommunity = [current_subcommunity] if current_subcommunity else []
-            unit_df = unit_df[subcommunity_col.isin(current_subcommunity)]
+            unit_df = unit_df[subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)]
         
         unit_no_col = unit_df['Unit No.']
         if not isinstance(unit_no_col, pd.Series):
@@ -866,8 +863,6 @@ with st.sidebar:
         if not isinstance(subcom_col, pd.Series):
             subcom_col = pd.Series(subcom_col)
         subcom_options = sorted(subcom_col.dropna().unique())
-    # Ensure subcom_options is a list (not a generator)
-    subcom_options = list(subcom_options) if not isinstance(subcom_options, list) else subcom_options
     subcommunity = st.multiselect(
         "Sub community / Building",
         options=subcom_options,
@@ -956,9 +951,6 @@ if filter_mode == "Unit Selection":
         subcommunity_col = filtered_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
             subcommunity_col = pd.Series(subcommunity_col)
-        # Ensure subcommunity is a list
-        if not isinstance(subcommunity, (list, tuple, set)):
-            subcommunity = [subcommunity] if subcommunity else []
         filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
     if property_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
@@ -1033,9 +1025,6 @@ elif filter_mode == "Manual Selection":
         subcommunity_col = filtered_transactions['Sub Community / Building']
         if not isinstance(subcommunity_col, pd.Series):
             subcommunity_col = pd.Series(subcommunity_col)
-        # Ensure subcommunity is a list
-        if not isinstance(subcommunity, (list, tuple, set)):
-            subcommunity = [subcommunity] if subcommunity else []
         filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
     if property_type:
         filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
@@ -1102,32 +1091,1263 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab_names = ["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"]
-if "active_tab" not in st.session_state:
-    st.session_state["active_tab"] = tab_names[0]
-selected_tab = st.radio(
-    "Navigate to tab:",
-    tab_names,
-    index=tab_names.index(st.session_state["active_tab"]),
-    key="active_tab_radio"
-)
-st.session_state["active_tab"] = selected_tab
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"])
 
-active_tab = st.session_state["active_tab"]
-if active_tab == "Dashboard":
-    # Dashboard tab content
-    # ... existing Dashboard code ...
-    pass
-elif active_tab == "Live Listings":
-    # Live Listings tab content
-    # ... existing Live Listings code ...
-    pass
-elif active_tab == "Trend & Valuation":
-    # Trend & Valuation tab content
-    # ... existing Trend & Valuation code ...
-    pass
-elif active_tab == "Rentals":
-    # Rentals tab content
-    # ... existing Rentals code ...
-    pass
+with tab1:
+    # Remove unnecessary and error-prone variable deletion
+    # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
+    st.markdown("<!-- DASHBOARD TAB START -->")
+    st.title("Real Estate Valuation Dashboard")
+
+    # Selected Unit Info box
+    st.markdown("### Selected Unit Info")
+    info_parts = []
+    if unit_number:
+        info_parts.append(f"📦 {unit_number}")
+    if subcommunity:
+        info_parts.append(f"🏙️ {subcommunity}")
+    if "Layout Type" in all_transactions.columns:
+        layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
+        if layout_val.size > 0:
+            info_parts.append(f"🗂️ {layout_val[0]}")
+    # Add last transaction date for this unit
+    last_txn_date = None
+    if unit_number and "Evidence Date" in all_transactions.columns:
+        unit_txns = all_transactions[all_transactions["Unit No."] == unit_number]
+        # Ensure unit_txns is a DataFrame before checking .empty
+        import pandas as pd
+        if not isinstance(unit_txns, pd.DataFrame):
+            unit_txns = pd.DataFrame(unit_txns)
+        if not unit_txns.empty:
+            # Ensure Evidence Date is datetime
+            unit_txns = unit_txns.copy()
+            unit_txns["Evidence Date"] = pd.to_datetime(unit_txns["Evidence Date"], errors="coerce")
+            last_txn = unit_txns["Evidence Date"].max()
+            # Ensure last_txn is a scalar Timestamp before formatting
+            if pd.notnull(last_txn) and isinstance(last_txn, pd.Timestamp):
+                last_txn_date = last_txn.strftime("%Y-%m-%d")
+    if last_txn_date:
+        # Make it bold and orange for visibility
+        info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
+    rental_info_html = None
+    # Add rental contract start/end dates and amount for this unit in the requested format
+    if unit_number and not rental_df.empty:
+        normalized_unit_number = str(unit_number).strip().upper()
+        unit_rentals = rental_df[rental_df['Unit No.'] == normalized_unit_number]
+        import pandas as pd
+        if not isinstance(unit_rentals, pd.DataFrame):
+            unit_rentals = pd.DataFrame(unit_rentals)
+        # Ensure 'Contract Start' is datetime
+        if 'Contract Start' in unit_rentals.columns:
+            unit_rentals = unit_rentals.copy()
+            unit_rentals['Contract Start'] = pd.to_datetime(unit_rentals['Contract Start'], errors='coerce')
+        if not unit_rentals.empty and 'Contract Start' in unit_rentals.columns:
+            latest_rental = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]
+            start = latest_rental['Contract Start']
+            end = latest_rental['Contract End']
+            # Try to get the rent amount from several possible column names
+            rent_col_candidates = [
+                'Annualised Rental Price(AED)',  # no space (actual column in your file)
+                'Annualised Rental Price (AED)', # with space
+                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+            ]
+            amount = None
+            for col in rent_col_candidates:
+                if col in latest_rental and pd.notnull(latest_rental[col]):
+                    amount = latest_rental[col]
+                    break
+            # Debug: print rent columns and value
+            st.write('DEBUG: Rental columns:', list(latest_rental.index))
+            st.write('DEBUG: Rental amount:', amount)
+            if pd.notnull(start) and pd.notnull(end):
+                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
+                if amount is not None and pd.notnull(amount):
+                    rental_info_html += f" | Amount: AED {amount:,.0f}"
+                rental_info_html += "</b>"
+    if info_parts:
+        st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
+    if rental_info_html:
+        st.markdown(rental_info_html, unsafe_allow_html=True)
+
+    # Unit details
+    if unit_number:
+        selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
+        if not isinstance(selected_unit_data, pd.DataFrame):
+            selected_unit_data = pd.DataFrame(selected_unit_data)
+        if not selected_unit_data.empty:
+            unit_info = selected_unit_data.iloc[0]
+            st.markdown(f"**Development:** {unit_info['All Developments']}")
+            st.markdown(f"**Community:** {unit_info['Community/Building']}")
+            st.markdown(f"**Property Type:** {unit_info['Unit Type']}")
+            st.markdown(f"**Bedrooms:** {unit_info['Beds']}")
+            st.markdown(f"**BUA:** {unit_info['Unit Size (sq ft)']}")
+            st.markdown(f"**Plot Size:** {unit_info['Plot Size (sq ft)']}")
+            st.markdown(f"**Floor Level:** {unit_info['Floor Level']}")
+        else:
+            st.markdown(f"**Development:** {development}")
+            st.markdown(f"**Community:** {community}")
+            st.markdown(f"**Property Type:** {property_type}")
+            st.markdown(f"**Bedrooms:** {bedrooms}")
+            st.markdown(f"**BUA:** {bua}")
+            st.markdown(f"**Plot Size:** {plot_size}")
+            st.markdown(f"**Floor Level:**")
+    else:
+        st.markdown(f"**Development:** {development}")
+        st.markdown(f"**Community:** {community}")
+        st.markdown(f"**Property Type:** {property_type}")
+        st.markdown(f"**Bedrooms:** {bedrooms}")
+        st.markdown(f"**BUA:** {bua}")
+        st.markdown(f"**Plot Size:** {plot_size}")
+        st.markdown(f"**Floor Level:**")
+
+    # Transaction history for selected unit
+    if unit_number:
+        selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
+        if not isinstance(selected_unit_data, pd.DataFrame):
+            selected_unit_data = pd.DataFrame(selected_unit_data)
+        if not selected_unit_data.empty:
+            st.markdown("---")
+            st.markdown("**Transaction History for Selected Unit:**")
+            unit_txn_columns_to_hide = ["Unit No.", "Unit Number", "Select Data Points", "Maid", "Study", "Balcony", "Developer Name", "Source", "Comments", "Source File", "View"]
+            unit_txn_visible_columns = [col for col in selected_unit_data.columns if col not in unit_txn_columns_to_hide]
+            if 'Sub Community / Building' in selected_unit_data.columns and selected_unit_data['Sub Community / Building'].dropna().empty:
+                if 'Sub Community / Building' in unit_txn_visible_columns:
+                    unit_txn_visible_columns.remove('Sub Community / Building')
+            if 'Evidence Date' in selected_unit_data.columns:
+                selected_unit_data = selected_unit_data.copy()
+                selected_unit_data['Evidence Date'] = selected_unit_data['Evidence Date'].dt.strftime('%Y-%m-%d')
+            st.dataframe(selected_unit_data[unit_txn_visible_columns])
+        else:
+            st.info("No transaction data found for selected unit.")
+
+    # Transaction History
+    st.subheader("Transaction History")
+    if isinstance(filtered_transactions, pd.DataFrame) and filtered_transactions.shape[0] > 0:
+        columns_to_hide = ["Select Data Points", "Maid", "Study", "Balcony", "Developer Name", "Source", "Comments", "Source File", "View"]
+        visible_columns = [col for col in filtered_transactions.columns if col not in columns_to_hide]
+        # Hide Sub Community column if no values present
+        if 'Sub Community / Building' in filtered_transactions.columns and pd.Series(filtered_transactions['Sub Community / Building']).dropna().empty:
+            if 'Sub Community / Building' in visible_columns:
+                visible_columns.remove('Sub Community / Building')
+        # Format Evidence Date to YYYY-MM-DD (remove time)
+        if 'Evidence Date' in filtered_transactions.columns:
+            filtered_transactions = filtered_transactions.copy()
+            filtered_transactions['Evidence Date'] = filtered_transactions['Evidence Date'].dt.strftime('%Y-%m-%d')
+        # Show count of transactions
+        st.markdown(f"**Showing {filtered_transactions.shape[0]} transactions**")
+        st.dataframe(filtered_transactions[visible_columns])
+    else:
+        st.info("No transactions match the current filters.")
+
+    # --- METRICS AND HISTOGRAM ---
+    # ... removed metrics and histogram code ...
+    # --- END METRICS AND HISTOGRAM ---
+
+    st.markdown("<!-- DASHBOARD TAB END -->")
+
+with tab2:
+    # Remove unnecessary and error-prone variable deletion
+    st.markdown("<!-- LIVE LISTINGS TAB START -->")
+    if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
+        st.subheader("All Live Listings")
+        # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
+        filtered_listings = all_listings.copy()
+        import pandas as pd
+        if not isinstance(filtered_listings, pd.DataFrame):
+            filtered_listings = pd.DataFrame(filtered_listings)
+        def norm(x):
+            return str(x).strip().lower() if pd.notnull(x) else ""
+        norm_community = [norm(c) for c in community] if community else []
+        norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
+        norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
+        # Always apply subcommunity/layout type filters if selected, regardless of other filters
+        if 'Development' in filtered_listings.columns and development:
+            filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
+        if 'Community' in filtered_listings.columns and community:
+            filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
+        if 'Subcommunity' in filtered_listings.columns and subcommunity:
+            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
+        if 'Layout Type' in filtered_listings.columns and layout_type:
+            filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
+        # Debug output
+        # st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
+        # st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
+        # st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
+        # st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
+        # st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
+        # st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
+        if not isinstance(filtered_listings, pd.DataFrame):
+            filtered_listings = pd.DataFrame(filtered_listings)
+        if property_type and 'Type' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Type'] == property_type]
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
+        if bedrooms and 'Beds' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == bedrooms]
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
+        # Floor tolerance filter for live listings (optional, not specified in instructions)
+        if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_listings.columns:
+            try:
+                selected_floor = int(
+                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+                )
+                tol = st.session_state['floor_tolerance']
+                low = selected_floor - tol
+                high = selected_floor + tol
+                filtered_listings = filtered_listings[
+                    (filtered_listings['Floor Level'] >= low) &
+                    (filtered_listings['Floor Level'] <= high)
+                ]
+                if not isinstance(filtered_listings, pd.DataFrame):
+                    filtered_listings = pd.DataFrame(filtered_listings)
+            except Exception:
+                pass
+        if layout_type and 'Layout Type' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(layout_type)]  # type: ignore
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
+        if sales_recurrence != "All" and 'Sales Recurrence' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Sales Recurrence'] == sales_recurrence]
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
+        # Exclude listings marked as not available
+        if 'Availability' in filtered_listings.columns:
+            avail_col = filtered_listings['Availability']
+            if not isinstance(avail_col, pd.Series):
+                avail_col = pd.Series(avail_col)
+            filtered_listings = filtered_listings[avail_col.astype(str).str.strip().str.lower() != "not available"]
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
+
+        # Hide certain columns but keep them in the DataFrame (do NOT filter by Days Listed or any date here)
+        columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
+        visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
+
+        # Show count of live listings and unique listings
+        total_listings = filtered_listings.shape[0]
+        if "DLD Permit Number" in filtered_listings.columns:
+            dld_col = filtered_listings["DLD Permit Number"]
+            import pandas as pd
+            if not isinstance(dld_col, pd.Series):
+                dld_col = pd.Series(dld_col)
+            unique_dld = dld_col.dropna()
+            unique_dld = unique_dld[unique_dld.astype(str).str.strip() != ""]
+            total_unique_listings = unique_dld.nunique()
+        else:
+            total_unique_listings = total_listings
+        if total_listings:
+            ratio_pct = (total_unique_listings / total_listings) * 100
+            ratio_str = f"{ratio_pct:.1f}%"
+        else:
+            ratio_str = "N/A"
+        st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
+
+        # --- Asking Price Market Metrics ---
+        st.markdown("---")
+        st.subheader("Asking Price Market Metrics")
+        asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d")
+        # Prepare unique listings DataFrame with custom logic
+        import pandas as pd
+        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        filtered_listings = filtered_listings.copy()
+        # Ensure 'Listed When' is datetime for sorting
+        if "Listed When" in filtered_listings.columns:
+            filtered_listings["Listed When"] = pd.to_datetime(filtered_listings["Listed When"], errors="coerce")
+        # Helper to select unique listings by rule
+        def select_unique(df):
+            # Group by DLD Permit Number
+            groups = []
+            for dld, group in df.groupby("DLD Permit Number"):
+                if dld is None or str(dld).strip() == "":
+                    continue
+                # Prefer verified
+                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                if not verified_group.empty:
+                    # Most recent among verified
+                    if "Listed When" in verified_group.columns:
+                        idx = verified_group["Listed When"].idxmax()
+                        groups.append(verified_group.loc[[idx]])
+                    else:
+                        groups.append(verified_group.iloc[[0]])
+                else:
+                    # Most recent among all
+                    if "Listed When" in group.columns:
+                        idx = group["Listed When"].idxmax()
+                        groups.append(group.loc[[idx]])
+                    else:
+                        groups.append(group.iloc[[0]])
+            if groups:
+                return pd.concat(groups, ignore_index=True)
+            else:
+                return pd.DataFrame(columns=df.columns)
+        unique_df = select_unique(filtered_listings)
+        # Only consider listings with a valid price
+        price_col = "Price (AED)"
+        price_series = unique_df[price_col] if price_col in unique_df.columns else pd.Series([])
+        if not isinstance(price_series, pd.Series):
+            price_series = pd.Series(price_series)
+        unique_df = unique_df[price_series.notna()]
+        unique_df = unique_df[unique_df[price_col] > 0]
+        prices = unique_df[price_col].astype(float)
+        n_total = len(prices)
+        n_below = (prices < asking_price).sum() if asking_price > 0 else 0
+        n_above = (prices > asking_price).sum() if asking_price > 0 else 0
+        pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
+        pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
+        # Percentile rank
+        percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
+        # Display metrics
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
+        col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
+        col3.metric("Percentile", f"{percentile:.1f}%")
+        st.markdown("---")
+
+        # Add a switch to filter listings: all, only unique, only duplicates
+        filter_mode = st.radio(
+            "Show:",
+            ["All listings", "Only unique listings", "Only duplicate listings"],
+            index=0,
+            horizontal=True,
+            key="live_listings_filter_mode"
+        )
+        # Compute DLD counts for filtering
+        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        dld_counts = dld_col.value_counts()
+        unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
+        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+        # Filter listings based on switch (corrected logic)
+        if filter_mode == "Only unique listings":
+            # For each DLD Permit Number (excluding empty/null), show only the first occurrence
+            mask = (
+                filtered_listings["DLD Permit Number"].notna() &
+                (filtered_listings["DLD Permit Number"].astype(str).str.strip() != "")
+            )
+            filtered_listings = filtered_listings[mask]
+            filtered_listings = filtered_listings.drop_duplicates(subset=["DLD Permit Number"], keep="first")
+        elif filter_mode == "Only duplicate listings":
+            filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
+        # (rest of code unchanged)
+
+        # Use AgGrid for clickable selection
+        gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
+        gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
+        grid_options = gb.build()
+
+        # Before passing to AgGrid, ensure DataFrame
+        data_for_aggrid = filtered_listings[visible_columns]
+        if not isinstance(data_for_aggrid, pd.DataFrame):
+            data_for_aggrid = pd.DataFrame(data_for_aggrid)
+        grid_response = AgGrid(
+            data_for_aggrid,
+            gridOptions=grid_options,
+            enable_enterprise_modules=False,
+            update_mode=GridUpdateMode.SELECTION_CHANGED,
+            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+            theme='alpine'
+        )
+
+        # Handle selection from AgGrid (can be list of dicts or DataFrame)
+        sel = grid_response['selected_rows']
+        selected_url = None
+        if isinstance(sel, list):
+            if len(sel) > 0:
+                selected_url = sel[0].get("URL")
+        elif isinstance(sel, pd.DataFrame):
+            if sel.shape[0] > 0 and "URL" in sel.columns:
+                selected_url = sel.iloc[0]["URL"]
+        if selected_url:
+            # Foldable Listing Preview
+            with st.expander("Listing Preview", expanded=False):
+                components.html(
+                    f'''
+                    <iframe
+                        src="{selected_url}"
+                        width="100%"
+                        height="1600px"
+                        style="border:none;"
+                        scrolling="yes"
+                    ></iframe>
+                    ''',
+                    height=1600
+                )
+    else:
+        st.info("No live listings data found.")
+    st.markdown("<!-- LIVE LISTINGS TAB END -->")
+
+# All Prophet/chart/forecast code is strictly inside tab3 below
+with tab3:
+    st.markdown("<!-- TREND & VALUATION TAB START -->")
+    # ... (all Prophet/chart/forecast code as in previous block) ...
+    # (No Prophet/chart/forecast code outside this block)
+    # (No monthly_df, forecast, fig, st.plotly_chart, st.table, st.download_button, Prophet parameter UI, etc. outside this block)
+    # (Only function definitions and imports may remain outside)
+
+    # ALL Prophet/chart/forecast code goes here!
+    with st.expander("Forecast & Listings Filters", expanded=False):
+        prophet_last_n_days = st.number_input(
+            "",
+            min_value=30, max_value=3650, step=30, value=1095, key="prophet_last_n_days",
+            help="Prophet: Last N Days"
+        )
+        # Live Listings Filters
+        verified_only = st.checkbox(
+            "Use Only Verified Listings",
+            value=True,
+            help="Filter to listings marked as verified."
+        )
+        listings_days = st.number_input(
+            "Recent Listings: Last N Days",
+            min_value=1, max_value=365, step=1, value=90,
+            help="Include only listings not older than N days."
+        )
+    # Immediately after the expander, before any use of monthly_df
+    monthly_df = get_monthly_df(all_transactions, prophet_last_n_days)
+    # ... move all Prophet/chart/forecast code here ...
+
+    # Ensure listing_df is defined for this tab
+    listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+    # Determine BUA for info and actual values
+    unit_bua = None
+    if unit_number:
+        try:
+            unit_bua = float(all_transactions.loc[all_transactions['Unit No.'] == unit_number, 'Unit Size (sq ft)'].iloc[0])
+        except:
+            unit_bua = None
+    else:
+        try:
+            unit_bua = float(bua)
+        except:
+            unit_bua = None
+
+    # --- Rental Status Indicator for Trend & Valuation ---
+    today = pd.Timestamp.now().normalize()
+    rental_circle = "🟢"
+    if unit_number and 'Contract Start' in rental_df.columns:
+        unit_rentals = rental_df[rental_df['Unit No.'].astype(str) == unit_number]
+        if not unit_rentals.empty:
+            latest = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]  # type: ignore
+            start, end = latest['Contract Start'], latest['Contract End']
+            if pd.notnull(start) and pd.notnull(end):
+                days_left = (end - today).days
+                if start <= today <= end:
+                    rental_circle = "🟡" if days_left <= 90 else "🔴"
+
+    # --- Selected Unit Info ---
+    info_parts = [rental_circle]
+    if unit_number:
+        info_parts.append(f"📦 {unit_number}")
+    if development:
+        info_parts.append(f"🏢 {development}")
+    if community:
+        # community may be a list
+        comm = ", ".join(community) if isinstance(community, list) else community
+        info_parts.append(f"🏘️ {comm}")
+    if subcommunity:
+        info_parts.append(f"🏙️ {subcommunity}")
+    if "Layout Type" in all_transactions.columns:
+        layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
+        if layout_val.size > 0:
+            info_parts.append(f"🗂️ {layout_val[0]}")
+    # If layout type exists in listing_df and only one unique type, show it
+    if 'Layout Type' in listing_df.columns:
+        unique_layouts = listing_df['Layout Type'].dropna().unique()
+        if len(unique_layouts) == 1:
+            info_parts.append(f"📐 Layout: {unique_layouts[0]}")
+        elif len(unique_layouts) > 1:
+            info_parts.append("📐 Layout: Multiple")
+    # Floor Level
+    if unit_number and "Floor Level" in all_transactions.columns:
+        try:
+            fl = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Floor Level"].iloc[0]
+            if pd.notna(fl):
+                info_parts.append(f"🛗 Floor {int(fl)}")
+        except:
+            pass
+    # BUA (sqft)
+    if unit_bua:
+        info_parts.append(f"📐 {unit_bua:.0f} sqft")
+    # Plot Size (sqft)
+    try:
+        ps = float(plot_size) if plot_size else float(all_transactions.loc[all_transactions["Unit No."] == unit_number, "Plot Size (sq ft)"].iloc[0])
+        info_parts.append(f"🌳 {ps:.0f} sqft")
+    except:
+        pass
+    if info_parts:
+        st.markdown(" | ".join(info_parts))
+    st.header("Trend & Valuation")
+
+    # Prepare filtered listing DataFrame
+    listing_df = all_listings.copy() if 'all_listings' in locals() else pd.DataFrame()
+    # Add a switch to filter Prophet/chart listings: all, only unique, only duplicates
+    prophet_filter_mode = st.radio(
+        "Listings to use for Prophet and chart:",
+        ["All listings", "Only unique listings", "Only duplicate listings"],
+        index=1,  # Default to unique listings
+        horizontal=True,
+        key="prophet_listings_filter_mode"
+    )
+    import pandas as pd
+    dld_col = listing_df["DLD Permit Number"] if "DLD Permit Number" in listing_df.columns else pd.Series([])
+    if not isinstance(dld_col, pd.Series):
+        dld_col = pd.Series(dld_col)
+    dld_counts = dld_col.value_counts()
+    unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
+    duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+    if prophet_filter_mode == "Only unique listings":
+        # Ensure 'Listed When' is datetime for sorting
+        if "Listed When" in listing_df.columns:
+            listing_df["Listed When"] = pd.to_datetime(listing_df["Listed When"], errors="coerce")
+        def select_unique(df):
+            groups = []
+            for dld, group in df.groupby("DLD Permit Number"):
+                if dld is None or str(dld).strip() == "":
+                    continue
+                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                if not verified_group.empty:
+                    if "Listed When" in verified_group.columns:
+                        idx = verified_group["Listed When"].idxmax()
+                        groups.append(verified_group.loc[[idx]])
+                    else:
+                        groups.append(verified_group.iloc[[0]])
+                else:
+                    if "Listed When" in group.columns:
+                        idx = group["Listed When"].idxmax()
+                        groups.append(group.loc[[idx]])
+                    else:
+                        groups.append(group.iloc[[0]])
+            if groups:
+                return pd.concat(groups, ignore_index=True)
+            else:
+                return pd.DataFrame(columns=df.columns)
+        listing_df = select_unique(listing_df)
+    elif prophet_filter_mode == "Only duplicate listings":
+        listing_df = listing_df[listing_df["DLD Permit Number"].isin(duplicate_dlds)]
+    # (rest of Prophet/chart code unchanged)
+
+    if verified_only and 'Verified' in listing_df.columns:
+        listing_df = listing_df[listing_df['Verified'].str.lower() == 'yes']
+    if 'Days Listed' in listing_df.columns:
+        # Ensure Days Listed is numeric for pd.to_timedelta
+        listing_df['Days Listed'] = pd.to_numeric(listing_df['Days Listed'], errors='coerce')
+        # Ensure Days Listed is a pandas Series before calling pd.to_timedelta
+        days_listed_col = listing_df['Days Listed']
+        if not isinstance(days_listed_col, pd.Series):
+            days_listed_col = pd.Series(days_listed_col)
+        listing_df['Listing Date'] = pd.Timestamp.now() - pd.to_timedelta(days_listed_col, unit='D')
+        cutoff_listings = pd.Timestamp.now() - pd.Timedelta(days=listings_days)
+        listing_df = listing_df[listing_df['Listing Date'] >= cutoff_listings]
+
+    listing_df = pd.DataFrame(listing_df)
+    # Sync listings context to selected unit
+    mask = pd.Series(True, index=listing_df.index)
+    # Development match
+    if 'Development' in listing_df.columns and development:
+        mask &= listing_df['Development'] == development
+        # Community match
+        if 'Community' in listing_df.columns and community:
+            comm_list = community if isinstance(community, list) else [community]
+            community_col = listing_df['Community']
+            if not isinstance(community_col, pd.Series):
+                community_col = pd.Series(community_col)
+            mask &= community_col.isin(comm_list)
+        # Subcommunity match
+        subcol = 'Subcommunity' if 'Subcommunity' in listing_df.columns else 'Sub Community / Building'
+        if subcol in listing_df.columns and subcommunity:
+            subcommunity_col = listing_df[subcol]
+            if not isinstance(subcommunity_col, pd.Series):
+                subcommunity_col = pd.Series(subcommunity_col)
+            if isinstance(subcommunity, (list, tuple)):
+                mask &= subcommunity_col.isin(subcommunity)
+            else:
+                mask &= subcommunity_col == subcommunity
+        listing_df = listing_df[mask]
+        if layout_type:
+            layout_col = listing_df['Layout Type'] if 'Layout Type' in listing_df.columns else pd.Series([])
+            if not isinstance(layout_col, pd.Series):
+                layout_col = pd.Series(layout_col)
+            listing_df = listing_df[layout_col.isin(layout_type)]
+
+    # Compute median listing price per sqft and AED
+    listing_df = pd.DataFrame(listing_df)
+    if not listing_df.empty and 'Price (AED)' in listing_df.columns and 'BUA' in listing_df.columns:
+        listing_df['Price_per_sqft'] = listing_df['Price (AED)'] / listing_df['BUA']
+        live_med_sqft = listing_df['Price_per_sqft'].median()
+        median_price = live_med_sqft * unit_bua if unit_bua else None
+    else:
+        median_price = None
+
+    # Display total number of live listings
+    total_listings = listing_df.shape[0]
+    st.markdown(f"**Total Live Listings:** {total_listings}")
+    if len(monthly_df) < 6:
+        st.error(f"❌ Insufficient data for forecasting. Need at least 6 months, got {len(monthly_df)}.")
+        st.info(" Try increasing the time period or relaxing filters.")
+    elif len(monthly_df) < 12:
+        st.warning(f"⚠️ Limited data ({len(monthly_df)} months). Using simple median forecast.")
+    elif len(monthly_df) < 18:
+        # Short-history fallback: flat median of recent data
+        # Convert to actual values
+        if unit_bua:
+            monthly_df['actual'] = monthly_df['y'] * unit_bua
+        else:
+            monthly_df['actual'] = monthly_df['y']
+        # Use last up to 4 months
+        n = min(4, len(monthly_df))
+        recent = monthly_df['actual'].iloc[-n:]
+        median_val = recent.median()
+        # Build flat forecast
+        last_date = monthly_df['ds'].iloc[-1]
+        future = pd.date_range(last_date + pd.offsets.MonthEnd(1), periods=6, freq='M')
+        flat_df = pd.DataFrame({'ds': future})
+        flat_df['Forecast Value'] = median_val
+        flat_df['Lower CI'] = median_val * 0.95
+        flat_df['Upper CI'] = median_val * 1.05
+        # Plot
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=monthly_df['ds'], y=monthly_df['actual'],
+            mode='lines+markers', name='Historical',
+            line=dict(color='blue'),
+            marker=dict(color='blue')
+        ))
+        fig.add_trace(go.Scatter(
+            x=flat_df['ds'], y=flat_df['Forecast Value'],
+            mode='lines+markers', name='Flat Median Forecast'
+        ))
+        fig.update_layout(
+            title='Flat-Median Forecast (Actual Value)',
+            xaxis_title='Month', yaxis_title='AED'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        # Table
+        display_df = flat_df.rename(columns={'ds':'Month'})[['Month','Forecast Value','Lower CI','Upper CI']]
+        # Ensure Arrow compatibility for st.table
+        for col in display_df.columns:
+            if display_df[col].dtype == 'object':
+                display_df[col] = display_df[col].astype(str)
+        st.table(display_df)
+    else:
+        # Full-history Prophet forecast
+        # Get or fit cached Prophet model with spinner
+        try:
+            # Initialize Prophet parameters with default values
+            growth = 'linear'
+            n_changepoints = 25
+            changepoint_range = 0.8
+            changepoint_prior_scale = 0.05
+            yearly_seasonality = True
+            weekly_seasonality = False
+            daily_seasonality = False
+            seasonality_prior_scale = 10.0
+            interval_width = 0.8
+            cap = None
+            scenario_pct = 0
+            
+            with st.spinner("Fitting Prophet model..."):
+                m = load_prophet_model(
+                    growth, n_changepoints, changepoint_range, changepoint_prior_scale,
+                    yearly_seasonality, weekly_seasonality, daily_seasonality,
+                    seasonality_prior_scale, interval_width, cap, monthly_df
+                )
+            
+            # Create future dataframe
+            future = m.make_future_dataframe(periods=6, freq='M')
+            
+            # Make predictions
+            forecast = m.predict(future)
+            
+            # Convert to actual values
+            if unit_bua:
+                monthly_df['actual'] = monthly_df['y'] * unit_bua
+                forecast['yhat_actual'] = forecast['yhat'] * unit_bua
+                forecast['yhat_lower_actual'] = forecast['yhat_lower'] * unit_bua
+                forecast['yhat_upper_actual'] = forecast['yhat_upper'] * unit_bua
+            else:
+                monthly_df['actual'] = monthly_df['y']
+                forecast['yhat_actual'] = forecast['yhat']
+                forecast['yhat_lower_actual'] = forecast['yhat_lower']
+                forecast['yhat_upper_actual'] = forecast['yhat_upper']
+                
+        except Exception as e:
+            st.error(f"❌ Prophet model fitting failed: {str(e)}")
+            st.info("💡 Try adjusting Prophet parameters or using a different growth model.")
+            st.stop()
+        # Plot historical vs forecast with CI band
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=monthly_df['ds'], y=monthly_df['actual'],
+            mode='lines+markers', name='Historical',
+            line=dict(color='blue'),
+            marker=dict(color='blue')
+        ))
+        fig.add_trace(go.Scatter(
+            x=forecast['ds'], y=forecast['yhat_actual'],
+            mode='lines+markers', name='Forecast',
+            line=dict(color='lightblue'),
+            marker=dict(color='lightblue')
+        ))
+        # --- Add Linear Regression Trend ---
+        from sklearn.linear_model import LinearRegression
+        import numpy as np
+        # Prepare X for regression: month index as integer
+        monthly_df = monthly_df.copy()
+        monthly_df['month_idx'] = np.arange(len(monthly_df))
+        X_hist = monthly_df['month_idx'].values.reshape(-1, 1)
+        y_hist = monthly_df['actual'].values  # Use actual unit values, not price per sqft
+        linreg = LinearRegression()
+        linreg.fit(X_hist, y_hist)
+        # Predict for both historical and future months
+        n_future = len(forecast['ds']) - len(monthly_df)
+        X_all = np.arange(len(monthly_df) + n_future).reshape(-1, 1)
+        y_pred = linreg.predict(X_all)
+        # Prepare dates for future months
+        last_date = monthly_df['ds'].iloc[-1]
+        future_dates = pd.date_range(last_date + pd.offsets.MonthEnd(1), periods=n_future, freq='M')
+        all_dates = pd.concat([monthly_df['ds'], pd.Series(future_dates)], ignore_index=True)
+        fig.add_trace(go.Scatter(
+            x=all_dates,
+            y=y_pred,
+            mode='lines+markers',  # Keep markers
+            name='Linear Trend',
+            line=dict(color='orange', dash='dash'),  # Dashed line
+            marker=dict(color='orange', symbol='circle', size=8)
+        ))
+        # --- Highlight Current Month Value ---
+        import pandas as pd
+        now = pd.Timestamp.now().normalize()
+        # Find the current month in monthly_df['ds']
+        current_month = monthly_df[monthly_df['ds'].dt.to_period('M') == now.to_period('M')]
+        if not current_month.empty:
+            fig.add_trace(go.Scatter(
+                x=current_month['ds'],
+                y=current_month['actual'],
+                mode='markers',
+                name='Current Month',
+                marker=dict(color='red', size=14, symbol='star'),
+                showlegend=True
+            ))
+        # --- Highlighted Transactions by Subcommunity ---
+        filtered_transactions = pd.DataFrame(filtered_transactions)
+        selected_subcommunity = None
+        if unit_number:
+            # Get the subcommunity for the selected unit
+            try:
+                selected_subcommunity = all_transactions.loc[
+                    all_transactions['Unit No.'] == unit_number, 'Sub Community / Building'
+                ].iloc[0]
+            except Exception:
+                selected_subcommunity = None
+        # Split transactions
+        if not filtered_transactions.empty and 'Evidence Date' in filtered_transactions.columns and 'Price (AED)' in filtered_transactions.columns:
+            transaction_df = filtered_transactions.copy()
+            transaction_df = pd.DataFrame(transaction_df)
+            transaction_df['Evidence Date'] = pd.to_datetime(transaction_df['Evidence Date'], errors='coerce')
+            transaction_df = transaction_df.dropna(subset=['Evidence Date', 'Price (AED)'])
+            if selected_subcommunity:
+                txn_sel = transaction_df[transaction_df['Sub Community / Building'] == selected_subcommunity]
+                txn_other = transaction_df[transaction_df['Sub Community / Building'] != selected_subcommunity]
+                # Selected subcommunity (light purple)
+                if not txn_sel.empty:
+                    fig.add_trace(go.Scatter(
+                        x=txn_sel['Evidence Date'],
+                        y=txn_sel['Price (AED)'],
+                        mode='markers',
+                        marker=dict(symbol='circle', size=8, opacity=0.9, color='#B266FF'),
+                        name=f'Transactions ({selected_subcommunity})',
+                        text=txn_sel.apply(
+                            lambda row: " | ".join(filter(None, [
+                                f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                                f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                                (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                                (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                            ])),
+                            axis=1
+                        ),
+                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>",
+                        hoverlabel=dict(font=dict(color='white'))
+                    ))
+                # Other subcommunities (blue)
+                if not txn_other.empty:
+                    fig.add_trace(go.Scatter(
+                        x=txn_other['Evidence Date'],
+                        y=txn_other['Price (AED)'],
+                        mode='markers',
+                        marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
+                        name='Transactions (Other)',
+                        text=txn_other.apply(
+                            lambda row: " | ".join(filter(None, [
+                                f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                                f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                                (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                                (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                            ])),
+                            axis=1
+                        ),
+                        hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                    ))
+            else:
+                # No selected subcommunity, plot all as blue
+                fig.add_trace(go.Scatter(
+                    x=transaction_df['Evidence Date'],
+                    y=transaction_df['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
+                    name='Transactions',
+                    text=transaction_df.apply(
+                        lambda row: " | ".join(filter(None, [
+                            f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                            f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                            (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                            (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                        ])),
+                        axis=1
+                    ),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+                ))
+        # --- Highlighted Listings by Subcommunity and Verification ---
+        if not listing_df.empty and 'Verified' in listing_df.columns:
+            ver_df = listing_df[listing_df['Verified'].str.lower() == 'yes']
+            nonver_df = listing_df[listing_df['Verified'].str.lower() != 'yes']
+        else:
+            ver_df = listing_df.copy()
+            nonver_df = listing_df.iloc[0:0]
+        # Listings: split by selected subcommunity and verification
+        subcol = 'Subcommunity' if 'Subcommunity' in listing_df.columns else 'Sub Community / Building'
+        if selected_subcommunity and subcol in listing_df.columns:
+            # Verified in selected subcommunity (light purple)
+            ver_sel = ver_df[ver_df[subcol] == selected_subcommunity]
+            if not isinstance(ver_sel, pd.DataFrame):
+                ver_sel = pd.DataFrame(ver_sel)
+            # Non-verified in selected subcommunity (orange)
+            nonver_sel = nonver_df[nonver_df[subcol] == selected_subcommunity]
+            if not isinstance(nonver_sel, pd.DataFrame):
+                nonver_sel = pd.DataFrame(nonver_sel)
+            # Verified in other subcommunities (green)
+            ver_other = ver_df[ver_df[subcol] != selected_subcommunity]
+            if not isinstance(ver_other, pd.DataFrame):
+                ver_other = pd.DataFrame(ver_other)
+            # Non-verified in other subcommunities (red)
+            nonver_other = nonver_df[nonver_df[subcol] != selected_subcommunity]
+            if not isinstance(nonver_other, pd.DataFrame):
+                nonver_other = pd.DataFrame(nonver_other)
+            if not ver_sel.empty:
+                # Helper to build location string for listings (move to top of listing plotting section)
+                fig.add_trace(go.Scatter(
+                    x=ver_sel["Listed When"] if "Listed When" in ver_sel.columns else ver_sel.get("Listing Date", ver_sel.index),
+                    y=ver_sel['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=10, opacity=0.95, color='#B266FF'),
+                    name=f'Verified Listings ({selected_subcommunity})',
+                    customdata=ver_sel["URL"],
+                    text=ver_sel.apply(lambda row: \
+                        ", ".join(filter(None, [
+                            get_location_str(row),
+                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                            row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                        ])), axis=1),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
+                ))
+            if not nonver_sel.empty:
+                fig.add_trace(go.Scatter(
+                    x=nonver_sel["Listed When"] if "Listed When" in nonver_sel.columns else nonver_sel.get("Listing Date", nonver_sel.index),
+                    y=nonver_sel['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=10, opacity=0.95, color='orange'),
+                    name=f'Non-verified Listings ({selected_subcommunity})',
+                    customdata=nonver_sel["URL"],
+                    text=nonver_sel.apply(lambda row: \
+                        ", ".join(filter(None, [
+                            get_location_str(row),
+                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                            row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                        ])), axis=1),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
+                ))
+            if not ver_other.empty:
+                fig.add_trace(go.Scatter(
+                    x=ver_other["Listed When"] if "Listed When" in ver_other.columns else ver_other.get("Listing Date", ver_other.index),
+                    y=ver_other['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
+                    name='Verified Listings (Other)',
+                    customdata=ver_other["URL"],
+                    text=ver_other.apply(lambda row: \
+                        ", ".join(filter(None, [
+                            get_location_str(row),
+                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                            row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                        ])), axis=1),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
+                ))
+            if not nonver_other.empty:
+                fig.add_trace(go.Scatter(
+                    x=nonver_other["Listed When"] if "Listed When" in nonver_other.columns else nonver_other.get("Listing Date", nonver_other.index),
+                    y=nonver_other['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
+                    name='Non-verified Listings (Other)',
+                    customdata=nonver_other["URL"],
+                    text=nonver_other.apply(lambda row: \
+                        ", ".join(filter(None, [
+                            get_location_str(row),
+                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                            row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                        ])), axis=1),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
+                ))
+        else:
+            # No selected subcommunity, use default coloring
+            if not ver_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=ver_df["Listed When"] if "Listed When" in ver_df.columns else ver_df.get("Listing Date", ver_df.index),
+                    y=ver_df['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
+                    name='Verified Listings',
+                    customdata=ver_df["URL"],
+                    text=ver_df.apply(lambda row: \
+                        ", ".join(filter(None, [
+                            get_location_str(row),
+                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                            row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                        ])), axis=1),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
+                ))
+            if not nonver_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=nonver_df["Listed When"] if "Listed When" in nonver_df.columns else nonver_df.get("Listing Date", nonver_df.index),
+                    y=nonver_df['Price (AED)'],
+                    mode='markers',
+                    marker=dict(symbol='diamond', size=8, opacity=0.8, color='red'),
+                    name='Non-verified Listings',
+                    customdata=nonver_df["URL"],
+                    text=nonver_df.apply(lambda row: \
+                        ", ".join(filter(None, [
+                            get_location_str(row),
+                            f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                            row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                        ])), axis=1),
+                    hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<br><a href='%{customdata}' target='_blank'>View Listing</a><extra></extra>",
+                    hoverlabel=dict(font=dict(color='white'))
+                ))
+        fig.update_layout(
+            title='Prophet Forecast (Actual Value)',
+            xaxis_title='Month', yaxis_title='AED',
+            height=800
+        )
+        # Render interactive Plotly chart with clickable listings
+        html_str = fig.to_html(include_plotlyjs='include')
+        components.html(f"""
+            {html_str}
+            <script>
+              const gd = document.querySelectorAll('.plotly-graph-div')[0];
+              gd.on('plotly_click', function(event) {{
+                const url = event.points[0].customdata;
+                if (url) window.open(url);
+              }});
+            </script>
+        """, height=800, scrolling=True)
+        # Table
+        fc = forecast[['ds','yhat_actual','yhat_lower_actual','yhat_upper_actual']].tail(6).copy()
+        fc = pd.DataFrame(fc)
+        fc['Month'] = fc['ds'].dt.strftime('%B %Y')
+        display_df = pd.DataFrame(fc[['Month','yhat_actual','yhat_lower_actual','yhat_upper_actual']])
+        display_df = display_df.rename(columns={
+            'yhat_actual':'Forecast Value','yhat_lower_actual':'Lower CI','yhat_upper_actual':'Upper CI'
+        })
+        # Ensure Arrow compatibility for st.table
+        for col in display_df.columns:
+            if display_df[col].dtype == 'object':
+                display_df[col] = display_df[col].astype(str)
+        st.table(display_df)
+        # Download data as CSV only
+        st.download_button(
+            "Download Data as CSV",
+            display_df.to_csv(index=False).encode(),
+            file_name="forecast.csv"
+        )
+
+    # Prophet Settings block (moved here from above)
+    with st.expander("Prophet Settings", expanded=False):
+        growth = st.selectbox(
+            "Growth Model",
+            options=["linear", "logistic"],
+            index=0,
+            help="Choose 'linear' for a straight trend, 'logistic' to enforce capacity limits."
+        )
+        # If using logistic growth, specify capacity
+        cap = None
+        if growth == "logistic":
+            default_cap = int(monthly_df['y'].max() * 1.1) if not monthly_df.empty else 0
+            cap = st.number_input(
+                "Capacity (Max price)",
+                min_value=0, value=default_cap, step=1000,
+                help="Maximum market price for logistic growth."
+            )
+        n_changepoints = st.slider(
+            "Number of Changepoints",
+            min_value=0, max_value=50, value=25,
+            help="How many potential trend shift points Prophet will consider."
+        )
+        changepoint_range = st.slider(
+            "Changepoint Range",
+            min_value=0.5, max_value=1.0, step=0.05, value=0.8,
+            help="Fraction of history in which to look for trend shifts."
+        )
+        changepoint_prior_scale = st.slider(
+            "Changepoint Prior Scale",
+            min_value=0.001, max_value=1.0, step=0.001, value=0.05,
+            help="Trend flexibility: smaller = smoother trend."
+        )
+        yearly_seasonality = st.checkbox(
+            "Yearly Seasonality",
+            value=True,
+            help="Enable annual cyclic pattern."
+        )
+        weekly_seasonality = st.checkbox(
+            "Weekly Seasonality",
+            value=False,
+            help="Enable weekly pattern (usually off)."
+        )
+        daily_seasonality = st.checkbox(
+            "Daily Seasonality",
+            value=False,
+            help="Enable daily pattern (usually off)."
+        )
+        seasonality_prior_scale = st.slider(
+            "Seasonality Prior Scale",
+            min_value=0.1, max_value=20.0, step=0.1, value=10.0,
+            help="Strength of seasonal patterns: smaller = damped."
+        )
+        interval_width = st.slider(
+            "Interval Width",
+            min_value=0.5, max_value=0.99, step=0.01, value=0.8,
+            help="Width of the uncertainty interval."
+        )
+        scenario_pct = st.slider("Scenario adjustment (%)", -20, 20, 0,
+                                 help="Apply a manual premium or discount to the forecast.")
+
+    # Add data quality metrics
+    st.metric("Data Quality", f"{len(monthly_df)} months", 
+              f"{monthly_df['y'].isnull().sum()} missing values")
+
+    # Add confidence level indicator
+    confidence = "High" if len(monthly_df) >= 24 else "Medium" if len(monthly_df) >= 12 else "Low"
+    st.info(f"📊 Forecast Confidence: {confidence}")
+
+    # --- Prophet Hyperparameter Selection Workflow ---
+    # 1. Tune and display both best and current params + MAPEs
+    # 2. Let user choose which to use for main forecast
+
+    # Run tuning if button is clicked
+    if st.button('Tune Prophet Hyperparameters'):
+        with st.spinner('Tuning Prophet hyperparameters...'):
+            best_params, best_mape = tune_prophet_hyperparameters(monthly_df)
+        if best_params:
+            st.success(f'Best Params: {best_params}')
+            st.info(f'Best MAPE: {best_mape:.2f}%')
+            # Save to session state for later use
+            st.session_state['tuned_params'] = best_params
+            st.session_state['tuned_mape'] = best_mape
+        else:
+            st.error('Tuning failed or not enough data.')
+
+    # Helper to robustly convert to bool
+    def to_bool(val):
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            return val.lower() == "true"
+        return bool(val)
+
+    # Explicitly cast each Prophet argument variable before use
+    growth = str(growth)
+    n_changepoints = int(n_changepoints)
+    changepoint_range = float(changepoint_range)
+    changepoint_prior_scale = float(changepoint_prior_scale)
+    yearly_seasonality = to_bool(yearly_seasonality)
+    weekly_seasonality = to_bool(weekly_seasonality)
+    daily_seasonality = to_bool(daily_seasonality)
+    seasonality_prior_scale = float(seasonality_prior_scale)
+    interval_width = float(interval_width)
+    uncertainty_samples = int(1000)
+    try:
+        # Convert boolean seasonality to proper format expected by Prophet
+        # Build Prophet parameters dict, only including seasonality if enabled
+        prophet_params = {
+            'growth': growth,
+            'n_changepoints': n_changepoints,
+            'changepoint_range': changepoint_range,
+            'changepoint_prior_scale': changepoint_prior_scale,
+            'seasonality_prior_scale': seasonality_prior_scale,
+            'interval_width': interval_width,
+            'uncertainty_samples': uncertainty_samples
+        }
+        
+        # Only add seasonality parameters if they are enabled
+        if yearly_seasonality:
+            prophet_params['yearly_seasonality'] = "auto"
+        if weekly_seasonality:
+            prophet_params['weekly_seasonality'] = "auto"
+        if daily_seasonality:
+            prophet_params['daily_seasonality'] = "auto"
+        
+        m_temp = Prophet(**prophet_params)  # type: ignore
+        m_temp.fit(monthly_df)
+        f = m_temp.predict(monthly_df[['ds']])
+        current_mape = mean_absolute_percentage_error(monthly_df['y'], f['yhat']) * 100
+    except Exception:
+        current_mape = None
+
+    # Show both options and let user choose
+    options = ['Current Parameters']
+    if 'tuned_params' in st.session_state:
+        options.append('Tuned Parameters')
+    choice = st.radio('Choose Prophet parameters for main forecast:', options)
+
+    if choice == 'Tuned Parameters' and 'tuned_params' in st.session_state:
+        use_params = st.session_state['tuned_params']
+        st.info(f'Using tuned parameters: {use_params} (MAPE: {st.session_state["tuned_mape"]:.2f}%)')
+    else:
+        use_params = dict(
+            growth=growth,
+            n_changepoints=n_changepoints,
+            changepoint_range=changepoint_range,
+            changepoint_prior_scale=changepoint_prior_scale,
+            yearly_seasonality=yearly_seasonality,
+            weekly_seasonality=weekly_seasonality,
+            daily_seasonality=daily_seasonality,
+            seasonality_prior_scale=seasonality_prior_scale,
+            interval_width=interval_width,
+            uncertainty_samples=uncertainty_samples
+        )
+        st.info(f'Using current parameters (MAPE: {current_mape:.2f}%)')
+
+    # Use use_params for main Prophet forecast below
+
+    st.markdown("<!-- TREND & VALUATION TAB END -->")
+
+with tab4:
+    st.markdown("<!-- RENTALS TAB START -->")
+    st.title("Rental Transactions")
+    import pandas as pd
+    today = pd.Timestamp.now().normalize()
+    # Use layout_map_df to get all units
+    all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
+    all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
+    # Preprocess rental_df to keep only the newest contract per unit
+    rental_df['Unit No.'] = rental_df['Unit No.'].astype(str).str.strip().str.upper()
+    rental_df['Contract Start'] = pd.to_datetime(rental_df['Contract Start'], errors='coerce')
+    rental_df = rental_df.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
+    # Merge with rental_df on Unit No.
+    merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
+    # Status circle logic
+    def rental_status(row):
+        start = row.get('Contract Start')
+        end = row.get('Contract End')
+        recently_vacant_days = 60  # 2 months
+        if pd.notnull(start) and pd.notnull(end):
+            days_left = (end - today).days
+            if start <= today <= end:
+                if days_left < 31:
+                    return '🟣'
+                elif days_left <= 90:
+                    return '🟡'
+                else:
+                    return '🔴'
+            # Blue circle: recently vacant (contract ended within last 60 days)
+            elif 0 < (today - end).days <= recently_vacant_days:
+                return '🔵'
+        return '🟢'
+    merged['Status'] = merged.apply(rental_status, axis=1)
+    # Columns to show
+    display_cols = [
+        'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
+        'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
+        'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
+    ]
+    cols_to_show = [c for c in display_cols if c in merged.columns]
+    cols_final = ['Status'] + cols_to_show
+    # Remove status filter: show all units
+    data_for_aggrid = merged[cols_final]
+    if not isinstance(data_for_aggrid, pd.DataFrame):
+        data_for_aggrid = pd.DataFrame(data_for_aggrid)
+    gb = GridOptionsBuilder.from_dataframe(data_for_aggrid)
+    gb.configure_default_column(filter=True, sortable=True, resizable=True)
+    gb.configure_column("Status", filter="agSetColumnFilter")
+    gb.configure_column("Layout Type", filter="agSetColumnFilter")
+    gb.configure_column("Project", filter="agSetColumnFilter")
+    grid_options = gb.build()
+    grid_response = AgGrid(
+        data_for_aggrid,
+        gridOptions=grid_options,
+        enable_enterprise_modules=True,
+        theme='alpine',
+        fit_columns_on_grid_load=True,
+        domLayout='autoHeight',
+        use_container_width=True,
+        allow_unsafe_jscode=True,
+        custom_js="""
+        function onGridReady(params) {
+            params.api.sizeColumnsToFit();
+        }
+        """
+    )
+    filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
+    # Ensure contract dates are datetime for comparison
+    filtered_df['Contract Start'] = pd.to_datetime(filtered_df['Contract Start'], errors='coerce')
+    filtered_df['Contract End'] = pd.to_datetime(filtered_df['Contract End'], errors='coerce')
+
+    # --- Rental Metrics (based on filtered_df) ---
+    total_units = len(filtered_df)
+    today = pd.Timestamp.now().normalize()
+    rented_mask = (
+        pd.notnull(filtered_df['Contract Start']) &
+        pd.notnull(filtered_df['Contract End']) &
+        (filtered_df['Contract Start'] <= today) &
+        (filtered_df['Contract End'] >= today)
+    )
+    rented_units = rented_mask.sum()
+    vacant_units = total_units - rented_units
+    # Expiring in <30 days (matches purple circle logic)
+    expiring_30_mask = (
+        rented_mask &
+        ((filtered_df['Contract End'] - today).dt.days < 31)
+    )
+    expiring_30 = expiring_30_mask.sum()
+    rent_col = None
+    for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
+        if c in filtered_df.columns:
+            rent_col = c
+            break
+    if rent_col:
+        avg_rent_series = pd.to_numeric(filtered_df.loc[rented_mask, rent_col], errors='coerce')
+        if isinstance(avg_rent_series, pd.Series):
+            avg_rent = avg_rent_series.mean()
+            if not isinstance(avg_rent, (float, int)) or pd.isnull(avg_rent):
+                avg_rent = 0.0
+        else:
+            avg_rent = 0.0
+    else:
+        avg_rent = 0.0
+    occupancy_pct = (rented_units / total_units * 100) if total_units > 0 else 0
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total Units", total_units)
+    col2.metric("Rented Units", rented_units)
+    col3.metric("Vacant Units", vacant_units)
+    col4.metric("Expiring in <30 days", expiring_30)
+    col5.metric("Avg Rent (AED)", f"{avg_rent:,.0f}")
+    st.progress(occupancy_pct / 100, text=f"Occupancy: {occupancy_pct:.1f}%")
+    st.markdown("<!-- RENTALS TAB END -->")
 
