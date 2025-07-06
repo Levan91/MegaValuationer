@@ -1102,21 +1102,31 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"])
+tab_names = ["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"]
+if "active_tab" not in st.session_state:
+    st.session_state["active_tab"] = tab_names[0]
+selected_tab = st.radio(
+    "Navigate to tab:",
+    tab_names,
+    index=tab_names.index(st.session_state["active_tab"]),
+    key="active_tab_radio"
+)
+st.session_state["active_tab"] = selected_tab
 
-if st.session_state["active_tab"] == "Dashboard":
+active_tab = st.session_state["active_tab"]
+if active_tab == "Dashboard":
     # Dashboard tab content
     # ... existing Dashboard code ...
     pass
-elif st.session_state["active_tab"] == "Live Listings":
+elif active_tab == "Live Listings":
     # Live Listings tab content
     # ... existing Live Listings code ...
     pass
-elif st.session_state["active_tab"] == "Trend & Valuation":
+elif active_tab == "Trend & Valuation":
     # Trend & Valuation tab content
     # ... existing Trend & Valuation code ...
     pass
-elif st.session_state["active_tab"] == "Rentals":
+elif active_tab == "Rentals":
     # Rentals tab content
     # ... existing Rentals code ...
     pass
