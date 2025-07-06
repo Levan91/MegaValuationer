@@ -866,6 +866,8 @@ with st.sidebar:
         if not isinstance(subcom_col, pd.Series):
             subcom_col = pd.Series(subcom_col)
         subcom_options = sorted(subcom_col.dropna().unique())
+    # Ensure subcom_options is a list (not a generator)
+    subcom_options = list(subcom_options) if not isinstance(subcom_options, list) else subcom_options
     subcommunity = st.multiselect(
         "Sub community / Building",
         options=subcom_options,
