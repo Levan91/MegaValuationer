@@ -1231,25 +1231,31 @@ with tab2:
         st.subheader("All Live Listings")
         # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_listings = all_listings.copy()
-        # Normalize helper
+        import pandas as pd
+        if not isinstance(filtered_listings, pd.DataFrame):
+            filtered_listings = pd.DataFrame(filtered_listings)
         def norm(x):
             return str(x).strip().lower() if pd.notnull(x) else ""
-        # Normalize filter values
         norm_community = [norm(c) for c in community] if community else []
         norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
         norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
-        # Normalize DataFrame columns
+        # Always apply subcommunity/layout type filters if selected, regardless of other filters
         if 'Development' in filtered_listings.columns and development:
             filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
+            st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
         if 'Community' in filtered_listings.columns and community:
             filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
+            st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
+        # Strictly apply subcommunity/layout type filters if selected
         if 'Subcommunity' in filtered_listings.columns and subcommunity:
             filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
+            st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
         if 'Layout Type' in filtered_listings.columns and layout_type:
             filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
+            st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
         # Debug output
-        st.write('DEBUG: Unique Subcommunity values:', filtered_listings['Subcommunity'].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
-        st.write('DEBUG: Unique Layout Type values:', filtered_listings['Layout Type'].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
+        st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
+        st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
         if not isinstance(filtered_listings, pd.DataFrame):
             filtered_listings = pd.DataFrame(filtered_listings)
         if property_type and 'Type' in filtered_listings.columns:
