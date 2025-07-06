@@ -2275,7 +2275,13 @@ with tab4:
         theme='alpine',
         fit_columns_on_grid_load=True,
         domLayout='autoHeight',
-        use_container_width=True
+        use_container_width=True,
+        allow_unsafe_jscode=True,
+        custom_js="""
+        function onGridReady(params) {
+            params.api.sizeColumnsToFit();
+        }
+        """
     )
     filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
     # Ensure contract dates are datetime for comparison
