@@ -449,6 +449,8 @@ with st.sidebar:
 
     with st.expander("📂 Select Transaction Files", expanded=False):
         all_txn_files = [f for f in os.listdir(transactions_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+        if "included_txn_files" not in st.session_state:
+            st.session_state["included_txn_files"] = all_txn_files
         st.multiselect(
             "Include transaction files:",
             options=all_txn_files,
@@ -457,6 +459,8 @@ with st.sidebar:
 
     # --- Filter Mode ---
     st.subheader("Filter Mode")
+    if "filter_mode" not in st.session_state:
+        st.session_state["filter_mode"] = "Unit Selection"
     filter_mode = st.radio("Select filter mode", ["Unit Selection", "Manual Selection"], key="filter_mode", horizontal=True)
 
     # --- Property Filters ---
@@ -464,11 +468,14 @@ with st.sidebar:
     if filter_mode == "Manual Selection":
         st.subheader("Property Info")
         with st.expander("🛠️ Manual Property Info", expanded=True):
-            property_type = st.session_state.get("property_type", "")
-            bedrooms = st.session_state.get("bedrooms", "")
-            bua = st.session_state.get("bua", "")
-            plot_size = st.session_state.get("plot_size", "")
-
+            if "property_type" not in st.session_state:
+                st.session_state["property_type"] = ""
+            if "bedrooms" not in st.session_state:
+                st.session_state["bedrooms"] = ""
+            if "bua" not in st.session_state:
+                st.session_state["bua"] = ""
+            if "plot_size" not in st.session_state:
+                st.session_state["plot_size"] = ""
             prop_type_col = all_transactions['Unit Type']
             if not isinstance(prop_type_col, pd.Series):
                 prop_type_col = pd.Series(prop_type_col)
@@ -479,7 +486,6 @@ with st.sidebar:
                 index=0,
                 key="property_type"
             )
-
             beds_col = all_transactions['Beds']
             if not isinstance(beds_col, pd.Series):
                 beds_col = pd.Series(beds_col)
@@ -490,18 +496,33 @@ with st.sidebar:
                 index=0,
                 key="bedrooms"
             )
-
-            bua = st.text_input("BUA (sq ft)", value=bua, key="bua")
-            plot_size = st.text_input("Plot Size (sq ft)", value=plot_size, key="plot_size")
+            bua = st.text_input("BUA (sq ft)", value=st.session_state["bua"], key="bua")
+            plot_size = st.text_input("Plot Size (sq ft)", value=st.session_state["plot_size"], key="plot_size")
     else:
         # In Unit Selection mode, show as disabled info fields (do not show property info fields)
+        if "property_type" not in st.session_state:
+            st.session_state["property_type"] = ""
+        if "bedrooms" not in st.session_state:
+            st.session_state["bedrooms"] = ""
+        if "bua" not in st.session_state:
+            st.session_state["bua"] = ""
+        if "plot_size" not in st.session_state:
+            st.session_state["plot_size"] = ""
         property_type = st.session_state.get("property_type", "")
         bedrooms = st.session_state.get("bedrooms", "")
         bua = st.session_state.get("bua", "")
         plot_size = st.session_state.get("plot_size", "")
 
+    if "unit_number" not in st.session_state:
+        st.session_state["unit_number"] = ""
     unit_number = st.session_state.get("unit_number", "")
     # Ensure variables are always defined to avoid NameError in layout filtering
+    if "development" not in st.session_state:
+        st.session_state["development"] = ""
+    if "community" not in st.session_state:
+        st.session_state["community"] = []
+    if "subcommunity" not in st.session_state:
+        st.session_state["subcommunity"] = ""
     development = st.session_state.get("development", "")
     community = st.session_state.get("community", [])
     subcommunity = st.session_state.get("subcommunity", "")
