@@ -2274,7 +2274,8 @@ with tab4:
         enable_enterprise_modules=True,
         theme='alpine',
         fit_columns_on_grid_load=True,
-        domLayout='autoHeight'
+        domLayout='autoHeight',
+        use_container_width=True
     )
     filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
     # Ensure contract dates are datetime for comparison
