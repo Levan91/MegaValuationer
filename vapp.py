@@ -1242,20 +1242,19 @@ with tab2:
         # Always apply subcommunity/layout type filters if selected, regardless of other filters
         if 'Development' in filtered_listings.columns and development:
             filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
-            st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
         if 'Community' in filtered_listings.columns and community:
             filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
-            st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
-        # Strictly apply subcommunity/layout type filters if selected
         if 'Subcommunity' in filtered_listings.columns and subcommunity:
             filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
-            st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
         if 'Layout Type' in filtered_listings.columns and layout_type:
             filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
-            st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
         # Debug output
-        st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
-        st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
+        # st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
+        # st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
+        # st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
+        # st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
+        # st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
+        # st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
         if not isinstance(filtered_listings, pd.DataFrame):
             filtered_listings = pd.DataFrame(filtered_listings)
         if property_type and 'Type' in filtered_listings.columns:
