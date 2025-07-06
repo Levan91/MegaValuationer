@@ -1231,18 +1231,27 @@ with tab2:
         st.subheader("All Live Listings")
         # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_listings = all_listings.copy()
-        if development and 'Development' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Development'] == development]
+        # Normalize helper
+        def norm(x):
+            return str(x).strip().lower() if pd.notnull(x) else ""
+        # Normalize filter values
+        norm_community = [norm(c) for c in community] if community else []
+        norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
+        norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
+        # Normalize DataFrame columns
+        if 'Development' in filtered_listings.columns and development:
+            filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
+        if 'Community' in filtered_listings.columns and community:
+            filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
+        if 'Subcommunity' in filtered_listings.columns and subcommunity:
+            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
+        if 'Layout Type' in filtered_listings.columns and layout_type:
+            filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
+        # Debug output
+        st.write('DEBUG: Unique Subcommunity values:', filtered_listings['Subcommunity'].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
+        st.write('DEBUG: Unique Layout Type values:', filtered_listings['Layout Type'].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
         if not isinstance(filtered_listings, pd.DataFrame):
             filtered_listings = pd.DataFrame(filtered_listings)
-        if community and 'Community' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Community'].isin(community)]
-            if not isinstance(filtered_listings, pd.DataFrame):
-                filtered_listings = pd.DataFrame(filtered_listings)
-        if subcommunity and 'Subcommunity' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].isin(subcommunity)]
-            if not isinstance(filtered_listings, pd.DataFrame):
-                filtered_listings = pd.DataFrame(filtered_listings)
         if property_type and 'Type' in filtered_listings.columns:
             filtered_listings = filtered_listings[filtered_listings['Type'] == property_type]
             if not isinstance(filtered_listings, pd.DataFrame):
