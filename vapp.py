@@ -389,16 +389,22 @@ else:
 if details_dfs:
     details_df = pd.concat(details_dfs, ignore_index=True)
 else:
-    details_df = pd.DataFrame(columns=pd.Index(['All Developments', 'Community/Building', 'Sub Community / Building', 'Layout Type', 'Beds', 'BUA', 'Type', 'Project']))
+    details_df = pd.DataFrame(columns=pd.Index(['Development', 'Community', 'Subcommunity', 'Layout Type', 'Beds', 'BUA', 'Type', 'Project']))
 
 def get_unit_details(dev, comm, subcomm, layout_type):
     """Return dict of details for a given context (dev, comm, subcomm, layout_type) from details_df."""
     if details_df.empty:
         return {}
+    
+    # Map expected column names to actual column names in the layout files
+    dev_col = 'Development' if 'Development' in details_df.columns else 'All Developments'
+    comm_col = 'Community' if 'Community' in details_df.columns else 'Community/Building'
+    subcomm_col = 'Subcommunity' if 'Subcommunity' in details_df.columns else 'Sub Community / Building'
+    
     mask = (
-        (details_df['All Developments'] == dev) &
-        (details_df['Community/Building'] == comm) &
-        (details_df['Sub Community / Building'] == subcomm) &
+        (details_df[dev_col] == dev) &
+        (details_df[comm_col] == comm) &
+        (details_df[subcomm_col] == subcomm) &
         (details_df['Layout Type'] == layout_type)
     )
     row = details_df[mask]
