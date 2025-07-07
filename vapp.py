@@ -2263,8 +2263,28 @@ with tab4:
     if not isinstance(data_for_aggrid, pd.DataFrame):
         data_for_aggrid = pd.DataFrame(data_for_aggrid)
     
+    gb = GridOptionsBuilder.from_dataframe(data_for_aggrid)
+    gb.configure_default_column(filter=True, sortable=True, resizable=True)
+    gb.configure_column("Status", filter="agSetColumnFilter")
+    gb.configure_column("Layout Type", filter="agSetColumnFilter")
+    gb.configure_column("Project", filter="agSetColumnFilter")
+    gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
+    grid_options = gb.build()
+    grid_response = AgGrid(
+        data_for_aggrid,
+        gridOptions=grid_options,
+        enable_enterprise_modules=True,
+        theme='alpine',
+        fit_columns_on_grid_load=True,
+        domLayout='autoHeight',
+        use_container_width=True,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED
+    )
+    filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
+    
     # --- Handle Unit Selection from AgGrid ---
-    selected_rows = grid_response.get('selected_rows', []) if 'grid_response' in locals() else []
+    selected_rows = grid_response.get('selected_rows', [])
     selected_unit = None
     if isinstance(selected_rows, list) and len(selected_rows) > 0:
         selected_unit = selected_rows[0].get('Unit No.')
@@ -2344,26 +2364,6 @@ with tab4:
             st.markdown(f"**Floor Level:** {unit_info.get('Floor Level', 'N/A')}")
         else:
             st.info("No transaction data found for this unit.")
-    
-    gb = GridOptionsBuilder.from_dataframe(data_for_aggrid)
-    gb.configure_default_column(filter=True, sortable=True, resizable=True)
-    gb.configure_column("Status", filter="agSetColumnFilter")
-    gb.configure_column("Layout Type", filter="agSetColumnFilter")
-    gb.configure_column("Project", filter="agSetColumnFilter")
-    gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
-    grid_options = gb.build()
-    grid_response = AgGrid(
-        data_for_aggrid,
-        gridOptions=grid_options,
-        enable_enterprise_modules=True,
-        theme='alpine',
-        fit_columns_on_grid_load=True,
-        domLayout='autoHeight',
-        use_container_width=True,
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
-        data_return_mode=DataReturnMode.FILTERED_AND_SORTED
-    )
-    filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
     # Ensure contract dates are datetime for comparison
     filtered_df['Contract Start'] = pd.to_datetime(filtered_df['Contract Start'], errors='coerce')
     filtered_df['Contract End'] = pd.to_datetime(filtered_df['Contract End'], errors='coerce')
