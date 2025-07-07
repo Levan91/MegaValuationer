@@ -2222,44 +2222,122 @@ with tab4:
     st.title("Rental Transactions")
     import pandas as pd
     today = pd.Timestamp.now().normalize()
-    # Use layout_map_df to get all units
-    all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
-    all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
-    # Preprocess rental_df to keep only the newest contract per unit
-    rental_df['Unit No.'] = rental_df['Unit No.'].astype(str).str.strip().str.upper()
-    rental_df['Contract Start'] = pd.to_datetime(rental_df['Contract Start'], errors='coerce')
-    rental_df = rental_df.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
-    # Merge with rental_df on Unit No.
-    merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
-    # Status circle logic
-    def rental_status(row):
-        start = row.get('Contract Start')
-        end = row.get('Contract End')
-        recently_vacant_days = 60  # 2 months
-        if pd.notnull(start) and pd.notnull(end):
-            days_left = (end - today).days
-            if start <= today <= end:
-                if days_left < 31:
-                    return '🟣'
-                elif days_left <= 90:
-                    return '🟡'
-                else:
-                    return '🔴'
-            # Blue circle: recently vacant (contract ended within last 60 days)
-            elif 0 < (today - end).days <= recently_vacant_days:
-                return '🔵'
-        return '🟢'
-    merged['Status'] = merged.apply(rental_status, axis=1)
+    
+    # --- Performance Optimized Rental Data Loading ---
+    @st.cache_data(ttl=3600)  # Cache for 1 hour
+    def load_rental_data():
+        """Load and preprocess rental data efficiently."""
+        # Preprocess rental_df to keep only the newest contract per unit
+        rental_df_copy = rental_df.copy()
+        rental_df_copy['Unit No.'] = rental_df_copy['Unit No.'].astype(str).str.strip().str.upper()
+        rental_df_copy['Contract Start'] = pd.to_datetime(rental_df_copy['Contract Start'], errors='coerce')
+        rental_df_copy = rental_df_copy.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
+        return rental_df_copy
+    
+    # Load cached rental data
+    rental_df_processed = load_rental_data()
+    
+    # --- Filter Options for Performance ---
+    st.subheader("Filter Options")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Project filter
+        project_options = sorted(layout_map_df['Project'].dropna().unique()) if not layout_map_df.empty else []
+        selected_project = st.selectbox("Project", options=["All"] + project_options, key="rental_project_filter")
+    
+    with col2:
+        # Status filter
+        status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
+        selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
+    
+    with col3:
+        # Layout Type filter
+        layout_options = sorted(layout_map_df['Layout Type'].dropna().unique()) if not layout_map_df.empty else []
+        selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
+    
+    # --- Efficient Data Filtering ---
+    def get_filtered_rental_data():
+        """Get filtered rental data based on user selections."""
+        # Start with rental data only (not all units)
+        if rental_df_processed.empty:
+            return pd.DataFrame()
+        
+        filtered_data = rental_df_processed.copy()
+        
+        # Add layout and project info from layout_map_df
+        if not layout_map_df.empty:
+            layout_info = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
+            layout_info['Unit No.'] = layout_info['Unit No.'].astype(str).str.strip().str.upper()
+            filtered_data = pd.merge(filtered_data, layout_info, on='Unit No.', how='left')
+        
+        # Apply filters
+        if selected_project != "All":
+            filtered_data = filtered_data[filtered_data['Project'] == selected_project]
+        
+        if selected_layout != "All":
+            filtered_data = filtered_data[filtered_data['Layout Type'] == selected_layout]
+        
+        # Calculate status efficiently using vectorized operations
+        filtered_data['Contract End'] = pd.to_datetime(filtered_data['Contract End'], errors='coerce')
+        
+        # Vectorized status calculation
+        mask_rented = (
+            pd.notnull(filtered_data['Contract Start']) &
+            pd.notnull(filtered_data['Contract End']) &
+            (filtered_data['Contract Start'] <= today) &
+            (filtered_data['Contract End'] >= today)
+        )
+        
+        days_left = (filtered_data['Contract End'] - today).dt.days
+        days_since_end = (today - filtered_data['Contract End']).dt.days
+        
+        # Vectorized status assignment
+        status_conditions = [
+            (mask_rented & (days_left < 31), '🟣'),
+            (mask_rented & (days_left <= 90), '🟡'),
+            (mask_rented, '🔴'),
+            ((days_since_end > 0) & (days_since_end <= 60), '🔵'),
+            (True, '🟢')  # Default to available
+        ]
+        
+        filtered_data['Status'] = np.select(
+            [cond for cond, _ in status_conditions],
+            [status for _, status in status_conditions],
+            default='🟢'
+        )
+        
+        # Apply status filter
+        if selected_status != "All":
+            status_map = {
+                "🟢 Available": "🟢",
+                "🔴 Rented": "🔴",
+                "🟡 Expiring Soon": "🟡",
+                "🟣 Expiring <30 days": "🟣",
+                "🔵 Recently Vacant": "🔵"
+            }
+            if selected_status in status_map:
+                filtered_data = filtered_data[filtered_data['Status'] == status_map[selected_status]]
+        
+        return filtered_data
+    
+    # Get filtered data
+    filtered_rental_data = get_filtered_rental_data()
+    
+    # Show data count
+    st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    
     # Columns to show
     display_cols = [
         'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
         'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
         'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
     ]
-    cols_to_show = [c for c in display_cols if c in merged.columns]
+    cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
     cols_final = ['Status'] + cols_to_show
-    # Remove status filter: show all units
-    data_for_aggrid = merged[cols_final]
+    
+    # Prepare data for AgGrid
+    data_for_aggrid = filtered_rental_data[cols_final] if not filtered_rental_data.empty else pd.DataFrame(columns=cols_final)
     if not isinstance(data_for_aggrid, pd.DataFrame):
         data_for_aggrid = pd.DataFrame(data_for_aggrid)
     
@@ -2364,43 +2442,33 @@ with tab4:
             st.markdown(f"**Floor Level:** {unit_info.get('Floor Level', 'N/A')}")
         else:
             st.info("No transaction data found for this unit.")
-    # Ensure contract dates are datetime for comparison
-    filtered_df['Contract Start'] = pd.to_datetime(filtered_df['Contract Start'], errors='coerce')
-    filtered_df['Contract End'] = pd.to_datetime(filtered_df['Contract End'], errors='coerce')
-
-    # --- Rental Metrics (based on filtered_df) ---
-    total_units = len(filtered_df)
-    today = pd.Timestamp.now().normalize()
-    rented_mask = (
-        pd.notnull(filtered_df['Contract Start']) &
-        pd.notnull(filtered_df['Contract End']) &
-        (filtered_df['Contract Start'] <= today) &
-        (filtered_df['Contract End'] >= today)
-    )
-    rented_units = rented_mask.sum()
-    vacant_units = total_units - rented_units
-    # Expiring in <30 days (matches purple circle logic)
-    expiring_30_mask = (
-        rented_mask &
-        ((filtered_df['Contract End'] - today).dt.days < 31)
-    )
-    expiring_30 = expiring_30_mask.sum()
+    # --- Rental Metrics (based on filtered_rental_data) ---
+    total_units = len(filtered_rental_data)
+    rented_units = len(filtered_rental_data[filtered_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
+    vacant_units = len(filtered_rental_data[filtered_rental_data['Status'] == '🟢'])
+    expiring_30 = len(filtered_rental_data[filtered_rental_data['Status'] == '🟣'])
+    recently_vacant = len(filtered_rental_data[filtered_rental_data['Status'] == '🔵'])
+    
+    # Calculate average rent
     rent_col = None
     for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
-        if c in filtered_df.columns:
+        if c in filtered_rental_data.columns:
             rent_col = c
             break
-    if rent_col:
-        avg_rent_series = pd.to_numeric(filtered_df.loc[rented_mask, rent_col], errors='coerce')
-        if isinstance(avg_rent_series, pd.Series):
-            avg_rent = avg_rent_series.mean()
-            if not isinstance(avg_rent, (float, int)) or pd.isnull(avg_rent):
-                avg_rent = 0.0
+    
+    if rent_col and not filtered_rental_data.empty:
+        rented_data = filtered_rental_data[filtered_rental_data['Status'].isin(['🔴', '🟡', '🟣'])]
+        if not rented_data.empty:
+            avg_rent_series = pd.to_numeric(rented_data[rent_col], errors='coerce')
+            avg_rent = avg_rent_series.mean() if not avg_rent_series.empty else 0.0
         else:
             avg_rent = 0.0
     else:
         avg_rent = 0.0
+    
     occupancy_pct = (rented_units / total_units * 100) if total_units > 0 else 0
+    
+    # Display metrics
     col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Total Units", total_units)
     col2.metric("Rented Units", rented_units)
@@ -2408,5 +2476,10 @@ with tab4:
     col4.metric("Expiring in <30 days", expiring_30)
     col5.metric("Avg Rent (AED)", f"{avg_rent:,.0f}")
     st.progress(occupancy_pct / 100, text=f"Occupancy: {occupancy_pct:.1f}%")
+    
+    # Add recently vacant metric
+    if recently_vacant > 0:
+        st.info(f"🔵 {recently_vacant} units recently became vacant (within 60 days)")
+    
     st.markdown("<!-- RENTALS TAB END -->")
 
