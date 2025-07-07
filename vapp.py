@@ -2453,40 +2453,18 @@ with tab4:
     # --- Rental Metrics (based on all_units_rental_data) ---
     rented_units = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
     vacant_units = total_units - rented_units if total_units > 0 else 0
+    expiring_90 = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🟡', '🟣'])])
     expiring_30 = len(all_units_rental_data[all_units_rental_data['Status'] == '🟣'])
     recently_vacant = len(all_units_rental_data[all_units_rental_data['Status'] == '🔵'])
     
-    # Calculate average rent
-    rent_col = None
-    for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
-        if c in all_units_rental_data.columns:
-            rent_col = c
-            break
-    
-    if rent_col and not all_units_rental_data.empty:
-        rented_data = all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])]
-        if not rented_data.empty:
-            avg_rent_series = pd.to_numeric(rented_data[rent_col], errors='coerce')
-            avg_rent = avg_rent_series.mean() if not avg_rent_series.empty else 0.0
-        else:
-            avg_rent = 0.0
-    else:
-        avg_rent = 0.0
-    
-    occupancy_pct = (rented_units / total_units * 100) if total_units > 0 else 0
-    
-    # Display metrics
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # Display metrics: Total Units, Vacant Units, Rented Units, Expiring <90 days, Expiring <30 days, Recently Vacant
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     col1.metric("Total Units", total_units)
-    col2.metric("Rented Units", rented_units)
-    col3.metric("Vacant Units", vacant_units)
-    col4.metric("Expiring in <30 days", expiring_30)
-    col5.metric("Avg Rent (AED)", f"{avg_rent:,.0f}")
-    st.progress(occupancy_pct / 100, text=f"Occupancy: {occupancy_pct:.1f}%")
-    
-    # Add recently vacant metric
-    if recently_vacant > 0:
-        st.info(f"🔵 {recently_vacant} units recently became vacant (within 60 days)")
+    col2.metric("Vacant Units", vacant_units)
+    col3.metric("Rented Units", rented_units)
+    col4.metric("Expiring <90 days", expiring_90)
+    col5.metric("Expiring <30 days", expiring_30)
+    col6.metric("Recently Vacant (60d)", recently_vacant)
     
     st.markdown("<!-- RENTALS TAB END -->")
 
