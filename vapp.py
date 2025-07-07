@@ -2343,7 +2343,7 @@ with tab4:
         'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
     ]
     cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
-    cols_final = ['Status'] + cols_to_show
+    cols_final = cols_to_show
     
     # Prepare data for AgGrid
     data_for_aggrid = filtered_rental_data[cols_final] if not filtered_rental_data.empty else pd.DataFrame(columns=cols_final)
@@ -2352,7 +2352,6 @@ with tab4:
     
     gb = GridOptionsBuilder.from_dataframe(data_for_aggrid)
     gb.configure_default_column(filter=True, sortable=True, resizable=True)
-    gb.configure_column("Status", filter="agSetColumnFilter")
     gb.configure_column("Layout Type", filter="agSetColumnFilter")
     gb.configure_column("Project", filter="agSetColumnFilter")
     gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
