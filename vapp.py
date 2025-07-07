@@ -2261,7 +2261,7 @@ with tab4:
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
     
     # --- Efficient Data Filtering ---
-    def get_filtered_rental_data():
+    def get_filtered_rental_data(return_unfiltered=False):
         """Get filtered rental data based on user selections."""
         # Only proceed if a project is selected
         if selected_project == "All":
@@ -2301,6 +2301,8 @@ with tab4:
             [status for _, status in status_conditions],
             default='🟢'
         )
+        if return_unfiltered:
+            return merged.reset_index(drop=True)
         # Apply status filter
         if selected_status != "All":
             status_map = {
@@ -2314,8 +2316,9 @@ with tab4:
                 merged = merged[merged['Status'] == status_map[selected_status]]
         return merged.reset_index(drop=True)
     
-    # Get filtered data
+    # Get filtered data (for table) and unfiltered data (for metrics)
     filtered_rental_data = get_filtered_rental_data()
+    all_units_rental_data = get_filtered_rental_data(return_unfiltered=True)
     
     # Only show table/metrics if a project is selected
     if selected_project == "All":
@@ -2448,22 +2451,21 @@ with tab4:
             st.markdown(f"**Floor Level:** {unit_info.get('Floor Level', 'N/A')}")
         else:
             st.info("No transaction data found for this unit.")
-    # --- Rental Metrics (based on filtered_rental_data) ---
-    # total_units is now from layout_map_df above
-    rented_units = len(filtered_rental_data[filtered_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
+    # --- Rental Metrics (based on all_units_rental_data) ---
+    rented_units = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
     vacant_units = total_units - rented_units if total_units > 0 else 0
-    expiring_30 = len(filtered_rental_data[filtered_rental_data['Status'] == '🟣'])
-    recently_vacant = len(filtered_rental_data[filtered_rental_data['Status'] == '🔵'])
+    expiring_30 = len(all_units_rental_data[all_units_rental_data['Status'] == '🟣'])
+    recently_vacant = len(all_units_rental_data[all_units_rental_data['Status'] == '🔵'])
     
     # Calculate average rent
     rent_col = None
     for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
-        if c in filtered_rental_data.columns:
+        if c in all_units_rental_data.columns:
             rent_col = c
             break
     
-    if rent_col and not filtered_rental_data.empty:
-        rented_data = filtered_rental_data[filtered_rental_data['Status'].isin(['🔴', '🟡', '🟣'])]
+    if rent_col and not all_units_rental_data.empty:
+        rented_data = all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])]
         if not rented_data.empty:
             avg_rent_series = pd.to_numeric(rented_data[rent_col], errors='coerce')
             avg_rent = avg_rent_series.mean() if not avg_rent_series.empty else 0.0
