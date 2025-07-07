@@ -2267,6 +2267,7 @@ with tab4:
     gb.configure_column("Status", filter="agSetColumnFilter")
     gb.configure_column("Layout Type", filter="agSetColumnFilter")
     gb.configure_column("Project", filter="agSetColumnFilter")
+    gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
     grid_options = gb.build()
     grid_response = AgGrid(
         data_for_aggrid,
@@ -2275,13 +2276,95 @@ with tab4:
         theme='alpine',
         fit_columns_on_grid_load=True,
         domLayout='autoHeight',
-        use_container_width=True
+        use_container_width=True,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED
     )
     filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
     # Ensure contract dates are datetime for comparison
     filtered_df['Contract Start'] = pd.to_datetime(filtered_df['Contract Start'], errors='coerce')
     filtered_df['Contract End'] = pd.to_datetime(filtered_df['Contract End'], errors='coerce')
 
+    # --- Handle Unit Selection from AgGrid ---
+    selected_rows = grid_response['selected_rows']
+    selected_unit = None
+    if selected_rows:
+        selected_unit = selected_rows[0].get('Unit No.')
+    
+    # --- Unit Info Box (similar to Dashboard) ---
+    if selected_unit:
+        st.markdown("---")
+        st.markdown("### Selected Unit Info")
+        
+        # Get unit info from transactions data
+        unit_transaction_data = all_transactions[all_transactions['Unit No.'] == selected_unit]
+        
+        info_parts = []
+        info_parts.append(f"📦 {selected_unit}")
+        
+        # Get layout type from layout mapping
+        layout_val = layout_map.get(selected_unit.strip().upper(), "")
+        if layout_val:
+            info_parts.append(f"🗂️ {layout_val}")
+        
+        # Get project from layout mapping
+        project_row = layout_map_df[layout_map_df['Unit No.'] == selected_unit.strip().upper()]
+        if not project_row.empty:
+            project = project_row.iloc[0].get('Project', '')
+            if project:
+                info_parts.append(f"🏢 {project}")
+        
+        # Get rental status and dates
+        rental_row = rental_df[rental_df['Unit No.'] == selected_unit.strip().upper()]
+        if not rental_row.empty:
+            latest_rental = rental_row.sort_values(by='Contract Start', ascending=False).iloc[0]
+            start = latest_rental['Contract Start']
+            end = latest_rental['Contract End']
+            
+            # Try to get the rent amount from several possible column names
+            rent_col_candidates = [
+                'Annualised Rental Price(AED)',
+                'Annualised Rental Price (AED)',
+                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+            ]
+            amount = None
+            for col in rent_col_candidates:
+                if col in latest_rental and pd.notnull(latest_rental[col]):
+                    amount = latest_rental[col]
+                    break
+            
+            if pd.notnull(start) and pd.notnull(end):
+                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
+                if amount is not None and pd.notnull(amount):
+                    rental_info_html += f" | Amount: AED {amount:,.0f}"
+                rental_info_html += "</b>"
+                st.markdown(rental_info_html, unsafe_allow_html=True)
+        
+        # Get last transaction date for this unit
+        if not unit_transaction_data.empty:
+            unit_transaction_data = unit_transaction_data.copy()
+            unit_transaction_data['Evidence Date'] = pd.to_datetime(unit_transaction_data['Evidence Date'], errors='coerce')
+            last_txn = unit_transaction_data['Evidence Date'].max()
+            if pd.notnull(last_txn) and isinstance(last_txn, pd.Timestamp):
+                last_txn_date = last_txn.strftime("%Y-%m-%d")
+                info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
+        
+        if info_parts:
+            st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
+        
+        # Unit details from transaction data
+        if not unit_transaction_data.empty:
+            unit_info = unit_transaction_data.iloc[0]
+            st.markdown(f"**Development:** {unit_info.get('All Developments', 'N/A')}")
+            st.markdown(f"**Community:** {unit_info.get('Community/Building', 'N/A')}")
+            st.markdown(f"**Property Type:** {unit_info.get('Unit Type', 'N/A')}")
+            st.markdown(f"**Bedrooms:** {unit_info.get('Beds', 'N/A')}")
+            st.markdown(f"**BUA:** {unit_info.get('Unit Size (sq ft)', 'N/A')}")
+            st.markdown(f"**Plot Size:** {unit_info.get('Plot Size (sq ft)', 'N/A')}")
+            st.markdown(f"**Floor Level:** {unit_info.get('Floor Level', 'N/A')}")
+        else:
+            st.info("No transaction data found for this unit.")
+    
     # --- Rental Metrics (based on filtered_df) ---
     total_units = len(filtered_df)
     today = pd.Timestamp.now().normalize()
