@@ -2253,7 +2253,11 @@ with tab4:
     
     with col3:
         # Layout Type filter
-        layout_options = sorted(layout_map_df['Layout Type'].dropna().unique()) if not layout_map_df.empty else []
+        if selected_project != "All":
+            filtered_layouts = layout_map_df[layout_map_df['Project'] == selected_project]
+        else:
+            filtered_layouts = layout_map_df
+        layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
     
     # --- Efficient Data Filtering ---
@@ -2326,6 +2330,14 @@ with tab4:
     
     # Show data count
     st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    
+    # --- Calculate Total Units from Layout Map ---
+    total_units_query = layout_map_df.copy()
+    if selected_project != "All":
+        total_units_query = total_units_query[total_units_query['Project'] == selected_project]
+    if selected_layout != "All":
+        total_units_query = total_units_query[total_units_query['Layout Type'] == selected_layout]
+    total_units = total_units_query['Unit No.'].nunique() if not total_units_query.empty else 0
     
     # Columns to show
     display_cols = [
@@ -2443,9 +2455,9 @@ with tab4:
         else:
             st.info("No transaction data found for this unit.")
     # --- Rental Metrics (based on filtered_rental_data) ---
-    total_units = len(filtered_rental_data)
+    # total_units is now from layout_map_df above
     rented_units = len(filtered_rental_data[filtered_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
-    vacant_units = len(filtered_rental_data[filtered_rental_data['Status'] == '🟢'])
+    vacant_units = total_units - rented_units if total_units > 0 else 0
     expiring_30 = len(filtered_rental_data[filtered_rental_data['Status'] == '🟣'])
     recently_vacant = len(filtered_rental_data[filtered_rental_data['Status'] == '🔵'])
     
