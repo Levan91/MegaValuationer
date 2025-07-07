@@ -2263,40 +2263,32 @@ with tab4:
     # --- Efficient Data Filtering ---
     def get_filtered_rental_data():
         """Get filtered rental data based on user selections."""
-        # Start with rental data only (not all units)
-        if rental_df_processed.empty:
-            return pd.DataFrame()
-        
-        filtered_data = rental_df_processed.copy()
-        
-        # Add layout and project info from layout_map_df
-        if not layout_map_df.empty:
-            layout_info = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
-            layout_info['Unit No.'] = layout_info['Unit No.'].astype(str).str.strip().str.upper()
-            filtered_data = pd.merge(filtered_data, layout_info, on='Unit No.', how='left')
-        
-        # Apply filters
+        # Only proceed if a project is selected
+        if selected_project == "All":
+            return None
+        # Filter layout_map_df to selected project/layout
+        layout_query = layout_map_df.copy()
+        layout_query['Unit No.'] = layout_query['Unit No.'].astype(str).str.strip().str.upper()
         if selected_project != "All":
-            filtered_data = filtered_data[filtered_data['Project'] == selected_project]
-        
+            layout_query = layout_query[layout_query['Project'] == selected_project]
         if selected_layout != "All":
-            filtered_data = filtered_data[filtered_data['Layout Type'] == selected_layout]
-        
+            layout_query = layout_query[layout_query['Layout Type'] == selected_layout]
+        # Merge with rental_df_processed (latest contract per unit, if any)
+        rental_info = rental_df_processed.copy()
+        rental_info['Unit No.'] = rental_info['Unit No.'].astype(str).str.strip().str.upper()
+        merged = pd.merge(layout_query, rental_info, on='Unit No.', how='left', suffixes=('', '_rental'))
         # Calculate status efficiently using vectorized operations
-        filtered_data['Contract End'] = pd.to_datetime(filtered_data['Contract End'], errors='coerce')
-        
-        # Vectorized status calculation
+        today = pd.Timestamp.now().normalize()
+        merged['Contract Start'] = pd.to_datetime(merged['Contract Start'], errors='coerce')
+        merged['Contract End'] = pd.to_datetime(merged['Contract End'], errors='coerce')
         mask_rented = (
-            pd.notnull(filtered_data['Contract Start']) &
-            pd.notnull(filtered_data['Contract End']) &
-            (filtered_data['Contract Start'] <= today) &
-            (filtered_data['Contract End'] >= today)
+            pd.notnull(merged['Contract Start']) &
+            pd.notnull(merged['Contract End']) &
+            (merged['Contract Start'] <= today) &
+            (merged['Contract End'] >= today)
         )
-        
-        days_left = (filtered_data['Contract End'] - today).dt.days
-        days_since_end = (today - filtered_data['Contract End']).dt.days
-        
-        # Vectorized status assignment
+        days_left = (merged['Contract End'] - today).dt.days
+        days_since_end = (today - merged['Contract End']).dt.days
         status_conditions = [
             (mask_rented & (days_left < 31), '🟣'),
             (mask_rented & (days_left <= 90), '🟡'),
@@ -2304,13 +2296,11 @@ with tab4:
             ((days_since_end > 0) & (days_since_end <= 60), '🔵'),
             (True, '🟢')  # Default to available
         ]
-        
-        filtered_data['Status'] = np.select(
+        merged['Status'] = np.select(
             [cond for cond, _ in status_conditions],
             [status for _, status in status_conditions],
             default='🟢'
         )
-        
         # Apply status filter
         if selected_status != "All":
             status_map = {
@@ -2321,12 +2311,16 @@ with tab4:
                 "🔵 Recently Vacant": "🔵"
             }
             if selected_status in status_map:
-                filtered_data = filtered_data[filtered_data['Status'] == status_map[selected_status]]
-        
-        return filtered_data
+                merged = merged[merged['Status'] == status_map[selected_status]]
+        return merged.reset_index(drop=True)
     
     # Get filtered data
     filtered_rental_data = get_filtered_rental_data()
+    
+    # Only show table/metrics if a project is selected
+    if selected_project == "All":
+        st.info("Please select a project to view rental data.")
+        return
     
     # Show data count
     st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
