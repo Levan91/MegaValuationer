@@ -2323,7 +2323,8 @@ with tab4:
     # Only show table/metrics if a project is selected
     if selected_project == "All":
         st.info("Please select a project to view rental data.")
-        st.stop()
+        st.markdown("<!-- RENTALS TAB END -->")
+        return
     
     # Show data count
     st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
