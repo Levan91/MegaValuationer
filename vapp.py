@@ -2469,6 +2469,7 @@ with tab4:
     st.markdown("<!-- RENTALS TAB END -->")
 
 with tab5:
+    st.markdown("# 🐞 DEBUG: AI Valuation Tab Loaded")
     st.markdown("<!-- AI VALUATION TAB START -->")
     st.title("🤖 AI Property Valuation")
     st.markdown("**Professional AI-powered property valuations with market intelligence**")
