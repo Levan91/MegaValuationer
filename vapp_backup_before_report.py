@@ -358,26 +358,20 @@ def load_all_listings(listings_dir):
 layout_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Layout Types')
 layout_files = [f for f in os.listdir(layout_dir) if f.endswith('.xlsx')]
 layout_dfs = []
-details_dfs = []
 for file in layout_files:
     file_path = os.path.join(layout_dir, file)
     try:
-        # Load Types sheet (for legacy mapping)
         df_l = pd.read_excel(file_path, sheet_name='Types')
+        # Clean column names immediately
         df_l.columns = df_l.columns.str.replace('\xa0', '', regex=False).str.strip()
         project_name = os.path.splitext(file)[0]
         if project_name.lower().endswith('_layouts'):
             project_name = project_name[:-len('_layouts')]
+        # Keep only Unit No. and Layout Type
+        df_l = df_l.loc[:, ['Unit No.', 'Layout Type']]
+        df_l['Unit No.'] = df_l['Unit No.'].astype(str).str.strip()
         df_l['Project'] = project_name
         layout_dfs.append(df_l)
-    except Exception:
-        continue
-    try:
-        # Load Details sheet (for new context-aware mapping)
-        df_d = pd.read_excel(file_path, sheet_name='Details')
-        df_d.columns = df_d.columns.str.replace('\xa0', '', regex=False).str.strip()
-        df_d['Project'] = project_name
-        details_dfs.append(df_d)
     except Exception:
         continue
 if layout_dfs:
@@ -386,32 +380,6 @@ if layout_dfs:
 else:
     layout_map_df = pd.DataFrame(columns=pd.Index(['Unit No.', 'Layout Type', 'Project']))
     layout_map = {}
-if details_dfs:
-    details_df = pd.concat(details_dfs, ignore_index=True)
-else:
-    details_df = pd.DataFrame(columns=pd.Index(['Development', 'Community', 'Subcommunity', 'Layout Type', 'Beds', 'BUA', 'Type', 'Project']))
-
-def get_unit_details(dev, comm, subcomm, layout_type):
-    """Return dict of details for a given context (dev, comm, subcomm, layout_type) from details_df."""
-    if details_df.empty:
-        return {}
-    
-    # Map expected column names to actual column names in the layout files
-    dev_col = 'Development' if 'Development' in details_df.columns else 'All Developments'
-    comm_col = 'Community' if 'Community' in details_df.columns else 'Community/Building'
-    subcomm_col = 'Subcommunity' if 'Subcommunity' in details_df.columns else 'Sub Community / Building'
-    
-    mask = (
-        (details_df[dev_col] == dev) &
-        (details_df[comm_col] == comm) &
-        (details_df[subcomm_col] == subcomm) &
-        (details_df['Layout Type'] == layout_type)
-    )
-    row = details_df[mask]
-    if not row.empty:
-        r = row.iloc[0]
-        return dict(Beds=r.get('Beds'), BUA=r.get('BUA'), Type=r.get('Type'))
-    return {}
 
 # Add Layout Type to transactions
 if not all_transactions.empty:
@@ -791,13 +759,10 @@ with st.sidebar:
                 community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
                 subcommunity = unit_row['Sub Community / Building']
 
-            layout_type_val = unit_row['Layout Type'] if 'Layout Type' in unit_row else ''
-            # Use context-aware lookup for Beds, BUA, Type
-            details = get_unit_details(development, community[0] if community else '', subcommunity, layout_type_val)
-            property_type = details.get('Type', unit_row['Unit Type'] if 'Unit Type' in unit_row else '')
-            bedrooms = str(details.get('Beds', unit_row['Beds'] if 'Beds' in unit_row else ''))
-            bua = details.get('BUA', unit_row['Unit Size (sq ft)'] if 'Unit Size (sq ft)' in unit_row else '')
+            property_type = unit_row['Unit Type']
+            bedrooms = str(unit_row['Beds'])
             floor = str(unit_row['Floor Level']) if pd.notna(unit_row['Floor Level']) else ""
+            bua = unit_row['Unit Size (sq ft)'] if pd.notna(unit_row['Unit Size (sq ft)']) else ""
             plot_size = unit_row['Plot Size (sq ft)'] if pd.notna(unit_row['Plot Size (sq ft)']) else ""
         else:
             development = st.session_state.get("development", "")
@@ -1070,7 +1035,7 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals", "AI Valuation"])
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"])
 
 with tab1:
     # Remove unnecessary and error-prone variable deletion
@@ -1231,32 +1196,18 @@ with tab2:
         st.subheader("All Live Listings")
         # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_listings = all_listings.copy()
-        import pandas as pd
+        if development and 'Development' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Development'] == development]
         if not isinstance(filtered_listings, pd.DataFrame):
             filtered_listings = pd.DataFrame(filtered_listings)
-        def norm(x):
-            return str(x).strip().lower() if pd.notnull(x) else ""
-        norm_community = [norm(c) for c in community] if community else []
-        norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
-        norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
-        # Always apply subcommunity/layout type filters if selected, regardless of other filters
-        if 'Development' in filtered_listings.columns and development:
-            filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
-        if 'Community' in filtered_listings.columns and community:
-            filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
-        if 'Subcommunity' in filtered_listings.columns and subcommunity:
-            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
-        if 'Layout Type' in filtered_listings.columns and layout_type:
-            filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
-        # Debug output
-        # st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
-        # st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
-        # st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
-        # st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
-        # st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
-        # st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
-        if not isinstance(filtered_listings, pd.DataFrame):
-            filtered_listings = pd.DataFrame(filtered_listings)
+        if community and 'Community' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Community'].isin(community)]
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
+        if subcommunity and 'Subcommunity' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].isin(subcommunity)]
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
         if property_type and 'Type' in filtered_listings.columns:
             filtered_listings = filtered_listings[filtered_listings['Type'] == property_type]
             if not isinstance(filtered_listings, pd.DataFrame):
@@ -2222,139 +2173,51 @@ with tab4:
     st.title("Rental Transactions")
     import pandas as pd
     today = pd.Timestamp.now().normalize()
-    
-    # --- Performance Optimized Rental Data Loading ---
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def load_rental_data():
-        """Load and preprocess rental data efficiently."""
-        # Preprocess rental_df to keep only the newest contract per unit
-        rental_df_copy = rental_df.copy()
-        rental_df_copy['Unit No.'] = rental_df_copy['Unit No.'].astype(str).str.strip().str.upper()
-        rental_df_copy['Contract Start'] = pd.to_datetime(rental_df_copy['Contract Start'], errors='coerce')
-        rental_df_copy = rental_df_copy.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
-        return rental_df_copy
-    
-    # Load cached rental data
-    rental_df_processed = load_rental_data()
-    
-    # --- Filter Options for Performance ---
-    st.subheader("Filter Options")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Project filter
-        project_options = sorted(layout_map_df['Project'].dropna().unique()) if not layout_map_df.empty else []
-        selected_project = st.selectbox("Project", options=["All"] + project_options, key="rental_project_filter")
-    
-    with col2:
-        # Status filter
-        status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
-        selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
-    
-    with col3:
-        # Layout Type filter
-        if selected_project != "All":
-            filtered_layouts = layout_map_df[layout_map_df['Project'] == selected_project]
-        else:
-            filtered_layouts = layout_map_df
-        layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
-        selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
-    
-    # --- Efficient Data Filtering ---
-    def get_filtered_rental_data(return_unfiltered=False):
-        """Get filtered rental data based on user selections."""
-        # Only proceed if a project is selected
-        if selected_project == "All":
-            return None
-        # Filter layout_map_df to selected project/layout
-        layout_query = layout_map_df.copy()
-        layout_query['Unit No.'] = layout_query['Unit No.'].astype(str).str.strip().str.upper()
-        if selected_project != "All":
-            layout_query = layout_query[layout_query['Project'] == selected_project]
-        if selected_layout != "All":
-            layout_query = layout_query[layout_query['Layout Type'] == selected_layout]
-        # Merge with rental_df_processed (latest contract per unit, if any)
-        rental_info = rental_df_processed.copy()
-        rental_info['Unit No.'] = rental_info['Unit No.'].astype(str).str.strip().str.upper()
-        merged = pd.merge(layout_query, rental_info, on='Unit No.', how='left', suffixes=('', '_rental'))
-        # Calculate status efficiently using vectorized operations
-        today = pd.Timestamp.now().normalize()
-        merged['Contract Start'] = pd.to_datetime(merged['Contract Start'], errors='coerce')
-        merged['Contract End'] = pd.to_datetime(merged['Contract End'], errors='coerce')
-        mask_rented = (
-            pd.notnull(merged['Contract Start']) &
-            pd.notnull(merged['Contract End']) &
-            (merged['Contract Start'] <= today) &
-            (merged['Contract End'] >= today)
-        )
-        days_left = (merged['Contract End'] - today).dt.days
-        days_since_end = (today - merged['Contract End']).dt.days
-        status_conditions = [
-            (mask_rented & (days_left < 31), '🟣'),
-            (mask_rented & (days_left <= 90), '🟡'),
-            (mask_rented, '🔴'),
-            ((days_since_end > 0) & (days_since_end <= 60), '🔵'),
-            (True, '🟢')  # Default to available
-        ]
-        merged['Status'] = np.select(
-            [cond for cond, _ in status_conditions],
-            [status for _, status in status_conditions],
-            default='🟢'
-        )
-        if return_unfiltered:
-            return merged.reset_index(drop=True)
-        # Apply status filter
-        if selected_status != "All":
-            status_map = {
-                "🟢 Available": "🟢",
-                "🔴 Rented": "🔴",
-                "🟡 Expiring Soon": "🟡",
-                "🟣 Expiring <30 days": "🟣",
-                "🔵 Recently Vacant": "🔵"
-            }
-            if selected_status in status_map:
-                merged = merged[merged['Status'] == status_map[selected_status]]
-        return merged.reset_index(drop=True)
-    
-    # Get filtered data (for table) and unfiltered data (for metrics)
-    filtered_rental_data = get_filtered_rental_data()
-    all_units_rental_data = get_filtered_rental_data(return_unfiltered=True)
-    
-    # Only show table/metrics if a project is selected
-    if selected_project == "All":
-        st.info("Please select a project to view rental data.")
-        st.stop()
-    
-    # Show data count
-    st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
-    
-    # --- Calculate Total Units from Layout Map ---
-    total_units_query = layout_map_df.copy()
-    if selected_project != "All":
-        total_units_query = total_units_query[total_units_query['Project'] == selected_project]
-    if selected_layout != "All":
-        total_units_query = total_units_query[total_units_query['Layout Type'] == selected_layout]
-    total_units = total_units_query['Unit No.'].nunique() if not total_units_query.empty else 0
-    
+    # Use layout_map_df to get all units
+    all_units = layout_map_df[['Unit No.', 'Layout Type', 'Project']].copy()
+    all_units['Unit No.'] = all_units['Unit No.'].astype(str).str.strip().str.upper()
+    # Preprocess rental_df to keep only the newest contract per unit
+    rental_df['Unit No.'] = rental_df['Unit No.'].astype(str).str.strip().str.upper()
+    rental_df['Contract Start'] = pd.to_datetime(rental_df['Contract Start'], errors='coerce')
+    rental_df = rental_df.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
+    # Merge with rental_df on Unit No.
+    merged = pd.merge(all_units, rental_df, on='Unit No.', how='left', suffixes=('', '_rental'))
+    # Status circle logic
+    def rental_status(row):
+        start = row.get('Contract Start')
+        end = row.get('Contract End')
+        recently_vacant_days = 60  # 2 months
+        if pd.notnull(start) and pd.notnull(end):
+            days_left = (end - today).days
+            if start <= today <= end:
+                if days_left < 31:
+                    return '🟣'
+                elif days_left <= 90:
+                    return '🟡'
+                else:
+                    return '🔴'
+            # Blue circle: recently vacant (contract ended within last 60 days)
+            elif 0 < (today - end).days <= recently_vacant_days:
+                return '🔵'
+        return '🟢'
+    merged['Status'] = merged.apply(rental_status, axis=1)
     # Columns to show
     display_cols = [
         'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
         'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
         'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
     ]
-    cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
-    cols_final = cols_to_show
-    
-    # Prepare data for AgGrid
-    data_for_aggrid = filtered_rental_data[cols_final] if not filtered_rental_data.empty else pd.DataFrame(columns=cols_final)
+    cols_to_show = [c for c in display_cols if c in merged.columns]
+    cols_final = ['Status'] + cols_to_show
+    # Remove status filter: show all units
+    data_for_aggrid = merged[cols_final]
     if not isinstance(data_for_aggrid, pd.DataFrame):
         data_for_aggrid = pd.DataFrame(data_for_aggrid)
-    
     gb = GridOptionsBuilder.from_dataframe(data_for_aggrid)
     gb.configure_default_column(filter=True, sortable=True, resizable=True)
+    gb.configure_column("Status", filter="agSetColumnFilter")
     gb.configure_column("Layout Type", filter="agSetColumnFilter")
     gb.configure_column("Project", filter="agSetColumnFilter")
-    gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
     grid_options = gb.build()
     grid_response = AgGrid(
         data_for_aggrid,
@@ -2362,299 +2225,52 @@ with tab4:
         enable_enterprise_modules=True,
         theme='alpine',
         fit_columns_on_grid_load=True,
-        domLayout='autoHeight',
-        use_container_width=True,
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
-        data_return_mode=DataReturnMode.FILTERED_AND_SORTED
+        domLayout='autoHeight'
     )
     filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
-    
-    # --- Handle Unit Selection from AgGrid ---
-    selected_rows = grid_response.get('selected_rows', [])
-    selected_unit = None
-    if isinstance(selected_rows, list) and len(selected_rows) > 0:
-        selected_unit = selected_rows[0].get('Unit No.')
-    elif isinstance(selected_rows, pd.DataFrame) and not selected_rows.empty:
-        selected_unit = selected_rows.iloc[0].get('Unit No.')
-    
-    # --- Unit Info Box (similar to Dashboard) - ABOVE THE TABLE ---
-    if selected_unit:
-        st.markdown("---")
-        st.markdown("### Selected Unit Info")
-        
-        # Get unit info from transactions data
-        unit_transaction_data = all_transactions[all_transactions['Unit No.'] == selected_unit]
-        
-        info_parts = []
-        info_parts.append(f"📦 {selected_unit}")
-        
-        # Get layout type from layout mapping
-        layout_val = layout_map.get(selected_unit.strip().upper(), "")
-        if layout_val:
-            info_parts.append(f"🗂️ {layout_val}")
-        
-        # Get project from layout mapping
-        project_row = layout_map_df[layout_map_df['Unit No.'] == selected_unit.strip().upper()]
-        if not project_row.empty:
-            project = project_row.iloc[0].get('Project', '')
-            if project:
-                info_parts.append(f"🏢 {project}")
-        
-        # Get rental status and dates
-        rental_row = rental_df[rental_df['Unit No.'] == selected_unit.strip().upper()]
-        if not rental_row.empty:
-            latest_rental = rental_row.sort_values(by='Contract Start', ascending=False).iloc[0]
-            start = latest_rental['Contract Start']
-            end = latest_rental['Contract End']
-            
-            # Try to get the rent amount from several possible column names
-            rent_col_candidates = [
-                'Annualised Rental Price(AED)',
-                'Annualised Rental Price (AED)',
-                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
-            ]
-            amount = None
-            for col in rent_col_candidates:
-                if col in latest_rental and pd.notnull(latest_rental[col]):
-                    amount = latest_rental[col]
-                    break
-            
-            if pd.notnull(start) and pd.notnull(end):
-                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
-                if amount is not None and pd.notnull(amount):
-                    rental_info_html += f" | Amount: AED {amount:,.0f}"
-                rental_info_html += "</b>"
-                st.markdown(rental_info_html, unsafe_allow_html=True)
-        
-        # Get last transaction date for this unit
-        if not unit_transaction_data.empty:
-            unit_transaction_data = unit_transaction_data.copy()
-            unit_transaction_data['Evidence Date'] = pd.to_datetime(unit_transaction_data['Evidence Date'], errors='coerce')
-            last_txn = unit_transaction_data['Evidence Date'].max()
-            if pd.notnull(last_txn) and isinstance(last_txn, pd.Timestamp):
-                last_txn_date = last_txn.strftime("%Y-%m-%d")
-                info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
-        
-        if info_parts:
-            st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
-        
-        # Unit details from transaction data
-        if not unit_transaction_data.empty:
-            unit_info = unit_transaction_data.iloc[0]
-            st.markdown(f"**Development:** {unit_info.get('All Developments', 'N/A')}")
-            st.markdown(f"**Community:** {unit_info.get('Community/Building', 'N/A')}")
-            st.markdown(f"**Property Type:** {unit_info.get('Unit Type', 'N/A')}")
-            st.markdown(f"**Bedrooms:** {unit_info.get('Beds', 'N/A')}")
-            st.markdown(f"**BUA:** {unit_info.get('Unit Size (sq ft)', 'N/A')}")
-            st.markdown(f"**Plot Size:** {unit_info.get('Plot Size (sq ft)', 'N/A')}")
-            st.markdown(f"**Floor Level:** {unit_info.get('Floor Level', 'N/A')}")
-        else:
-            st.info("No transaction data found for this unit.")
-    # --- Rental Metrics (based on all_units_rental_data) ---
-    rented_units = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
-    vacant_units = total_units - rented_units if total_units > 0 else 0
-    expiring_90 = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🟡', '🟣'])])
-    expiring_30 = len(all_units_rental_data[all_units_rental_data['Status'] == '🟣'])
-    recently_vacant = len(all_units_rental_data[all_units_rental_data['Status'] == '🔵'])
-    
-    # Display metrics: Total Units, Vacant Units, Rented Units, Expiring <90 days, Expiring <30 days, Recently Vacant
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    col1.metric("Total Units", total_units)
-    col2.metric("Vacant Units", vacant_units)
-    col3.metric("Rented Units", rented_units)
-    col4.metric("Expiring <90 days", expiring_90)
-    col5.metric("Expiring <30 days", expiring_30)
-    col6.metric("Recently Vacant (60d)", recently_vacant)
-    
-    st.markdown("<!-- RENTALS TAB END -->")
+    # Ensure contract dates are datetime for comparison
+    filtered_df['Contract Start'] = pd.to_datetime(filtered_df['Contract Start'], errors='coerce')
+    filtered_df['Contract End'] = pd.to_datetime(filtered_df['Contract End'], errors='coerce')
 
-with tab5:
-    st.markdown("<!-- AI VALUATION TAB START -->")
-    st.title("🤖 AI Property Valuation")
-    st.markdown("**Professional AI-powered property valuations with market intelligence**")
-    
-    # --- Natural Language Input Section ---
-    st.subheader("📝 Describe Your Property")
-    st.markdown("Tell us about the property you want to value. Be as detailed as possible!")
-    
-    # Example prompts
-    with st.expander("💡 Example Requests", expanded=False):
-        st.markdown("""
-        **Example 1:** "Value unit number 2E-15-02 in Sidra 2, it has 2 bedrooms, 1,200 sqft BUA, marble flooring, upgraded kitchen, and pool access"
-        
-        **Example 2:** "What's the market value of a 3-bedroom apartment in Maple 1, 1,500 sqft, corner unit with sea view, recently renovated"
-        
-        **Example 3:** "Evaluate unit 1A-08-01 in Sidra 1, 1 bedroom, 800 sqft, basic finish, ground floor, needs renovation"
-        """)
-    
-    # Text input for valuation request
-    valuation_request = st.text_area(
-        "Enter your valuation request:",
-        placeholder="Describe the property you want to value...",
-        height=120,
-        key="ai_valuation_input"
+    # --- Rental Metrics (based on filtered_df) ---
+    total_units = len(filtered_df)
+    today = pd.Timestamp.now().normalize()
+    rented_mask = (
+        pd.notnull(filtered_df['Contract Start']) &
+        pd.notnull(filtered_df['Contract End']) &
+        (filtered_df['Contract Start'] <= today) &
+        (filtered_df['Contract End'] >= today)
     )
-    
-    # Property details form (optional, for structured input)
-    with st.expander("🔧 Advanced Options", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            ai_unit_number = st.text_input("Unit Number (optional)", key="ai_unit_number")
-            # Safe development options
-            dev_options = []
-            if not all_transactions.empty and 'All Developments' in all_transactions.columns:
-                dev_options = [""] + sorted(all_transactions['All Developments'].dropna().unique().tolist())
-            ai_development = st.selectbox("Development", options=dev_options, key="ai_development")
-            
-            # Safe community options
-            comm_options = []
-            if not all_transactions.empty and 'Community/Building' in all_transactions.columns:
-                comm_options = sorted(all_transactions['Community/Building'].dropna().unique().tolist())
-            ai_community = st.multiselect("Community", options=comm_options, key="ai_community")
-        with col2:
-            # Safe bedrooms options
-            bed_options = []
-            if not all_transactions.empty and 'Beds' in all_transactions.columns:
-                bed_options = [""] + sorted(all_transactions['Beds'].dropna().astype(str).unique().tolist())
-            ai_bedrooms = st.selectbox("Bedrooms", options=bed_options, key="ai_bedrooms")
-            ai_bua = st.number_input("BUA (sq ft)", min_value=0, key="ai_bua")
-            ai_plot_size = st.number_input("Plot Size (sq ft)", min_value=0, key="ai_plot_size")
-    
-    # Valuation button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        analyze_button = st.button("🔍 Analyze & Value Property", type="primary", use_container_width=True)
-    
-    # --- AI Analysis Section ---
-    if analyze_button and valuation_request:
-        st.markdown("---")
-        st.subheader("🤖 AI Analysis in Progress...")
-        
-        with st.spinner("AI is analyzing market data and comparable properties..."):
-            # Placeholder for AI analysis - we'll build this out
-            st.info("🚧 AI Valuation Engine is under development!")
-            st.markdown("""
-            **What the AI will analyze:**
-            
-            📊 **Market Data Analysis**
-            - Recent transaction history
-            - Current market trends
-            - Price per sqft analysis
-            - Market seasonality
-            
-            🏠 **Property Comparison**
-            - Similar properties in the area
-            - Comparable features and amenities
-            - Location-specific pricing patterns
-            - Feature-based adjustments
-            
-            💡 **Intelligent Insights**
-            - Market positioning recommendations
-            - Investment potential analysis
-            - Risk factors and considerations
-            - Professional valuation narrative
-            """)
-            
-            # Mock analysis results (placeholder)
-            st.markdown("---")
-            st.subheader("📊 Preliminary Analysis")
-            
-            # Mock comparable properties
-            st.markdown("**🔍 Comparable Properties Found:**")
-            if not all_transactions.empty:
-                # Show some sample data as mock comparables
-                sample_data = all_transactions.head(3).copy()
-                if 'Evidence Date' in sample_data.columns:
-                    sample_data['Evidence Date'] = sample_data['Evidence Date'].dt.strftime('%Y-%m-%d')
-                
-                # Safe column selection
-                display_cols = []
-                for col in ['Unit No.', 'All Developments', 'Community/Building', 'Beds', 'Unit Size (sq ft)', 'Price (AED)', 'Evidence Date']:
-                    if col in sample_data.columns:
-                        display_cols.append(col)
-                
-                if display_cols:
-                    st.dataframe(sample_data[display_cols])
-                else:
-                    st.info("Sample transaction data available but no displayable columns found.")
-            else:
-                st.info("No transaction data available for comparison.")
-            
-            # Mock valuation metrics
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Estimated Value", "AED 1,250,000", "5.2%")
-            col2.metric("Price per sqft", "AED 1,042", "3.1%")
-            col3.metric("Market Position", "Above Average", "Premium")
-            col4.metric("Confidence Level", "85%", "High")
-            
-            # Mock professional narrative
-            st.markdown("---")
-            st.subheader("📝 Professional Valuation Narrative")
-            st.markdown("""
-            **Market Context:**
-            Based on recent market analysis, the property market in this area has shown steady appreciation of 3-5% annually. 
-            Similar properties in the vicinity have been trading at premium levels due to the area's desirability and amenities.
-            
-            **Property Analysis:**
-            The subject property appears to be well-positioned within its market segment. Comparable properties with similar 
-            features and specifications have achieved strong market performance, with average days on market of 45-60 days.
-            
-            **Valuation Basis:**
-            Our valuation is based on analysis of 12 comparable properties sold within the last 6 months, adjusted for 
-            differences in size, condition, and specific features. The estimated value reflects current market conditions 
-            and accounts for the property's unique characteristics.
-            
-            **Recommendations:**
-            - Consider listing at AED 1,250,000 - 1,300,000 for optimal market positioning
-            - Highlight the property's premium features in marketing materials
-            - Monitor market conditions for potential price adjustments
-            """)
-            
-            # Mock confidence factors
-            st.markdown("---")
-            st.subheader("🎯 Confidence Factors")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**✅ Strengthening Factors:**")
-                st.markdown("""
-                - Strong comparable sales data
-                - Consistent market trends
-                - Good property condition
-                - Desirable location
-                """)
-            with col2:
-                st.markdown("**⚠️ Risk Factors:**")
-                st.markdown("""
-                - Limited recent sales in exact area
-                - Market volatility concerns
-                - Seasonal fluctuations
-                - Economic uncertainty
-                """)
-    
-    elif analyze_button and not valuation_request:
-        st.error("❌ Please enter a valuation request to analyze.")
-    
-    # --- Future Features Preview ---
-    st.markdown("---")
-    st.subheader("🚀 Coming Soon")
-    st.markdown("""
-    **Advanced AI Features in Development:**
-    
-    🔍 **Intelligent Feature Recognition**
-    - Automatic extraction of property features from descriptions
-    - Smart comparison of amenities and finishes
-    - Market value assessment of upgrades and renovations
-    
-    📈 **Predictive Analytics**
-    - Future value projections based on market trends
-    - Investment return analysis
-    - Risk assessment and market timing recommendations
-    
-    🎯 **Personalized Insights**
-    - Customized valuation reports
-    - Market positioning strategies
-    - Competitive analysis and recommendations
-    """)
-    
-    st.markdown("<!-- AI VALUATION TAB END -->")
+    rented_units = rented_mask.sum()
+    vacant_units = total_units - rented_units
+    # Expiring in <30 days (matches purple circle logic)
+    expiring_30_mask = (
+        rented_mask &
+        ((filtered_df['Contract End'] - today).dt.days < 31)
+    )
+    expiring_30 = expiring_30_mask.sum()
+    rent_col = None
+    for c in ['Annualised Rental Price(AED)', 'Annualised Rental Price (AED)', 'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent']:
+        if c in filtered_df.columns:
+            rent_col = c
+            break
+    if rent_col:
+        avg_rent_series = pd.to_numeric(filtered_df.loc[rented_mask, rent_col], errors='coerce')
+        if isinstance(avg_rent_series, pd.Series):
+            avg_rent = avg_rent_series.mean()
+            if not isinstance(avg_rent, (float, int)) or pd.isnull(avg_rent):
+                avg_rent = 0.0
+        else:
+            avg_rent = 0.0
+    else:
+        avg_rent = 0.0
+    occupancy_pct = (rented_units / total_units * 100) if total_units > 0 else 0
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total Units", total_units)
+    col2.metric("Rented Units", rented_units)
+    col3.metric("Vacant Units", vacant_units)
+    col4.metric("Expiring in <30 days", expiring_30)
+    col5.metric("Avg Rent (AED)", f"{avg_rent:,.0f}")
+    st.progress(occupancy_pct / 100, text=f"Occupancy: {occupancy_pct:.1f}%")
+    st.markdown("<!-- RENTALS TAB END -->")
 
