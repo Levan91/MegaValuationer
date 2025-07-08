@@ -1070,7 +1070,7 @@ if not all_listings.empty:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals", "AI Valuation"])
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"])
 
 with tab1:
     # Remove unnecessary and error-prone variable deletion
@@ -2477,11 +2477,4 @@ with tab4:
     col6.metric("Recently Vacant (60d)", recently_vacant)
     
     st.markdown("<!-- RENTALS TAB END -->")
-
-with tab5:
-    st.markdown("# 🟢 AI Valuation Tab is ACTIVE!")
-    st.info("This is a minimal working version of the AI Valuation tab. If you see this message, the tab is rendering correctly.")
-    user_input = st.text_area("Describe the property you want to value:", "", height=100)
-    if st.button("Analyze"): 
-        st.success(f"You entered: {user_input}")
 
