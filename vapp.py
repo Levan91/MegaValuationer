@@ -2326,7 +2326,10 @@ with tab4:
         # st.stop()  # Commented out to allow AI Valuation tab to render
     
     # Show data count
-    st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    if filtered_rental_data is not None:
+        st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    else:
+        st.info("📊 No rental data available")
     
     # --- Calculate Total Units from Layout Map ---
     total_units_query = layout_map_df.copy()
@@ -2337,16 +2340,20 @@ with tab4:
     total_units = total_units_query['Unit No.'].nunique() if not total_units_query.empty else 0
     
     # Columns to show
-    display_cols = [
-        'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
-        'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
-        'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
-    ]
-    cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
-    cols_final = cols_to_show
-    
-    # Prepare data for AgGrid
-    data_for_aggrid = filtered_rental_data[cols_final] if not filtered_rental_data.empty else pd.DataFrame(columns=cols_final)
+    if filtered_rental_data is not None:
+        display_cols = [
+            'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
+            'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
+            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
+        ]
+        cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
+        cols_final = cols_to_show
+        
+        # Prepare data for AgGrid
+        data_for_aggrid = filtered_rental_data[cols_final] if not filtered_rental_data.empty else pd.DataFrame(columns=cols_final)
+    else:
+        cols_final = []
+        data_for_aggrid = pd.DataFrame()
     if not isinstance(data_for_aggrid, pd.DataFrame):
         data_for_aggrid = pd.DataFrame(data_for_aggrid)
     
@@ -2451,11 +2458,14 @@ with tab4:
         else:
             st.info("No transaction data found for this unit.")
     # --- Rental Metrics (based on all_units_rental_data) ---
-    rented_units = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
-    vacant_units = total_units - rented_units if total_units > 0 else 0
-    expiring_90 = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🟡', '🟣'])])
-    expiring_30 = len(all_units_rental_data[all_units_rental_data['Status'] == '🟣'])
-    recently_vacant = len(all_units_rental_data[all_units_rental_data['Status'] == '🔵'])
+    if all_units_rental_data is not None:
+        rented_units = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🔴', '🟡', '🟣'])])
+        vacant_units = total_units - rented_units if total_units > 0 else 0
+        expiring_90 = len(all_units_rental_data[all_units_rental_data['Status'].isin(['🟡', '🟣'])])
+        expiring_30 = len(all_units_rental_data[all_units_rental_data['Status'] == '🟣'])
+        recently_vacant = len(all_units_rental_data[all_units_rental_data['Status'] == '🔵'])
+    else:
+        rented_units = vacant_units = expiring_90 = expiring_30 = recently_vacant = 0
     
     # Display metrics: Total Units, Vacant Units, Rented Units, Expiring <90 days, Expiring <30 days, Recently Vacant
     col1, col2, col3, col4, col5, col6 = st.columns(6)
