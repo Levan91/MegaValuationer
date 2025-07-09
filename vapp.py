@@ -2745,7 +2745,7 @@ with tab5:
     st.subheader("Filter Options")
     
     # Row 1: Development, Community, Sub Community (context-aware)
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         # Development filter - get from rental data
@@ -2774,7 +2774,9 @@ with tab5:
             subcom_options = sorted(rental_df['Sub Community/Building'].dropna().unique()) if not rental_df.empty and 'Sub Community/Building' in rental_df.columns else []
         selected_subcommunity = st.selectbox("Sub Community/Building", options=["All"] + subcom_options, key="rental_subcommunity_filter")
 
-    with col4:
+    # Row 2: Bedrooms, Status, Layout Type
+    col1, col2, col3 = st.columns(3)
+    with col1:
         # Bedrooms filter - context-aware based on previous filters
         bedrooms_df = rental_df.copy()
         if selected_development != "All":
@@ -2785,16 +2787,11 @@ with tab5:
             bedrooms_df = bedrooms_df[bedrooms_df['Sub Community/Building'] == selected_subcommunity]
         bedrooms_options = sorted(bedrooms_df['Beds'].dropna().astype(str).unique()) if not bedrooms_df.empty and 'Beds' in bedrooms_df.columns else []
         selected_bedrooms = st.selectbox("Bedrooms", options=["All"] + bedrooms_options, key="rental_bedrooms_filter")
-
-    # Row 2: Status, Layout Type, (empty for spacing)
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
+    with col2:
         # Status filter
         status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
         selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
-    
-    with col2:
+    with col3:
         # Layout Type filter - context-aware based on all location filters
         if selected_development != "All" or selected_community != "All" or selected_subcommunity != "All":
             layout_df = rental_df.copy()
@@ -2808,10 +2805,6 @@ with tab5:
         else:
             layout_options = sorted(rental_df['Layout Type'].dropna().unique()) if not rental_df.empty and 'Layout Type' in rental_df.columns else []
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
-    
-    with col3:
-        # Empty column for spacing
-        pass
 
     # --- Data Filtering Logic ---
     def get_filtered_rental_data():
