@@ -209,23 +209,53 @@ def _on_unit_number_change():
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-    # Clear other filters when unit is selected to avoid conflicts
+    # Get the selected unit number
     unit_number = st.session_state.get("unit_number", "")
     if unit_number:
-        # Only clear location filters if not locked and no update in progress
-        if not st.session_state.get("lock_location_filters", False):
-            if not is_filter_update_in_progress():
-                st.session_state.pop("development", None)
-                st.session_state.pop("community", None)
-                st.session_state.pop("subcommunity", None)
-        
-        # Clear property filters only if they don't match the unit
-        if not is_filter_update_in_progress():
-            st.session_state.pop("property_type", None)
-            st.session_state.pop("bedrooms", None)
-            st.session_state.pop("bua", None)
-            st.session_state.pop("plot_size", None)
-            st.session_state.pop("layout_type", None)
+        # Get the unit's data
+        unit_data = all_transactions[all_transactions['Unit No.'] == unit_number]
+        if not unit_data.empty:
+            unit_row = unit_data.iloc[0]
+            
+            # Check if current filters are compatible with the selected unit
+            current_development = st.session_state.get("development", "")
+            current_community = st.session_state.get("community", [])
+            current_subcommunity = st.session_state.get("subcommunity", [])
+            
+            # Only update filters if they conflict with the unit or are not set
+            if not st.session_state.get("lock_location_filters", False):
+                # Development: only update if not set or conflicts
+                if not current_development:
+                    st.session_state["development"] = unit_row['All Developments']
+                elif current_development != unit_row['All Developments']:
+                    # Conflict detected - update to unit's development
+                    st.session_state["development"] = unit_row['All Developments']
+                
+                # Community: only update if not set or conflicts
+                unit_community = unit_row['Community/Building']
+                if not current_community:
+                    st.session_state["community"] = [unit_community] if pd.notna(unit_community) else []
+                elif unit_community not in current_community:
+                    # Conflict detected - update to unit's community
+                    st.session_state["community"] = [unit_community] if pd.notna(unit_community) else []
+                
+                # Subcommunity: only update if not set or conflicts
+                unit_subcommunity = unit_row['Sub Community / Building']
+                if not current_subcommunity:
+                    st.session_state["subcommunity"] = unit_subcommunity if pd.notna(unit_subcommunity) else ""
+                elif unit_subcommunity not in (current_subcommunity if isinstance(current_subcommunity, list) else [current_subcommunity]):
+                    # Conflict detected - update to unit's subcommunity
+                    st.session_state["subcommunity"] = unit_subcommunity if pd.notna(unit_subcommunity) else ""
+            
+            # Property filters: always update to match the unit
+            st.session_state["property_type"] = unit_row['Unit Type'] if 'Unit Type' in unit_row else ""
+            st.session_state["bedrooms"] = str(unit_row['Beds']) if 'Beds' in unit_row else ""
+            st.session_state["bua"] = str(unit_row['Unit Size (sq ft)']) if 'Unit Size (sq ft)' in unit_row else ""
+            st.session_state["plot_size"] = str(unit_row['Plot Size (sq ft)']) if 'Plot Size (sq ft)' in unit_row else ""
+            
+            # Layout Type: update to match the unit
+            if 'Layout Type' in unit_row:
+                st.session_state["layout_type"] = [unit_row['Layout Type']] if pd.notna(unit_row['Layout Type']) else []
     
     # Clear flag
     clear_filter_update_flag()
@@ -652,31 +682,35 @@ with st.sidebar:
     # --- Unit Number Filter ---
     st.subheader("Unit Number")
     if not all_transactions.empty:
-        unit_df = all_transactions.copy()
-        
-        # Get current filter values from session state
+        # Check if Development is selected - if not, show message and empty options
         current_development = st.session_state.get("development", "")
-        current_community = st.session_state.get("community", [])
-        current_subcommunity = st.session_state.get("subcommunity", "")
-        
-        # Apply filters based on current session state values
-        if current_development:
+        if not current_development:
+            st.info("Please select a Development to choose a Unit Number.")
+            unit_number_options = []
+        else:
+            unit_df = all_transactions.copy()
+            
+            # Get current filter values from session state
+            current_community = st.session_state.get("community", [])
+            current_subcommunity = st.session_state.get("subcommunity", "")
+            
+            # Apply filters based on current session state values
             unit_df = unit_df[unit_df['All Developments'] == current_development]
-        if current_community:
-            community_col = unit_df['Community/Building']
-            if not isinstance(community_col, pd.Series):
-                community_col = pd.Series(community_col)
-            unit_df = unit_df[community_col.isin(current_community)]
-        if current_subcommunity:
-            subcommunity_col = unit_df['Sub Community / Building']
-            if not isinstance(subcommunity_col, pd.Series):
-                subcommunity_col = pd.Series(subcommunity_col)
-            unit_df = unit_df[subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)]
-        
-        unit_no_col = unit_df['Unit No.']
-        if not isinstance(unit_no_col, pd.Series):
-            unit_no_col = pd.Series(unit_no_col)
-        unit_number_options = sorted(unit_no_col.dropna().unique())
+            if current_community:
+                community_col = unit_df['Community/Building']
+                if not isinstance(community_col, pd.Series):
+                    community_col = pd.Series(community_col)
+                unit_df = unit_df[community_col.isin(current_community)]
+            if current_subcommunity:
+                subcommunity_col = unit_df['Sub Community / Building']
+                if not isinstance(subcommunity_col, pd.Series):
+                    subcommunity_col = pd.Series(subcommunity_col)
+                unit_df = unit_df[subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)]
+            
+            unit_no_col = unit_df['Unit No.']
+            if not isinstance(unit_no_col, pd.Series):
+                unit_no_col = pd.Series(unit_no_col)
+            unit_number_options = sorted(unit_no_col.dropna().unique())
     else:
         unit_number_options = []
     
