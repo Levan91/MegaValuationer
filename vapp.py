@@ -1444,23 +1444,8 @@ with tab2:
                 tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_live_layout")
             
             with col3:
-                # Price range filters
-                if 'Price (AED)' in filtered_listings.columns:
-                    price_min = filtered_listings['Price (AED)'].min()
-                    price_max = filtered_listings['Price (AED)'].max()
-                    tab_price_min = st.number_input("Min Price (AED)", min_value=0, value=int(price_min) if pd.notnull(price_min) else 0, key="tab_live_price_min")
-                    tab_price_max = st.number_input("Max Price (AED)", min_value=0, value=int(price_max) if pd.notnull(price_max) else 1000000, key="tab_live_price_max")
-                
-                # BUA range filters
-                if 'BUA' in filtered_listings.columns:
-                    bua_min = filtered_listings['BUA'].min()
-                    bua_max = filtered_listings['BUA'].max()
-                    tab_bua_min = st.number_input("Min BUA (sq ft)", min_value=0, value=int(bua_min) if pd.notnull(bua_min) else 0, key="tab_live_bua_min")
-                    tab_bua_max = st.number_input("Max BUA (sq ft)", min_value=0, value=int(bua_max) if pd.notnull(bua_max) else 10000, key="tab_live_bua_max")
-                
-                # Days listed filter
-                if 'Days Listed' in filtered_listings.columns:
-                    tab_days_listed = st.number_input("Max Days Listed", min_value=1, value=365, key="tab_live_days")
+                # Additional filters can be added here if needed
+                pass
             
             # Apply tab-specific filters
             if tab_development != "All" and 'Development' in filtered_listings.columns:
@@ -1481,20 +1466,7 @@ with tab2:
             if tab_layout_type and 'Layout Type' in filtered_listings.columns:
                 filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(tab_layout_type)]
             
-            if 'Price (AED)' in filtered_listings.columns:
-                filtered_listings = filtered_listings[
-                    (filtered_listings['Price (AED)'] >= tab_price_min) & 
-                    (filtered_listings['Price (AED)'] <= tab_price_max)
-                ]
-            
-            if 'BUA' in filtered_listings.columns:
-                filtered_listings = filtered_listings[
-                    (filtered_listings['BUA'] >= tab_bua_min) & 
-                    (filtered_listings['BUA'] <= tab_bua_max)
-                ]
-            
-            if 'Days Listed' in filtered_listings.columns:
-                filtered_listings = filtered_listings[filtered_listings['Days Listed'] <= tab_days_listed]
+
         
         # Exclude listings marked as not available
         if 'Availability' in filtered_listings.columns:
@@ -1735,23 +1707,8 @@ with tab3:
                 tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_rent_layout")
             
             with col3:
-                # Price range filters
-                if 'Price (AED)' in filtered_rent_listings.columns:
-                    price_min = filtered_rent_listings['Price (AED)'].min()
-                    price_max = filtered_rent_listings['Price (AED)'].max()
-                    tab_price_min = st.number_input("Min Price (AED)", min_value=0, value=int(price_min) if pd.notnull(price_min) else 0, key="tab_rent_price_min")
-                    tab_price_max = st.number_input("Max Price (AED)", min_value=0, value=int(price_max) if pd.notnull(price_max) else 1000000, key="tab_rent_price_max")
-                
-                # BUA range filters
-                if 'BUA' in filtered_rent_listings.columns:
-                    bua_min = filtered_rent_listings['BUA'].min()
-                    bua_max = filtered_rent_listings['BUA'].max()
-                    tab_bua_min = st.number_input("Min BUA (sq ft)", min_value=0, value=int(bua_min) if pd.notnull(bua_min) else 0, key="tab_rent_bua_min")
-                    tab_bua_max = st.number_input("Max BUA (sq ft)", min_value=0, value=int(bua_max) if pd.notnull(bua_max) else 10000, key="tab_rent_bua_max")
-                
-                # Days listed filter
-                if 'Days Listed' in filtered_rent_listings.columns:
-                    tab_days_listed = st.number_input("Max Days Listed", min_value=1, value=365, key="tab_rent_days")
+                # Additional filters can be added here if needed
+                pass
             
             # Apply tab-specific filters
             if tab_development != "All" and 'Development' in filtered_rent_listings.columns:
@@ -1772,20 +1729,7 @@ with tab3:
             if tab_layout_type and 'Layout Type' in filtered_rent_listings.columns:
                 filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].isin(tab_layout_type)]
             
-            if 'Price (AED)' in filtered_rent_listings.columns:
-                filtered_rent_listings = filtered_rent_listings[
-                    (filtered_rent_listings['Price (AED)'] >= tab_price_min) & 
-                    (filtered_rent_listings['Price (AED)'] <= tab_price_max)
-                ]
-            
-            if 'BUA' in filtered_rent_listings.columns:
-                filtered_rent_listings = filtered_rent_listings[
-                    (filtered_rent_listings['BUA'] >= tab_bua_min) & 
-                    (filtered_rent_listings['BUA'] <= tab_bua_max)
-                ]
-            
-            if 'Days Listed' in filtered_rent_listings.columns:
-                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Days Listed'] <= tab_days_listed]
+
         
         # Exclude listings marked as not available
         if 'Availability' in filtered_rent_listings.columns:
