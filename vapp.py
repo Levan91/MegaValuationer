@@ -1421,33 +1421,60 @@ with tab2:
         else:
             # --- Tab-Specific Filter Logic ---
             with st.expander("Tab Filters", expanded=False):
-                # Start with all listings for tab filters
                 tab_filtered = filtered_listings.copy()
                 import pandas as pd
                 if not isinstance(tab_filtered, pd.DataFrame):
                     tab_filtered = pd.DataFrame(tab_filtered)
 
-                # Get unique values for each filter based on current selections
-                dev_options = sorted(tab_filtered['Development'].dropna().unique()) if 'Development' in tab_filtered.columns else []
-                com_options = sorted(tab_filtered['Community'].dropna().unique()) if 'Community' in tab_filtered.columns else []
-                subcom_options = sorted(tab_filtered['Subcommunity'].dropna().unique()) if 'Subcommunity' in tab_filtered.columns else []
-                type_options = sorted(tab_filtered['Type'].dropna().unique()) if 'Type' in tab_filtered.columns else []
-                beds_options = sorted(tab_filtered['Beds'].dropna().unique()) if 'Beds' in tab_filtered.columns else []
-                layout_options = sorted(tab_filtered['Layout Type'].dropna().unique()) if 'Layout Type' in tab_filtered.columns else []
-
                 # 3 columns, 2 rows
                 col1, col2, col3 = st.columns(3)
+
+                # Row 1: Development, Community, Bedrooms
                 with col1:
+                    dev_options = sorted(tab_filtered['Development'].dropna().unique()) if 'Development' in tab_filtered.columns else []
                     tab_development = st.selectbox("Development", options=["All"] + dev_options, key="tab_live_dev")
+                with col2:
+                    # Community options depend on Development
+                    comm_df = tab_filtered.copy()
+                    if tab_development != "All" and 'Development' in comm_df.columns:
+                        comm_df = comm_df[comm_df['Development'] == tab_development]
+                    com_options = sorted(comm_df['Community'].dropna().unique()) if 'Community' in comm_df.columns else []
+                    tab_community = st.multiselect("Community", options=com_options, key="tab_live_comm")
+                with col3:
+                    # Bedrooms options depend on Development and Community
+                    beds_df = comm_df.copy()
+                    if tab_community and 'Community' in beds_df.columns:
+                        beds_df = beds_df[beds_df['Community'].isin(tab_community)]
+                    beds_options = sorted(beds_df['Beds'].dropna().unique()) if 'Beds' in beds_df.columns else []
+                    tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_live_beds")
+
+                # Row 2: Subcommunity, Property Type, Layout Type
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    # Subcommunity options depend on Development and Community
+                    subcom_df = comm_df.copy()
+                    if tab_community and 'Community' in subcom_df.columns:
+                        subcom_df = subcom_df[subcom_df['Community'].isin(tab_community)]
+                    subcom_options = sorted(subcom_df['Subcommunity'].dropna().unique()) if 'Subcommunity' in subcom_df.columns else []
                     tab_subcommunity = st.multiselect("Subcommunity", options=subcom_options, key="tab_live_subcomm")
                 with col2:
-                    tab_community = st.multiselect("Community", options=com_options, key="tab_live_comm")
+                    # Property Type options depend on all previous filters
+                    type_df = subcom_df.copy()
+                    if tab_subcommunity and 'Subcommunity' in type_df.columns:
+                        type_df = type_df[type_df['Subcommunity'].isin(tab_subcommunity)]
+                    if tab_bedrooms != "All" and 'Beds' in type_df.columns:
+                        type_df = type_df[type_df['Beds'].astype(str) == tab_bedrooms]
+                    type_options = sorted(type_df['Type'].dropna().unique()) if 'Type' in type_df.columns else []
                     tab_property_type = st.selectbox("Property Type", options=["All"] + type_options, key="tab_live_type")
                 with col3:
-                    tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_live_beds")
+                    # Layout Type options depend on all previous filters
+                    layout_df = type_df.copy()
+                    if tab_property_type != "All" and 'Type' in layout_df.columns:
+                        layout_df = layout_df[layout_df['Type'] == tab_property_type]
+                    layout_options = sorted(layout_df['Layout Type'].dropna().unique()) if 'Layout Type' in layout_df.columns else []
                     tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_live_layout")
 
-                # Apply filters in order
+                # Apply all filters to tab_filtered for display
                 if tab_development != "All" and 'Development' in tab_filtered.columns:
                     tab_filtered = tab_filtered[tab_filtered['Development'] == tab_development]
                 if tab_community and 'Community' in tab_filtered.columns:
@@ -1461,7 +1488,6 @@ with tab2:
                 if tab_layout_type and 'Layout Type' in tab_filtered.columns:
                     tab_filtered = tab_filtered[tab_filtered['Layout Type'].isin(tab_layout_type)]
 
-                # After all filters, assign to filtered_listings for display
                 filtered_listings = tab_filtered
 
         
