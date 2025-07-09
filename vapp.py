@@ -2914,12 +2914,11 @@ with tab5:
         st.subheader("📊 Rental Metrics Dashboard")
         
         # --- Total Units logic ---
-        # Try to use layout file for total units if available and context is selected
-        layout_total_units = None
+        # Use layout_map_df (Types sheet) for total units if available for the selected project
         layout_units_set = set()
-        # Use selected_development and selected_community to filter layout_map_df
         if selected_development != "All" and not layout_map_df.empty:
-            layout_df = layout_map_df[layout_map_df['Project'].str.lower().str.contains(selected_development.lower())]
+            # Strict match on Project column
+            layout_df = layout_map_df[layout_map_df['Project'].str.lower() == selected_development.lower()]
             if not layout_df.empty:
                 layout_units_set = set(layout_df['Unit No.'].dropna().astype(str).str.strip().str.upper().unique())
         # If we have a filtered set from layout, use it
