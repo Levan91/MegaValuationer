@@ -3056,8 +3056,13 @@ with tab5:
         selected_rows = grid_response['selected_rows']
         selected_row = None
         
-        if selected_rows:
+        # Check if selected_rows is a list with items or a DataFrame with rows
+        if isinstance(selected_rows, list) and len(selected_rows) > 0:
             selected_row = selected_rows[0]
+        elif isinstance(selected_rows, pd.DataFrame) and not selected_rows.empty:
+            selected_row = selected_rows.iloc[0].to_dict()
+        
+        if selected_row is not None:
             st.subheader("Selected Unit Details")
             
             # Create a nice display of selected unit info
