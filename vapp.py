@@ -2996,6 +2996,15 @@ with tab5:
         # Prepare data for display
         display_data = filtered_rental_data.copy()
         
+        # Map Layout Type using layout_map if available
+        if 'Unit No.' in display_data.columns and layout_map:
+            display_data['Layout Type'] = display_data['Unit No.'].map(layout_map).fillna(display_data.get('Layout Type', ''))
+            display_data['Layout Type'] = display_data['Layout Type'].replace('', 'N/A')
+        elif 'Layout Type' in display_data.columns:
+            display_data['Layout Type'] = display_data['Layout Type'].replace('', 'N/A')
+        else:
+            display_data['Layout Type'] = 'N/A'
+        
         # Always split Evidence Date into Start Date and End Date
         if 'Evidence Date' in display_data.columns:
             def split_evidence_date(val):
