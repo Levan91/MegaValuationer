@@ -2776,7 +2776,10 @@ with tab5:
                 if not isinstance(beds_df, pd.DataFrame):
                     beds_df = pd.DataFrame(beds_df)
                 if tab_community and 'Community/Building' in beds_df.columns:
-                    beds_df = beds_df[beds_df['Community/Building'].isin(tab_community)]
+                    filtered_beds = beds_df[beds_df['Community/Building'].isin(tab_community)]
+                    if not isinstance(filtered_beds, pd.DataFrame):
+                        filtered_beds = pd.DataFrame(filtered_beds)
+                    beds_df = filtered_beds
                 beds_options = sorted(beds_df['Beds'].dropna().unique()) if 'Beds' in beds_df.columns else []
                 tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_rentals_beds")
 
@@ -2788,7 +2791,10 @@ with tab5:
                 if not isinstance(subcom_df, pd.DataFrame):
                     subcom_df = pd.DataFrame(subcom_df)
                 if tab_community and 'Community/Building' in subcom_df.columns:
-                    subcom_df = subcom_df[subcom_df['Community/Building'].isin(tab_community)]
+                    filtered_subcom = subcom_df[subcom_df['Community/Building'].isin(tab_community)]
+                    if not isinstance(filtered_subcom, pd.DataFrame):
+                        filtered_subcom = pd.DataFrame(filtered_subcom)
+                    subcom_df = filtered_subcom
                 subcom_options = sorted(subcom_df['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in subcom_df.columns else []
                 tab_subcommunity = st.multiselect("Subcommunity", options=subcom_options, key="tab_rentals_subcomm")
             with col2:
@@ -2797,9 +2803,15 @@ with tab5:
                 if not isinstance(type_df, pd.DataFrame):
                     type_df = pd.DataFrame(type_df)
                 if tab_subcommunity and 'Sub Community / Building' in type_df.columns:
-                    type_df = type_df[type_df['Sub Community / Building'].isin(tab_subcommunity)]
+                    filtered_type = type_df[type_df['Sub Community / Building'].isin(tab_subcommunity)]
+                    if not isinstance(filtered_type, pd.DataFrame):
+                        filtered_type = pd.DataFrame(filtered_type)
+                    type_df = filtered_type
                 if tab_bedrooms != "All" and 'Beds' in type_df.columns:
-                    type_df = type_df[type_df['Beds'].astype(str) == tab_bedrooms]
+                    filtered_type2 = type_df[type_df['Beds'].astype(str) == tab_bedrooms]
+                    if not isinstance(filtered_type2, pd.DataFrame):
+                        filtered_type2 = pd.DataFrame(filtered_type2)
+                    type_df = filtered_type2
                 type_options = sorted(type_df['Unit Type'].dropna().unique()) if 'Unit Type' in type_df.columns else []
                 tab_property_type = st.selectbox("Property Type", options=["All"] + type_options, key="tab_rentals_type")
             with col3:
