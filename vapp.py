@@ -2961,26 +2961,53 @@ with tab5:
         # Prepare data for display
         display_data = filtered_rental_data.copy()
         
-        # Format dates for display
-        if 'Contract Start' in display_data.columns:
-            display_data['Contract Start'] = pd.to_datetime(display_data['Contract Start'], errors='coerce')
-            display_data['Contract Start'] = display_data['Contract Start'].dt.strftime('%Y-%m-%d')
-        if 'Contract End' in display_data.columns:
-            display_data['Contract End'] = pd.to_datetime(display_data['Contract End'], errors='coerce')
-            display_data['Contract End'] = display_data['Contract End'].dt.strftime('%Y-%m-%d')
+        # Debug: Show available columns
+        st.write("**Available columns in rental data:**", list(display_data.columns))
+        
+        # Format dates for display - check multiple possible column names
+        date_columns = {
+            'Contract Start': ['Contract Start', 'Start Date', 'Contract Start Date'],
+            'Contract End': ['Contract End', 'End Date', 'Contract End Date']
+        }
+        
+        for target_col, possible_names in date_columns.items():
+            for col_name in possible_names:
+                if col_name in display_data.columns:
+                    display_data[target_col] = pd.to_datetime(display_data[col_name], errors='coerce')
+                    display_data[target_col] = display_data[target_col].dt.strftime('%Y-%m-%d')
+                    break
         
         # Calculate days left for display
         today = pd.Timestamp.now().normalize()
-        if 'Contract End' in display_data.columns:
-            contract_end_dates = pd.to_datetime(display_data['Contract End'], errors='coerce')
+        end_date_col = None
+        for col_name in ['Contract End', 'End Date', 'Contract End Date']:
+            if col_name in display_data.columns:
+                end_date_col = col_name
+                break
+        
+        if end_date_col:
+            contract_end_dates = pd.to_datetime(display_data[end_date_col], errors='coerce')
             days_left = (contract_end_dates - today).dt.days
             display_data['Days Left'] = days_left.apply(lambda x: f"{int(x)} days" if pd.notnull(x) and x >= 0 else "Expired" if pd.notnull(x) else "N/A")
+        else:
+            display_data['Days Left'] = "N/A"
         
         # Select columns to display
         columns_to_show = [
             'Status', 'Unit No.', 'All Developments', 'Community/Building', 'Sub Community/Building',
-            'Layout Type', 'Beds', 'Unit Size (sq ft)', 'Contract Start', 'Contract End', 'Days Left'
+            'Layout Type', 'Beds', 'Unit Size (sq ft)', 'Days Left'
         ]
+        
+        # Add date columns if they exist
+        for date_col in ['Contract Start', 'Start Date', 'Contract Start Date']:
+            if date_col in display_data.columns:
+                columns_to_show.append(date_col)
+                break
+        
+        for date_col in ['Contract End', 'End Date', 'Contract End Date']:
+            if date_col in display_data.columns:
+                columns_to_show.append(date_col)
+                break
         
         # Add rent amount column if available
         rent_col_candidates = [
