@@ -1639,7 +1639,8 @@ with tab2:
             enable_enterprise_modules=False,
             update_mode=GridUpdateMode.SELECTION_CHANGED,
             data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-            theme='alpine'
+            theme='alpine',
+            key="live_listings_grid"
         )
 
         # Handle selection from AgGrid (can be list of dicts or DataFrame)
@@ -1897,7 +1898,8 @@ with tab3:
             enable_enterprise_modules=False,
             update_mode=GridUpdateMode.SELECTION_CHANGED,
             data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-            theme='alpine'
+            theme='alpine',
+            key="rent_listings_grid"
         )
 
         # Handle selection from AgGrid (can be list of dicts or DataFrame)
@@ -2841,7 +2843,8 @@ with tab5:
         domLayout='autoHeight',
         use_container_width=True,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-        data_return_mode=DataReturnMode.FILTERED_AND_SORTED
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        key="rentals_grid"
     )
     filtered_df = pd.DataFrame(grid_response['data']) if 'data' in grid_response else data_for_aggrid
     
