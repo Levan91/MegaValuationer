@@ -2700,57 +2700,174 @@ with tab5:
     st.markdown("<!-- RENTALS TAB START -->")
     st.title("Rental Transactions")
     
-    # TODO: Recreate Rentals tab tomorrow
-    st.info("Rentals tab will be recreated tomorrow with the following requirements:")
+    # --- Step 1: Set up filters and logic ---
     
-    st.markdown("### Requirements for Rentals Tab:")
-    st.markdown("""
-    **1. Data Sources:**
-    - Load all rental Excel files from `Data/Rentals/` directory
-    - Support multiple projects (Maple, Park Heights, etc.)
-    - Merge rental data with transaction data for unit information
+    # Load all rental data from Data/Rentals directory
+    rentals_dir = os.path.join(os.path.dirname(__file__), "Data", "Rentals")
+    rental_files = [f for f in os.listdir(rentals_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+    rental_dfs = []
     
-    **2. Filtering System:**
-    - Context-aware filters: Development → Community → Sub Community/Building
-    - Status filter: Available, Rented, Expiring Soon, Expiring <30 days, Recently Vacant
-    - Layout Type filter: context-aware based on selected location filters
+    for file in rental_files:
+        file_path = os.path.join(rentals_dir, file)
+        try:
+            df = pd.read_excel(file_path)
+            df.columns = df.columns.str.replace('\xa0', '', regex=False).str.strip()
+            # Normalize unit numbers for matching
+            df['Unit No.'] = df['Unit No.'].astype(str).str.strip().str.upper()
+            # Split Evidence Date into Contract Start/End if present
+            if 'Evidence Date' in df.columns:
+                def split_contract_dates(val):
+                    if pd.isnull(val):
+                        return pd.NaT, pd.NaT
+                    val_str = str(val).replace('\u00A0', '').strip()
+                    if '-' in val_str:
+                        parts = val_str.split('-')
+                        if len(parts) == 2:
+                            start = pd.to_datetime(parts[0].strip(), errors='coerce')
+                            end = pd.to_datetime(parts[1].strip(), errors='coerce')
+                            return start, end
+                    return pd.NaT, pd.NaT
+                
+                contract_dates = df['Evidence Date'].apply(split_contract_dates)
+                df['Contract Start'] = [dates[0] for dates in contract_dates]
+                df['Contract End'] = [dates[1] for dates in contract_dates]
+            
+            rental_dfs.append(df)
+        except Exception as e:
+            st.warning(f"Failed to load rental data from {file}: {e}")
     
-    **3. Table Display:**
-    - Show all columns from rental data in specific order:
-      1. Development (from `All Developments`)
-      2. Community (from `Community/Building`) 
-      3. Sub Community (from `Sub Community/Building`)
-      4. Unit No.
-      5. Layout Type
-      6. Contract Start (split from Evidence Date)
-      7. Contract End (split from Evidence Date)
-      8. Annualised Rental Price (AED)
-      9. Rent Recurrence
-    - Hide original Evidence Date column
-    - Use AgGrid for interactive table with filtering/sorting
+    if rental_dfs:
+        rental_df = pd.concat(rental_dfs, ignore_index=True)
+    else:
+        rental_df = pd.DataFrame()
     
-    **4. Status Calculation:**
-    - 🟢 Available: No rental contract
-    - 🔴 Rented: Currently under contract
-    - 🟡 Expiring Soon: Contract expires within 90 days
-    - 🟣 Expiring <30 days: Contract expires within 30 days  
-    - 🔵 Recently Vacant: Contract ended within last 60 days
+    # --- Filter Options ---
+    st.subheader("Filter Options")
     
-    **5. Metrics Dashboard:**
-    - Total Units, Vacant Units, Rented Units
-    - Expiring <90 days, Expiring <30 days, Recently Vacant (60d)
+    # Row 1: Development, Community, Sub Community (context-aware)
+    col1, col2, col3 = st.columns(3)
     
-    **6. Unit Selection:**
-    - Click on table row to select unit
-    - Show detailed unit info (similar to Dashboard tab)
-    - Display rental contract details and transaction history
+    with col1:
+        # Development filter - get from rental data
+        development_options = sorted(rental_df['All Developments'].dropna().unique()) if not rental_df.empty and 'All Developments' in rental_df.columns else []
+        selected_development = st.selectbox("Development", options=["All"] + development_options, key="rental_development_filter")
     
-    **7. Data Processing:**
-    - Split Evidence Date into Contract Start/End dates
-    - Normalize unit numbers for proper matching
-    - Handle missing data gracefully
-    - Support all projects in rental files
-    """)
+    with col2:
+        # Community filter - context-aware based on selected development
+        if selected_development != "All" and not rental_df.empty:
+            comm_df = rental_df[rental_df['All Developments'] == selected_development]
+            community_options = sorted(comm_df['Community/Building'].dropna().unique()) if 'Community/Building' in comm_df.columns else []
+        else:
+            community_options = sorted(rental_df['Community/Building'].dropna().unique()) if not rental_df.empty and 'Community/Building' in rental_df.columns else []
+        selected_community = st.selectbox("Community", options=["All"] + community_options, key="rental_community_filter")
+    
+    with col3:
+        # Sub Community filter - context-aware based on selected development and community
+        if selected_development != "All" and selected_community != "All" and not rental_df.empty:
+            subcom_df = rental_df[rental_df['All Developments'] == selected_development]
+            subcom_df = subcom_df[subcom_df['Community/Building'] == selected_community]
+            subcom_options = sorted(subcom_df['Sub Community/Building'].dropna().unique()) if 'Sub Community/Building' in subcom_df.columns else []
+        elif selected_development != "All" and not rental_df.empty:
+            subcom_df = rental_df[rental_df['All Developments'] == selected_development]
+            subcom_options = sorted(subcom_df['Sub Community/Building'].dropna().unique()) if 'Sub Community/Building' in subcom_df.columns else []
+        else:
+            subcom_options = sorted(rental_df['Sub Community/Building'].dropna().unique()) if not rental_df.empty and 'Sub Community/Building' in rental_df.columns else []
+        selected_subcommunity = st.selectbox("Sub Community/Building", options=["All"] + subcom_options, key="rental_subcommunity_filter")
+    
+    # Row 2: Status, Layout Type, (empty for spacing)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Status filter
+        status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
+        selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
+    
+    with col2:
+        # Layout Type filter - context-aware based on all location filters
+        if selected_development != "All" or selected_community != "All" or selected_subcommunity != "All":
+            layout_df = rental_df.copy()
+            if selected_development != "All":
+                layout_df = layout_df[layout_df['All Developments'] == selected_development]
+            if selected_community != "All":
+                layout_df = layout_df[layout_df['Community/Building'] == selected_community]
+            if selected_subcommunity != "All":
+                layout_df = layout_df[layout_df['Sub Community/Building'] == selected_subcommunity]
+            layout_options = sorted(layout_df['Layout Type'].dropna().unique()) if 'Layout Type' in layout_df.columns else []
+        else:
+            layout_options = sorted(rental_df['Layout Type'].dropna().unique()) if not rental_df.empty and 'Layout Type' in rental_df.columns else []
+        selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
+    
+    with col3:
+        # Empty column for spacing
+        pass
+    
+    # --- Data Filtering Logic ---
+    def get_filtered_rental_data():
+        """Get filtered rental data based on user selections."""
+        if rental_df.empty:
+            return None
+        
+        filtered_data = rental_df.copy()
+        
+        # Apply location filters
+        if selected_development != "All":
+            filtered_data = filtered_data[filtered_data['All Developments'] == selected_development]
+        if selected_community != "All":
+            filtered_data = filtered_data[filtered_data['Community/Building'] == selected_community]
+        if selected_subcommunity != "All":
+            filtered_data = filtered_data[filtered_data['Sub Community/Building'] == selected_subcommunity]
+        
+        # Apply layout type filter
+        if selected_layout != "All":
+            filtered_data = filtered_data[filtered_data['Layout Type'] == selected_layout]
+        
+        # Calculate status for all units
+        today = pd.Timestamp.now().normalize()
+        filtered_data['Contract Start'] = pd.to_datetime(filtered_data['Contract Start'], errors='coerce')
+        filtered_data['Contract End'] = pd.to_datetime(filtered_data['Contract End'], errors='coerce')
+        
+        # Calculate days left and status
+        days_left = (filtered_data['Contract End'] - today).dt.days
+        days_since_end = (today - filtered_data['Contract End']).dt.days
+        
+        # Determine status
+        conditions = [
+            (filtered_data['Contract Start'].notna() & filtered_data['Contract End'].notna() & 
+             (filtered_data['Contract Start'] <= today) & (filtered_data['Contract End'] >= today) & (days_left < 31), '🟣'),
+            (filtered_data['Contract Start'].notna() & filtered_data['Contract End'].notna() & 
+             (filtered_data['Contract Start'] <= today) & (filtered_data['Contract End'] >= today) & (days_left <= 90), '🟡'),
+            (filtered_data['Contract Start'].notna() & filtered_data['Contract End'].notna() & 
+             (filtered_data['Contract Start'] <= today) & (filtered_data['Contract End'] >= today), '🔴'),
+            ((days_since_end > 0) & (days_since_end <= 60), '🔵'),
+        ]
+        filtered_data['Status'] = np.select([cond for cond, _ in conditions], [status for _, status in conditions], default='🟢')
+        
+        # Apply status filter
+        if selected_status != "All":
+            status_map = {
+                "🟢 Available": "🟢",
+                "🔴 Rented": "🔴",
+                "🟡 Expiring Soon": "🟡",
+                "🟣 Expiring <30 days": "🟣",
+                "🔵 Recently Vacant": "🔵"
+            }
+            if selected_status in status_map:
+                filtered_data = filtered_data[filtered_data['Status'] == status_map[selected_status]]
+        
+        return filtered_data
+    
+    # Get filtered data
+    filtered_rental_data = get_filtered_rental_data()
+    
+    # Show data count
+    if filtered_rental_data is not None:
+        st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    else:
+        st.info("📊 No rental data available")
+    
+    # Only show table/metrics if at least one filter is selected
+    if selected_development == "All" and selected_community == "All" and selected_subcommunity == "All":
+        st.info("Please select at least one filter (Development, Community, or Sub Community) to view rental data.")
     
     st.markdown("<!-- RENTALS TAB END -->")
 
