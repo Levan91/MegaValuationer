@@ -3086,6 +3086,156 @@ with tab5:
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
     
+    # --- Step 4: Unit Selection with Detailed Info ---
+    if selected_rows:
+        selected_row = selected_rows[0]
+        st.markdown("---")
+        st.subheader("📋 Detailed Unit Information")
+        
+        # Get the original unit number for transaction lookup
+        unit_number = selected_row.get('Unit No.', '')
+        
+        if unit_number:
+            # Look up transaction history for this unit
+            unit_transactions = all_transactions[all_transactions['Unit No.'] == unit_number]
+            
+            # Display transaction history if available
+            if not unit_transactions.empty:
+                st.subheader("🏠 Transaction History")
+                
+                # Prepare transaction data for display
+                txn_display = unit_transactions.copy()
+                
+                # Format dates
+                if 'Evidence Date' in txn_display.columns:
+                    txn_display['Evidence Date'] = pd.to_datetime(txn_display['Evidence Date'], errors='coerce')
+                    txn_display['Evidence Date'] = txn_display['Evidence Date'].dt.strftime('%Y-%m-%d')
+                
+                # Select relevant columns
+                txn_columns = [
+                    'Evidence Date', 'Price (AED)', 'Unit Size (sq ft)', 'Beds', 
+                    'Floor Level', 'Layout Type', 'Sales Recurrence'
+                ]
+                available_txn_columns = [col for col in txn_columns if col in txn_display.columns]
+                txn_display = txn_display[available_txn_columns]
+                
+                # Rename columns for display
+                txn_column_mapping = {
+                    'Evidence Date': 'Transaction Date',
+                    'Price (AED)': 'Sale Price (AED)',
+                    'Unit Size (sq ft)': 'BUA (sq ft)',
+                    'Floor Level': 'Floor'
+                }
+                txn_display = txn_display.rename(columns=txn_column_mapping)
+                
+                # Display transaction table
+                st.dataframe(txn_display, use_container_width=True)
+                
+                # Calculate transaction statistics
+                if 'Sale Price (AED)' in txn_display.columns:
+                    prices = pd.to_numeric(txn_display['Sale Price (AED)'], errors='coerce').dropna()
+                    if not prices.empty:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Latest Sale", f"AED {prices.iloc[-1]:,.0f}")
+                        with col2:
+                            st.metric("Average Sale", f"AED {prices.mean():,.0f}")
+                        with col3:
+                            st.metric("Min Sale", f"AED {prices.min():,.0f}")
+                        with col4:
+                            st.metric("Max Sale", f"AED {prices.max():,.0f}")
+            else:
+                st.info("No transaction history found for this unit.")
+            
+            # Look up rental history for this unit
+            unit_rentals = rental_df[rental_df['Unit No.'] == unit_number]
+            
+            if not unit_rentals.empty:
+                st.subheader("🏠 Rental History")
+                
+                # Prepare rental history data
+                rental_history = unit_rentals.copy()
+                
+                # Format dates
+                if 'Contract Start' in rental_history.columns:
+                    rental_history['Contract Start'] = pd.to_datetime(rental_history['Contract Start'], errors='coerce')
+                    rental_history['Contract Start'] = rental_history['Contract Start'].dt.strftime('%Y-%m-%d')
+                if 'Contract End' in rental_history.columns:
+                    rental_history['Contract End'] = pd.to_datetime(rental_history['Contract End'], errors='coerce')
+                    rental_history['Contract End'] = rental_history['Contract End'].dt.strftime('%Y-%m-%d')
+                
+                # Select relevant columns
+                rental_columns = [
+                    'Contract Start', 'Contract End', 'Layout Type', 'Beds', 'Unit Size (sq ft)'
+                ]
+                
+                # Add rent amount column if available
+                rent_col_candidates = [
+                    'Annualised Rental Price(AED)',
+                    'Annualised Rental Price (AED)',
+                    'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+                ]
+                for col in rent_col_candidates:
+                    if col in rental_history.columns:
+                        rental_columns.append(col)
+                        break
+                
+                available_rental_columns = [col for col in rental_columns if col in rental_history.columns]
+                rental_history = rental_history[available_rental_columns]
+                
+                # Rename columns for display
+                rental_column_mapping = {
+                    'Contract Start': 'Start Date',
+                    'Contract End': 'End Date',
+                    'Unit Size (sq ft)': 'BUA (sq ft)'
+                }
+                rental_history = rental_history.rename(columns=rental_column_mapping)
+                
+                # Display rental history table
+                st.dataframe(rental_history, use_container_width=True)
+            else:
+                st.info("No rental history found for this unit.")
+        
+        # Show rental vs sale comparison if both available
+        if not unit_transactions.empty and not unit_rentals.empty:
+            st.subheader("📊 Rental vs Sale Analysis")
+            
+            # Get latest transaction and rental
+            latest_txn = unit_transactions.iloc[-1]
+            latest_rental = unit_rentals.iloc[-1]
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Latest Sale:**")
+                if 'Price (AED)' in latest_txn:
+                    sale_price = latest_txn['Price (AED)']
+                    st.metric("Sale Price", f"AED {sale_price:,.0f}")
+                    
+                    # Calculate rental yield if both available
+                    rent_amount = None
+                    for col in rent_col_candidates:
+                        if col in latest_rental and pd.notnull(latest_rental[col]):
+                            rent_amount = latest_rental[col]
+                            break
+                    
+                    if rent_amount is not None:
+                        rental_yield = (rent_amount / sale_price * 100) if sale_price > 0 else 0
+                        st.metric("Rental Yield", f"{rental_yield:.2f}%")
+            
+            with col2:
+                st.markdown("**Current Rental:**")
+                rent_amount = None
+                for col in rent_col_candidates:
+                    if col in latest_rental and pd.notnull(latest_rental[col]):
+                        rent_amount = latest_rental[col]
+                        break
+                
+                if rent_amount is not None:
+                    st.metric("Annual Rent", f"AED {rent_amount:,.0f}")
+                    monthly_rent = rent_amount / 12
+                    st.metric("Monthly Rent", f"AED {monthly_rent:,.0f}")
+    
     # Only show table/metrics if at least one filter is selected
     if selected_development == "All" and selected_community == "All" and selected_subcommunity == "All":
         st.info("Please select at least one filter (Development, Community, or Sub Community) to view rental data.")
