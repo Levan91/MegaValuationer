@@ -2764,6 +2764,8 @@ with tab5:
             with col2:
                 # Community options depend on Development
                 comm_df = tab_filtered.copy()
+                if not isinstance(comm_df, pd.DataFrame):
+                    comm_df = pd.DataFrame(comm_df)
                 if tab_development != "All" and 'All Developments' in comm_df.columns:
                     comm_df = comm_df[comm_df['All Developments'] == tab_development]
                 com_options = sorted(comm_df['Community/Building'].dropna().unique()) if 'Community/Building' in comm_df.columns else []
@@ -2771,6 +2773,8 @@ with tab5:
             with col3:
                 # Bedrooms options depend on Development and Community
                 beds_df = comm_df.copy()
+                if not isinstance(beds_df, pd.DataFrame):
+                    beds_df = pd.DataFrame(beds_df)
                 if tab_community and 'Community/Building' in beds_df.columns:
                     beds_df = beds_df[beds_df['Community/Building'].isin(tab_community)]
                 beds_options = sorted(beds_df['Beds'].dropna().unique()) if 'Beds' in beds_df.columns else []
@@ -2781,6 +2785,8 @@ with tab5:
             with col1:
                 # Subcommunity options depend on Development and Community
                 subcom_df = comm_df.copy()
+                if not isinstance(subcom_df, pd.DataFrame):
+                    subcom_df = pd.DataFrame(subcom_df)
                 if tab_community and 'Community/Building' in subcom_df.columns:
                     subcom_df = subcom_df[subcom_df['Community/Building'].isin(tab_community)]
                 subcom_options = sorted(subcom_df['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in subcom_df.columns else []
@@ -2788,6 +2794,8 @@ with tab5:
             with col2:
                 # Property Type options depend on all previous filters
                 type_df = subcom_df.copy()
+                if not isinstance(type_df, pd.DataFrame):
+                    type_df = pd.DataFrame(type_df)
                 if tab_subcommunity and 'Sub Community / Building' in type_df.columns:
                     type_df = type_df[type_df['Sub Community / Building'].isin(tab_subcommunity)]
                 if tab_bedrooms != "All" and 'Beds' in type_df.columns:
@@ -2797,6 +2805,8 @@ with tab5:
             with col3:
                 # Layout Type options depend on all previous filters
                 layout_df = type_df.copy()
+                if not isinstance(layout_df, pd.DataFrame):
+                    layout_df = pd.DataFrame(layout_df)
                 if tab_property_type != "All" and 'Unit Type' in layout_df.columns:
                     layout_df = layout_df[layout_df['Unit Type'] == tab_property_type]
                 layout_options = sorted(layout_df['Layout Type'].dropna().unique()) if 'Layout Type' in layout_df.columns else []
