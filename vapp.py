@@ -2865,6 +2865,138 @@ with tab5:
     else:
         st.info("📊 No rental data available")
     
+    # --- Step 2: Table Display ---
+    if filtered_rental_data is not None and not filtered_rental_data.empty:
+        st.subheader("Rental Data Table")
+        
+        # Prepare data for display
+        display_data = filtered_rental_data.copy()
+        
+        # Format dates for display
+        if 'Contract Start' in display_data.columns:
+            display_data['Contract Start'] = pd.to_datetime(display_data['Contract Start'], errors='coerce')
+            display_data['Contract Start'] = display_data['Contract Start'].dt.strftime('%Y-%m-%d')
+        if 'Contract End' in display_data.columns:
+            display_data['Contract End'] = pd.to_datetime(display_data['Contract End'], errors='coerce')
+            display_data['Contract End'] = display_data['Contract End'].dt.strftime('%Y-%m-%d')
+        
+        # Calculate days left for display
+        today = pd.Timestamp.now().normalize()
+        if 'Contract End' in display_data.columns:
+            contract_end_dates = pd.to_datetime(display_data['Contract End'], errors='coerce')
+            days_left = (contract_end_dates - today).dt.days
+            display_data['Days Left'] = days_left.apply(lambda x: f"{int(x)} days" if pd.notnull(x) and x >= 0 else "Expired" if pd.notnull(x) else "N/A")
+        
+        # Select columns to display
+        columns_to_show = [
+            'Status', 'Unit No.', 'All Developments', 'Community/Building', 'Sub Community/Building',
+            'Layout Type', 'Beds', 'Unit Size (sq ft)', 'Contract Start', 'Contract End', 'Days Left'
+        ]
+        
+        # Add rent amount column if available
+        rent_col_candidates = [
+            'Annualised Rental Price(AED)',
+            'Annualised Rental Price (AED)',
+            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+        ]
+        rent_col = None
+        for col in rent_col_candidates:
+            if col in display_data.columns:
+                rent_col = col
+                break
+        
+        if rent_col:
+            columns_to_show.append(rent_col)
+        
+        # Filter to only show available columns
+        available_columns = [col for col in columns_to_show if col in display_data.columns]
+        display_data = display_data[available_columns]
+        
+        # Rename columns for better display
+        column_mapping = {
+            'All Developments': 'Development',
+            'Community/Building': 'Community',
+            'Sub Community/Building': 'Sub Community',
+            'Unit Size (sq ft)': 'BUA (sq ft)',
+            'Contract Start': 'Start Date',
+            'Contract End': 'End Date',
+            'Days Left': 'Days Left',
+            'Annualised Rental Price(AED)': 'Annual Rent (AED)',
+            'Annualised Rental Price (AED)': 'Annual Rent (AED)',
+            'Rent (AED)': 'Rent (AED)',
+            'Annual Rent': 'Annual Rent (AED)',
+            'Rent AED': 'Rent (AED)',
+            'Rent': 'Rent (AED)'
+        }
+        
+        display_data = display_data.rename(columns=column_mapping)
+        
+        # Use AgGrid for interactive table
+        gb = GridOptionsBuilder.from_dataframe(display_data)
+        gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
+        gb.configure_grid_options(domLayout='normal')
+        
+        # Configure column properties
+        for col in display_data.columns:
+            if 'Rent' in col or 'AED' in col:
+                gb.configure_column(col, type=["numericColumn", "numberColumnFilter"], valueFormatter="value.toLocaleString()")
+            elif col == 'Days Left':
+                gb.configure_column(col, width=120)
+            elif col == 'Status':
+                gb.configure_column(col, width=100)
+            elif col == 'Unit No.':
+                gb.configure_column(col, width=100)
+            else:
+                gb.configure_column(col, width=150)
+        
+        grid_options = gb.build()
+        
+        # Display the table
+        grid_response = AgGrid(
+            display_data,
+            gridOptions=grid_options,
+            enable_enterprise_modules=False,
+            update_mode=GridUpdateMode.SELECTION_CHANGED,
+            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+            theme='alpine',
+            key="rentals_grid",
+            height=400
+        )
+        
+        # Handle row selection
+        selected_rows = grid_response['selected_rows']
+        if selected_rows:
+            selected_row = selected_rows[0]
+            st.subheader("Selected Unit Details")
+            
+            # Create a nice display of selected unit info
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"**Unit Number:** {selected_row.get('Unit No.', 'N/A')}")
+                st.markdown(f"**Development:** {selected_row.get('Development', 'N/A')}")
+                st.markdown(f"**Community:** {selected_row.get('Community', 'N/A')}")
+                st.markdown(f"**Sub Community:** {selected_row.get('Sub Community', 'N/A')}")
+                st.markdown(f"**Layout Type:** {selected_row.get('Layout Type', 'N/A')}")
+            
+            with col2:
+                st.markdown(f"**Status:** {selected_row.get('Status', 'N/A')}")
+                st.markdown(f"**Bedrooms:** {selected_row.get('Beds', 'N/A')}")
+                st.markdown(f"**BUA:** {selected_row.get('BUA (sq ft)', 'N/A')}")
+                st.markdown(f"**Start Date:** {selected_row.get('Start Date', 'N/A')}")
+                st.markdown(f"**End Date:** {selected_row.get('End Date', 'N/A')}")
+                st.markdown(f"**Days Left:** {selected_row.get('Days Left', 'N/A')}")
+                
+                # Show rent amount if available
+                rent_amount = None
+                for col in ['Annual Rent (AED)', 'Rent (AED)']:
+                    if col in selected_row and pd.notnull(selected_row[col]):
+                        rent_amount = selected_row[col]
+                        break
+                
+                if rent_amount is not None:
+                    st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
+    
     # Only show table/metrics if at least one filter is selected
     if selected_development == "All" and selected_community == "All" and selected_subcommunity == "All":
         st.info("Please select at least one filter (Development, Community, or Sub Community) to view rental data.")
