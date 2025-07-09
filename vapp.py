@@ -2815,6 +2815,15 @@ with tab5:
         
         filtered_data = rental_df.copy()
         
+        # Map Layout Type using layout_map if available (before any filtering)
+        if 'Unit No.' in filtered_data.columns and layout_map:
+            filtered_data['Layout Type'] = filtered_data['Unit No.'].map(layout_map).fillna(filtered_data.get('Layout Type', ''))
+            filtered_data['Layout Type'] = filtered_data['Layout Type'].replace('', 'N/A')
+        elif 'Layout Type' in filtered_data.columns:
+            filtered_data['Layout Type'] = filtered_data['Layout Type'].replace('', 'N/A')
+        else:
+            filtered_data['Layout Type'] = 'N/A'
+        
         # Apply location filters
         if selected_development != "All":
             filtered_data = filtered_data[filtered_data['All Developments'] == selected_development]
@@ -2825,7 +2834,7 @@ with tab5:
         # Apply bedrooms filter
         if selected_bedrooms != "All":
             filtered_data = filtered_data[filtered_data['Beds'].astype(str) == selected_bedrooms]
-        # Apply layout type filter
+        # Apply layout type filter (now always safe)
         if selected_layout != "All":
             filtered_data = filtered_data[filtered_data['Layout Type'] == selected_layout]
         
