@@ -2699,139 +2699,61 @@ with tab4:
 with tab5:
     st.markdown("<!-- RENTALS TAB START -->")
     st.title("Rental Transactions")
-    import pandas as pd
-    today = pd.Timestamp.now().normalize()
     
-    # --- Performance Optimized Rental Data Loading ---
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def load_rental_data():
-        """Load and preprocess rental data efficiently."""
-        # Preprocess rental_df to keep only the newest contract per unit
-        rental_df_copy = rental_df.copy()
-        rental_df_copy['Unit No.'] = rental_df_copy['Unit No.'].astype(str).str.strip().str.upper()
-        rental_df_copy['Contract Start'] = pd.to_datetime(rental_df_copy['Contract Start'], errors='coerce')
-        rental_df_copy = rental_df_copy.sort_values('Contract Start').drop_duplicates('Unit No.', keep='last')
-        return rental_df_copy
-    
-    # Load cached rental data
-    rental_df_processed = load_rental_data()
-    
-    # --- Context-Aware Filter Options ---
+    # --- Filter Options for Performance ---
     st.subheader("Filter Options")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        # Development filter
-        dev_options = sorted(all_transactions['All Developments'].dropna().unique()) if not all_transactions.empty else []
-        selected_development = st.selectbox("Development", options=["All"] + dev_options, key="rental_dev_filter")
+        # Project filter - use all projects from transaction data, not just layout files
+        project_options = sorted(all_transactions['All Developments'].dropna().unique()) if not all_transactions.empty else []
+        selected_project = st.selectbox("Project", options=["All"] + project_options, key="rental_project_filter")
     
     with col2:
-        # Community filter - depends on selected Development
-        if selected_development != "All":
-            dev_filtered = all_transactions[all_transactions['All Developments'] == selected_development]
-            comm_options = sorted(dev_filtered['Community/Building'].dropna().unique()) if 'Community/Building' in dev_filtered.columns else []
-        else:
-            comm_options = sorted(all_transactions['Community/Building'].dropna().unique()) if 'Community/Building' in all_transactions.columns else []
-        selected_community = st.selectbox("Community", options=["All"] + comm_options, key="rental_comm_filter")
-    
-    with col3:
-        # Sub Community/Building filter - depends on selected Development and Community
-        if selected_development != "All" and selected_community != "All":
-            subcom_filtered = all_transactions[
-                (all_transactions['All Developments'] == selected_development) &
-                (all_transactions['Community/Building'] == selected_community)
-            ]
-            subcom_options = sorted(subcom_filtered['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in subcom_filtered.columns else []
-        elif selected_development != "All":
-            subcom_filtered = all_transactions[all_transactions['All Developments'] == selected_development]
-            subcom_options = sorted(subcom_filtered['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in subcom_filtered.columns else []
-        else:
-            subcom_options = sorted(all_transactions['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in all_transactions.columns else []
-        selected_subcommunity = st.selectbox("Sub Community/Building", options=["All"] + subcom_options, key="rental_subcom_filter")
-    
-    # Status and Layout Type filters in a second row
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
         # Status filter
         status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
         selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
     
-    with col2:
-        # Layout Type filter - depends on all location filters
-        if selected_development != "All" or selected_community != "All" or selected_subcommunity != "All":
-            # Build filter conditions
-            filter_conditions = []
-            if selected_development != "All":
-                filter_conditions.append(all_transactions['All Developments'] == selected_development)
-            if selected_community != "All":
-                filter_conditions.append(all_transactions['Community/Building'] == selected_community)
-            if selected_subcommunity != "All":
-                filter_conditions.append(all_transactions['Sub Community / Building'] == selected_subcommunity)
+    with col3:
+        # Layout Type filter - get from transaction data and layout mapping
+        if selected_project != "All":
+            # Get units for this project
+            project_units = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
             
-            # Apply filters
-            if filter_conditions:
-                layout_filtered = all_transactions[pd.concat(filter_conditions, axis=1).all(axis=1)]
-                layout_units = layout_filtered['Unit No.'].dropna().unique()
-                
-                # Get layout types from layout mapping for these units
-                if not layout_map_df.empty:
-                    layout_map_df_clean = layout_map_df.copy()
-                    layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
-                    layout_units_clean = [str(u).strip().upper() for u in layout_units]
-                    filtered_layouts = layout_map_df_clean[layout_map_df_clean['Unit No.'].isin(layout_units_clean)]
-                    layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
-                else:
-                    layout_options = []
+            # Get layout types from layout mapping for these units
+            if not layout_map_df.empty:
+                layout_map_df_clean = layout_map_df.copy()
+                layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
+                project_units_clean = [str(u).strip().upper() for u in project_units]
+                filtered_layouts = layout_map_df_clean[layout_map_df_clean['Unit No.'].isin(project_units_clean)]
+                layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
             else:
                 layout_options = []
         else:
             layout_options = []
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
     
-    with col3:
-        # Empty column for spacing
-        pass
-    
-    # --- Efficient Data Filtering ---
+    # --- Data Filtering Function ---
     def get_filtered_rental_data(return_unfiltered=False):
         """Get filtered rental data based on user selections."""
-        # Build filter conditions based on context-aware selections
-        filter_conditions = []
-        
-        if selected_development != "All":
-            filter_conditions.append(all_transactions['All Developments'] == selected_development)
-        if selected_community != "All":
-            filter_conditions.append(all_transactions['Community/Building'] == selected_community)
-        if selected_subcommunity != "All":
-            filter_conditions.append(all_transactions['Sub Community / Building'] == selected_subcommunity)
-        
-        # If no filters are selected, return None
-        if not filter_conditions:
+        # Only proceed if a project is selected
+        if selected_project == "All":
             return None
         
-        # Apply filters to get filtered units
-        filtered_transactions = all_transactions[pd.concat(filter_conditions, axis=1).all(axis=1)]
-        project_units = filtered_transactions['Unit No.'].dropna().unique()
+        # Get all units for the selected project from transaction data
+        project_units = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
         
         # Create a DataFrame with unit numbers and project info
         units_df = pd.DataFrame({
-            'Unit No.': project_units
+            'Unit No.': project_units,
+            'Project': selected_project
         })
-        
-        # Add transaction data (Development, Community, Sub Community) for these units
-        transaction_data = all_transactions[all_transactions['Unit No.'].isin(project_units)][
-            ['Unit No.', 'All Developments', 'Community/Building', 'Sub Community / Building']
-        ].drop_duplicates(subset=['Unit No.'])
-        
-        units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
-        transaction_data['Unit No.'] = transaction_data['Unit No.'].astype(str).str.strip().str.upper()
-        units_df = pd.merge(units_df, transaction_data, on='Unit No.', how='left')
         
         # Add layout type if available from layout mapping
         if not layout_map_df.empty:
             layout_map_df_clean = layout_map_df.copy()
             layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
+            units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
             units_df = pd.merge(units_df, layout_map_df_clean[['Unit No.', 'Layout Type']], on='Unit No.', how='left')
         else:
             units_df['Layout Type'] = ''
@@ -2840,48 +2762,36 @@ with tab5:
         if selected_layout != "All":
             units_df = units_df[units_df['Layout Type'] == selected_layout]
         
-        # Merge with rental_df_processed (latest contract per unit, if any)
-        rental_info = rental_df_processed.copy()
+        # Merge with rental data (latest contract per unit, if any)
+        rental_info = rental_df.copy()
         rental_info['Unit No.'] = rental_info['Unit No.'].astype(str).str.strip().str.upper()
         units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
         merged = pd.merge(units_df, rental_info, on='Unit No.', how='left', suffixes=('', '_rental'))
         
-        # DEBUG: Show samples and unique unit numbers for diagnosis
-        st.write('DEBUG: units_df sample', units_df.head(10))
-        st.write('DEBUG: rental_info sample', rental_info.head(10))
-        st.write('DEBUG: merged sample', merged.head(10))
-        st.write('DEBUG: units_df Unit No. unique', units_df['Unit No.'].unique()[:10])
-        st.write('DEBUG: rental_info Unit No. unique', rental_info['Unit No.'].unique()[:10])
-        st.write('DEBUG: merged Unit No. unique', merged['Unit No.'].unique()[:10])
-        st.write('DEBUG: merged columns', merged.columns.tolist())
-        st.write('DEBUG: Park Heights in rental_info', rental_info[rental_info.get('Community/Building', '') == 'Park Heights'])
-
-        # Calculate status efficiently using vectorized operations
+        # Calculate status
         today = pd.Timestamp.now().normalize()
         merged['Contract Start'] = pd.to_datetime(merged['Contract Start'], errors='coerce')
         merged['Contract End'] = pd.to_datetime(merged['Contract End'], errors='coerce')
-        mask_rented = (
-            pd.notnull(merged['Contract Start']) &
-            pd.notnull(merged['Contract End']) &
-            (merged['Contract Start'] <= today) &
-            (merged['Contract End'] >= today)
-        )
+        
+        # Calculate days left and status
         days_left = (merged['Contract End'] - today).dt.days
         days_since_end = (today - merged['Contract End']).dt.days
-        status_conditions = [
-            (mask_rented & (days_left < 31), '🟣'),
-            (mask_rented & (days_left <= 90), '🟡'),
-            (mask_rented, '🔴'),
+        
+        # Determine status
+        conditions = [
+            (merged['Contract Start'].notna() & merged['Contract End'].notna() & 
+             (merged['Contract Start'] <= today) & (merged['Contract End'] >= today) & (days_left < 31), '🟣'),
+            (merged['Contract Start'].notna() & merged['Contract End'].notna() & 
+             (merged['Contract Start'] <= today) & (merged['Contract End'] >= today) & (days_left <= 90), '🟡'),
+            (merged['Contract Start'].notna() & merged['Contract End'].notna() & 
+             (merged['Contract Start'] <= today) & (merged['Contract End'] >= today), '🔴'),
             ((days_since_end > 0) & (days_since_end <= 60), '🔵'),
-            (True, '🟢')  # Default to available
         ]
-        merged['Status'] = np.select(
-            [cond for cond, _ in status_conditions],
-            [status for _, status in status_conditions],
-            default='🟢'
-        )
+        merged['Status'] = np.select([cond for cond, _ in conditions], [status for _, status in conditions], default='🟢')
+        
         if return_unfiltered:
-            return merged.reset_index(drop=True)
+            return merged
+        
         # Apply status filter
         if selected_status != "All":
             status_map = {
@@ -2893,22 +2803,17 @@ with tab5:
             }
             if selected_status in status_map:
                 merged = merged[merged['Status'] == status_map[selected_status]]
-        return merged.reset_index(drop=True)
+        
+        return merged
     
-    # Get filtered data (for table) and unfiltered data (for metrics)
+    # Get filtered data
     filtered_rental_data = get_filtered_rental_data()
     all_units_rental_data = get_filtered_rental_data(return_unfiltered=True)
     
-    # Only show table/metrics if filters are selected
-    if selected_development == "All" and selected_community == "All" and selected_subcommunity == "All":
-        st.info("Please select at least one filter (Development, Community, or Sub Community) to view rental data.")
+    # Only show table/metrics if a project is selected
+    if selected_project == "All":
+        st.info("Please select a project to view rental data.")
         # st.stop()  # Commented out to allow AI Valuation tab to render
-    
-    # Show data count
-    if filtered_rental_data is not None:
-        st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
-    else:
-        st.info("📊 No rental data available")
     
     # Show data count
     if filtered_rental_data is not None:
@@ -2919,23 +2824,14 @@ with tab5:
     # --- Calculate Total Units from Filtered Data ---
     total_units = len(all_units_rental_data) if all_units_rental_data is not None else 0
     
-        # Columns to show in specific order
+    # Columns to show
     if filtered_rental_data is not None:
-        # Define the desired columns in order
-        desired_cols = [
-            'All Developments',  # Development
-            'Community/Building',  # Community
-            'Sub Community / Building',  # Sub Community
-            'Unit No.',
-            'Layout Type',
-            'Contract Start',
-            'Contract End',
-            'Annualised Rental Price(AED)',
-            'Rent Recurrence'
+        display_cols = [
+            'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
+            'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
+            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
         ]
-        
-        # Get available columns that exist in the data
-        cols_to_show = [c for c in desired_cols if c in filtered_rental_data.columns]
+        cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
         cols_final = cols_to_show
         
         # Prepare data for AgGrid
@@ -2943,6 +2839,7 @@ with tab5:
     else:
         cols_final = []
         data_for_aggrid = pd.DataFrame()
+    
     if not isinstance(data_for_aggrid, pd.DataFrame):
         data_for_aggrid = pd.DataFrame(data_for_aggrid)
     
