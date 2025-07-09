@@ -3054,6 +3054,8 @@ with tab5:
         
         # Handle row selection
         selected_rows = grid_response['selected_rows']
+        selected_row = None
+        
         if selected_rows:
             selected_row = selected_rows[0]
             st.subheader("Selected Unit Details")
@@ -3087,8 +3089,7 @@ with tab5:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
     
     # --- Step 4: Unit Selection with Detailed Info ---
-    if selected_rows:
-        selected_row = selected_rows[0]
+    if selected_row is not None:
         st.markdown("---")
         st.subheader("📋 Detailed Unit Information")
         
