@@ -2913,8 +2913,21 @@ with tab5:
     if filtered_rental_data is not None and not filtered_rental_data.empty:
         st.subheader("📊 Rental Metrics Dashboard")
         
-        # Calculate metrics
-        total_units = len(filtered_rental_data)
+        # --- Total Units logic ---
+        # Try to use layout file for total units if available and context is selected
+        layout_total_units = None
+        layout_units_set = set()
+        # Use selected_development and selected_community to filter layout_map_df
+        if selected_development != "All" and not layout_map_df.empty:
+            layout_df = layout_map_df[layout_map_df['Project'].str.lower().str.contains(selected_development.lower())]
+            if not layout_df.empty:
+                layout_units_set = set(layout_df['Unit No.'].dropna().astype(str).str.strip().str.upper().unique())
+        # If we have a filtered set from layout, use it
+        if layout_units_set:
+            total_units = len(layout_units_set)
+        else:
+            # Fallback: use unique units in rental data
+            total_units = filtered_rental_data['Unit No.'].nunique()
         
         # Status counts
         status_counts = filtered_rental_data['Status'].value_counts()
