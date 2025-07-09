@@ -354,6 +354,23 @@ def load_all_listings(listings_dir):
             st.warning(f"Failed to load listing {file}: {e}")
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
+# --- Cached loader for all rent listing files ---
+@cache_data
+def load_all_rent_listings(rent_listings_dir):
+    """Load and concatenate all Excel rent listing files, with caching."""
+    files = [f for f in os.listdir(rent_listings_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+    dfs = []
+    for file in files:
+        path = os.path.join(rent_listings_dir, file)
+        try:
+            df = pd.read_excel(path)
+            df.columns = df.columns.str.replace('\xa0', '', regex=False).str.strip()
+            df['Source File'] = file
+            dfs.append(df)
+        except Exception as e:
+            st.warning(f"Failed to load rent listing {file}: {e}")
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
  # --- Load Layout Types Mapping ---
 layout_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Layout Types')
 layout_files = [f for f in os.listdir(layout_dir) if f.endswith('.xlsx')]
@@ -1069,8 +1086,25 @@ if not all_listings.empty:
     if 'Days Listed' in all_listings.columns:
         all_listings['Days Listed'] = pd.to_numeric(all_listings['Days Listed'], errors='coerce')
 
+ # --- Load Rent Listings Data from Data/Listings Rent ---
+rent_listings_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Listings Rent')
+with st.spinner("Loading rent listings..."):
+    all_rent_listings = load_all_rent_listings(rent_listings_dir)
+# Pre-convert numeric columns for rent listings
+if not all_rent_listings.empty:
+    if 'Beds' in all_rent_listings.columns:
+        all_rent_listings['Beds'] = pd.to_numeric(all_rent_listings['Beds'], errors='coerce')
+    if 'Floor Level' in all_rent_listings.columns:
+        all_rent_listings['Floor Level'] = pd.to_numeric(all_rent_listings['Floor Level'], errors='coerce')
+    if 'Price (AED)' in all_rent_listings.columns:
+        all_rent_listings['Price (AED)'] = pd.to_numeric(all_rent_listings['Price (AED)'], errors='coerce')
+    if 'BUA' in all_rent_listings.columns:
+        all_rent_listings['BUA'] = pd.to_numeric(all_rent_listings['BUA'], errors='coerce')
+    if 'Days Listed' in all_rent_listings.columns:
+        all_rent_listings['Days Listed'] = pd.to_numeric(all_rent_listings['Days Listed'], errors='coerce')
+
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Live Listings", "Trend & Valuation", "Rentals"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Live Listings", "Rent Listings", "Trend & Valuation", "Rentals"])
 
 with tab1:
     # Remove unnecessary and error-prone variable deletion
@@ -1459,8 +1493,236 @@ with tab2:
         st.info("No live listings data found.")
     st.markdown("<!-- LIVE LISTINGS TAB END -->")
 
-# All Prophet/chart/forecast code is strictly inside tab3 below
 with tab3:
+    # Remove unnecessary and error-prone variable deletion
+    st.markdown("<!-- RENT LISTINGS TAB START -->")
+    if isinstance(all_rent_listings, pd.DataFrame) and all_rent_listings.shape[0] > 0:
+        st.subheader("All Rent Listings")
+        # Apply sidebar filters to rent listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
+        filtered_rent_listings = all_rent_listings.copy()
+        import pandas as pd
+        if not isinstance(filtered_rent_listings, pd.DataFrame):
+            filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        def norm(x):
+            return str(x).strip().lower() if pd.notnull(x) else ""
+        norm_community = [norm(c) for c in community] if community else []
+        norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
+        norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
+        # Always apply subcommunity/layout type filters if selected, regardless of other filters
+        if 'Development' in filtered_rent_listings.columns and development:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Development'].apply(norm) == norm(development)]
+        if 'Community' in filtered_rent_listings.columns and community:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Community'].apply(norm).isin(norm_community)]
+        if 'Subcommunity' in filtered_rent_listings.columns and subcommunity:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
+        if 'Layout Type' in filtered_rent_listings.columns and layout_type:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
+        if not isinstance(filtered_rent_listings, pd.DataFrame):
+            filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        if property_type and 'Type' in filtered_rent_listings.columns:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Type'] == property_type]
+            if not isinstance(filtered_rent_listings, pd.DataFrame):
+                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        if bedrooms and 'Beds' in filtered_rent_listings.columns:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Beds'].astype(str) == bedrooms]
+            if not isinstance(filtered_rent_listings, pd.DataFrame):
+                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        # Floor tolerance filter for rent listings (optional, not specified in instructions)
+        if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_rent_listings.columns:
+            try:
+                selected_floor = int(
+                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+                )
+                tol = st.session_state['floor_tolerance']
+                low = selected_floor - tol
+                high = selected_floor + tol
+                filtered_rent_listings = filtered_rent_listings[
+                    (filtered_rent_listings['Floor Level'] >= low) &
+                    (filtered_rent_listings['Floor Level'] <= high)
+                ]
+                if not isinstance(filtered_rent_listings, pd.DataFrame):
+                    filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+            except Exception:
+                pass
+        if layout_type and 'Layout Type' in filtered_rent_listings.columns:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].isin(layout_type)]  # type: ignore
+            if not isinstance(filtered_rent_listings, pd.DataFrame):
+                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        if sales_recurrence != "All" and 'Sales Recurrence' in filtered_rent_listings.columns:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Sales Recurrence'] == sales_recurrence]
+            if not isinstance(filtered_rent_listings, pd.DataFrame):
+                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        # Exclude listings marked as not available
+        if 'Availability' in filtered_rent_listings.columns:
+            avail_col = filtered_rent_listings['Availability']
+            if not isinstance(avail_col, pd.Series):
+                avail_col = pd.Series(avail_col)
+            filtered_rent_listings = filtered_rent_listings[avail_col.astype(str).str.strip().str.lower() != "not available"]
+            if not isinstance(filtered_rent_listings, pd.DataFrame):
+                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+
+        # Hide certain columns but keep them in the DataFrame (do NOT filter by Days Listed or any date here)
+        columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
+        visible_columns = [c for c in filtered_rent_listings.columns if c not in columns_to_hide] + ["URL"]
+
+        # Show count of rent listings and unique listings
+        total_rent_listings = filtered_rent_listings.shape[0]
+        if "DLD Permit Number" in filtered_rent_listings.columns:
+            dld_col = filtered_rent_listings["DLD Permit Number"]
+            import pandas as pd
+            if not isinstance(dld_col, pd.Series):
+                dld_col = pd.Series(dld_col)
+            unique_dld = dld_col.dropna()
+            unique_dld = unique_dld[unique_dld.astype(str).str.strip() != ""]
+            total_unique_rent_listings = unique_dld.nunique()
+        else:
+            total_unique_rent_listings = total_rent_listings
+        if total_rent_listings:
+            ratio_pct = (total_unique_rent_listings / total_rent_listings) * 100
+            ratio_str = f"{ratio_pct:.1f}%"
+        else:
+            ratio_str = "N/A"
+        st.markdown(f"**Showing {total_rent_listings} rent listings | {total_unique_rent_listings} unique listings | Ratio: {ratio_str}**")
+
+        # --- Asking Price Market Metrics ---
+        st.markdown("---")
+        st.subheader("Asking Price Market Metrics")
+        asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d", key="rent_asking_price")
+        # Prepare unique listings DataFrame with custom logic
+        import pandas as pd
+        dld_col = filtered_rent_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_rent_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        filtered_rent_listings = filtered_rent_listings.copy()
+        # Ensure 'Listed When' is datetime for sorting
+        if "Listed When" in filtered_rent_listings.columns:
+            filtered_rent_listings["Listed When"] = pd.to_datetime(filtered_rent_listings["Listed When"], errors="coerce")
+        # Helper to select unique listings by rule
+        def select_unique(df):
+            # Group by DLD Permit Number
+            groups = []
+            for dld, group in df.groupby("DLD Permit Number"):
+                if dld is None or str(dld).strip() == "":
+                    continue
+                # Prefer verified
+                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                if not verified_group.empty:
+                    # Most recent among verified
+                    if "Listed When" in verified_group.columns:
+                        idx = verified_group["Listed When"].idxmax()
+                        groups.append(verified_group.loc[[idx]])
+                    else:
+                        groups.append(verified_group.iloc[[0]])
+                else:
+                    # Most recent among all
+                    if "Listed When" in group.columns:
+                        idx = group["Listed When"].idxmax()
+                        groups.append(group.loc[[idx]])
+                    else:
+                        groups.append(group.iloc[[0]])
+            if groups:
+                return pd.concat(groups, ignore_index=True)
+            else:
+                return pd.DataFrame(columns=df.columns)
+        unique_df = select_unique(filtered_rent_listings)
+        # Only consider listings with a valid price
+        price_col = "Price (AED)"
+        price_series = unique_df[price_col] if price_col in unique_df.columns else pd.Series([])
+        if not isinstance(price_series, pd.Series):
+            price_series = pd.Series(price_series)
+        unique_df = unique_df[price_series.notna()]
+        unique_df = unique_df[unique_df[price_col] > 0]
+        prices = unique_df[price_col].astype(float)
+        n_total = len(prices)
+        n_below = (prices < asking_price).sum() if asking_price > 0 else 0
+        n_above = (prices > asking_price).sum() if asking_price > 0 else 0
+        pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
+        pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
+        # Percentile rank
+        percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
+        # Display metrics
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
+        col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
+        col3.metric("Percentile", f"{percentile:.1f}%")
+        st.markdown("---")
+
+        # Add a switch to filter listings: all, only unique, only duplicates
+        filter_mode = st.radio(
+            "Show:",
+            ["All listings", "Only unique listings", "Only duplicate listings"],
+            index=0,
+            horizontal=True,
+            key="rent_listings_filter_mode"
+        )
+        # Compute DLD counts for filtering
+        dld_col = filtered_rent_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_rent_listings.columns else pd.Series([])
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        dld_counts = dld_col.value_counts()
+        unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
+        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+        # Filter listings based on switch (corrected logic)
+        if filter_mode == "Only unique listings":
+            # For each DLD Permit Number (excluding empty/null), show only the first occurrence
+            mask = (
+                filtered_rent_listings["DLD Permit Number"].notna() &
+                (filtered_rent_listings["DLD Permit Number"].astype(str).str.strip() != "")
+            )
+            filtered_rent_listings = filtered_rent_listings[mask]
+            filtered_rent_listings = filtered_rent_listings.drop_duplicates(subset=["DLD Permit Number"], keep="first")
+        elif filter_mode == "Only duplicate listings":
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings["DLD Permit Number"].isin(duplicate_dlds)]
+        # (rest of code unchanged)
+
+        # Use AgGrid for clickable selection
+        gb = GridOptionsBuilder.from_dataframe(filtered_rent_listings[visible_columns])
+        gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
+        grid_options = gb.build()
+
+        # Before passing to AgGrid, ensure DataFrame
+        data_for_aggrid = filtered_rent_listings[visible_columns]
+        if not isinstance(data_for_aggrid, pd.DataFrame):
+            data_for_aggrid = pd.DataFrame(data_for_aggrid)
+        grid_response = AgGrid(
+            data_for_aggrid,
+            gridOptions=grid_options,
+            enable_enterprise_modules=False,
+            update_mode=GridUpdateMode.SELECTION_CHANGED,
+            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+            theme='alpine'
+        )
+
+        # Handle selection from AgGrid (can be list of dicts or DataFrame)
+        sel = grid_response['selected_rows']
+        selected_url = None
+        if isinstance(sel, list):
+            if len(sel) > 0:
+                selected_url = sel[0].get("URL")
+        elif isinstance(sel, pd.DataFrame):
+            if sel.shape[0] > 0 and "URL" in sel.columns:
+                selected_url = sel.iloc[0]["URL"]
+        if selected_url:
+            # Foldable Listing Preview
+            with st.expander("Listing Preview", expanded=False):
+                components.html(
+                    f'''
+                    <iframe
+                        src="{selected_url}"
+                        width="100%"
+                        height="1600px"
+                        style="border:none;"
+                        scrolling="yes"
+                    ></iframe>
+                    ''',
+                    height=1600
+                )
+    else:
+        st.info("No rent listings data found.")
+    st.markdown("<!-- RENT LISTINGS TAB END -->")
+
+# All Prophet/chart/forecast code is strictly inside tab4 below
+with tab4:
     st.markdown("<!-- TREND & VALUATION TAB START -->")
     # ... (all Prophet/chart/forecast code as in previous block) ...
     # (No Prophet/chart/forecast code outside this block)
@@ -2217,7 +2479,7 @@ with tab3:
 
     st.markdown("<!-- TREND & VALUATION TAB END -->")
 
-with tab4:
+with tab5:
     st.markdown("<!-- RENTALS TAB START -->")
     st.title("Rental Transactions")
     import pandas as pd
