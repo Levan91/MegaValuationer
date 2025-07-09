@@ -1438,69 +1438,6 @@ with tab2:
             ratio_str = "N/A"
         st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
 
-        # --- Asking Price Market Metrics ---
-        st.markdown("---")
-        st.subheader("Asking Price Market Metrics")
-        asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d")
-        # Prepare unique listings DataFrame with custom logic
-        import pandas as pd
-        dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
-        if not isinstance(dld_col, pd.Series):
-            dld_col = pd.Series(dld_col)
-        filtered_listings = filtered_listings.copy()
-        # Ensure 'Listed When' is datetime for sorting
-        if "Listed When" in filtered_listings.columns:
-            filtered_listings["Listed When"] = pd.to_datetime(filtered_listings["Listed When"], errors="coerce")
-        # Helper to select unique listings by rule
-        def select_unique(df):
-            # Group by DLD Permit Number
-            groups = []
-            for dld, group in df.groupby("DLD Permit Number"):
-                if dld is None or str(dld).strip() == "":
-                    continue
-                # Prefer verified
-                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
-                if not verified_group.empty:
-                    # Most recent among verified
-                    if "Listed When" in verified_group.columns:
-                        idx = verified_group["Listed When"].idxmax()
-                        groups.append(verified_group.loc[[idx]])
-                    else:
-                        groups.append(verified_group.iloc[[0]])
-                else:
-                    # Most recent among all
-                    if "Listed When" in group.columns:
-                        idx = group["Listed When"].idxmax()
-                        groups.append(group.loc[[idx]])
-                    else:
-                        groups.append(group.iloc[[0]])
-            if groups:
-                return pd.concat(groups, ignore_index=True)
-            else:
-                return pd.DataFrame(columns=df.columns)
-        unique_df = select_unique(filtered_listings)
-        # Only consider listings with a valid price
-        price_col = "Price (AED)"
-        price_series = unique_df[price_col] if price_col in unique_df.columns else pd.Series([])
-        if not isinstance(price_series, pd.Series):
-            price_series = pd.Series(price_series)
-        unique_df = unique_df[price_series.notna()]
-        unique_df = unique_df[unique_df[price_col] > 0]
-        prices = unique_df[price_col].astype(float)
-        n_total = len(prices)
-        n_below = (prices < asking_price).sum() if asking_price > 0 else 0
-        n_above = (prices > asking_price).sum() if asking_price > 0 else 0
-        pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
-        pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
-        # Percentile rank
-        percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
-        # Display metrics
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
-        col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
-        col3.metric("Percentile", f"{percentile:.1f}%")
-        st.markdown("---")
-
         # Add a switch to filter listings: all, only unique, only duplicates
         filter_mode = st.radio(
             "Show:",
@@ -1528,6 +1465,39 @@ with tab2:
         elif filter_mode == "Only duplicate listings":
             filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
         # (rest of code unchanged)
+
+        # --- Asking Price Market Metrics (after filter is applied) ---
+        st.markdown("---")
+        st.subheader("Asking Price Market Metrics")
+        asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d")
+        
+        # Calculate metrics based on the filtered listings (respecting the "Show" filter)
+        if not filtered_listings.empty and "Price (AED)" in filtered_listings.columns:
+            # Only consider listings with a valid price
+            price_col = "Price (AED)"
+            price_series = filtered_listings[price_col]
+            if not isinstance(price_series, pd.Series):
+                price_series = pd.Series(price_series)
+            valid_prices = price_series.notna() & (price_series > 0)
+            prices = filtered_listings[valid_prices][price_col].astype(float)
+            
+            n_total = len(prices)
+            n_below = (prices < asking_price).sum() if asking_price > 0 else 0
+            n_above = (prices > asking_price).sum() if asking_price > 0 else 0
+            pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
+            pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
+            # Percentile rank
+            percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
+            
+            # Display metrics
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
+            col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
+            col3.metric("Percentile", f"{percentile:.1f}%")
+        else:
+            st.info("No valid price data available for the selected filter.")
+        
+        st.markdown("---")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
@@ -1666,69 +1636,6 @@ with tab3:
             ratio_str = "N/A"
         st.markdown(f"**Showing {total_rent_listings} rent listings | {total_unique_rent_listings} unique listings | Ratio: {ratio_str}**")
 
-        # --- Asking Price Market Metrics ---
-        st.markdown("---")
-        st.subheader("Asking Price Market Metrics")
-        asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d", key="rent_asking_price")
-        # Prepare unique listings DataFrame with custom logic
-        import pandas as pd
-        dld_col = filtered_rent_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_rent_listings.columns else pd.Series([])
-        if not isinstance(dld_col, pd.Series):
-            dld_col = pd.Series(dld_col)
-        filtered_rent_listings = filtered_rent_listings.copy()
-        # Ensure 'Listed When' is datetime for sorting
-        if "Listed When" in filtered_rent_listings.columns:
-            filtered_rent_listings["Listed When"] = pd.to_datetime(filtered_rent_listings["Listed When"], errors="coerce")
-        # Helper to select unique listings by rule
-        def select_unique(df):
-            # Group by DLD Permit Number
-            groups = []
-            for dld, group in df.groupby("DLD Permit Number"):
-                if dld is None or str(dld).strip() == "":
-                    continue
-                # Prefer verified
-                verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
-                if not verified_group.empty:
-                    # Most recent among verified
-                    if "Listed When" in verified_group.columns:
-                        idx = verified_group["Listed When"].idxmax()
-                        groups.append(verified_group.loc[[idx]])
-                    else:
-                        groups.append(verified_group.iloc[[0]])
-                else:
-                    # Most recent among all
-                    if "Listed When" in group.columns:
-                        idx = group["Listed When"].idxmax()
-                        groups.append(group.loc[[idx]])
-                    else:
-                        groups.append(group.iloc[[0]])
-            if groups:
-                return pd.concat(groups, ignore_index=True)
-            else:
-                return pd.DataFrame(columns=df.columns)
-        unique_df = select_unique(filtered_rent_listings)
-        # Only consider listings with a valid price
-        price_col = "Price (AED)"
-        price_series = unique_df[price_col] if price_col in unique_df.columns else pd.Series([])
-        if not isinstance(price_series, pd.Series):
-            price_series = pd.Series(price_series)
-        unique_df = unique_df[price_series.notna()]
-        unique_df = unique_df[unique_df[price_col] > 0]
-        prices = unique_df[price_col].astype(float)
-        n_total = len(prices)
-        n_below = (prices < asking_price).sum() if asking_price > 0 else 0
-        n_above = (prices > asking_price).sum() if asking_price > 0 else 0
-        pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
-        pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
-        # Percentile rank
-        percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
-        # Display metrics
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
-        col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
-        col3.metric("Percentile", f"{percentile:.1f}%")
-        st.markdown("---")
-
         # Add a switch to filter listings: all, only unique, only duplicates
         filter_mode = st.radio(
             "Show:",
@@ -1756,6 +1663,39 @@ with tab3:
         elif filter_mode == "Only duplicate listings":
             filtered_rent_listings = filtered_rent_listings[filtered_rent_listings["DLD Permit Number"].isin(duplicate_dlds)]
         # (rest of code unchanged)
+
+        # --- Asking Price Market Metrics (after filter is applied) ---
+        st.markdown("---")
+        st.subheader("Asking Price Market Metrics")
+        asking_price = st.number_input("Enter your asking price (AED):", min_value=0, step=10000, value=0, format="%d", key="rent_asking_price")
+        
+        # Calculate metrics based on the filtered listings (respecting the "Show" filter)
+        if not filtered_rent_listings.empty and "Price (AED)" in filtered_rent_listings.columns:
+            # Only consider listings with a valid price
+            price_col = "Price (AED)"
+            price_series = filtered_rent_listings[price_col]
+            if not isinstance(price_series, pd.Series):
+                price_series = pd.Series(price_series)
+            valid_prices = price_series.notna() & (price_series > 0)
+            prices = filtered_rent_listings[valid_prices][price_col].astype(float)
+            
+            n_total = len(prices)
+            n_below = (prices < asking_price).sum() if asking_price > 0 else 0
+            n_above = (prices > asking_price).sum() if asking_price > 0 else 0
+            pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
+            pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
+            # Percentile rank
+            percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
+            
+            # Display metrics
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
+            col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
+            col3.metric("Percentile", f"{percentile:.1f}%")
+        else:
+            st.info("No valid price data available for the selected filter.")
+        
+        st.markdown("---")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_rent_listings[visible_columns])
