@@ -2865,6 +2865,95 @@ with tab5:
     else:
         st.info("📊 No rental data available")
     
+    # --- Step 3: Metrics Dashboard ---
+    if filtered_rental_data is not None and not filtered_rental_data.empty:
+        st.subheader("📊 Rental Metrics Dashboard")
+        
+        # Calculate metrics
+        total_units = len(filtered_rental_data)
+        
+        # Status counts
+        status_counts = filtered_rental_data['Status'].value_counts()
+        available_units = status_counts.get('🟢', 0)
+        rented_units = status_counts.get('🔴', 0)
+        expiring_soon = status_counts.get('🟡', 0)
+        expiring_30_days = status_counts.get('🟣', 0)
+        recently_vacant = status_counts.get('🔵', 0)
+        
+        # Calculate occupancy rate
+        occupied_units = rented_units + expiring_soon + expiring_30_days
+        occupancy_rate = (occupied_units / total_units * 100) if total_units > 0 else 0
+        
+        # Calculate average rent if available
+        rent_col_candidates = [
+            'Annualised Rental Price(AED)',
+            'Annualised Rental Price (AED)',
+            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+        ]
+        rent_col = None
+        for col in rent_col_candidates:
+            if col in filtered_rental_data.columns:
+                rent_col = col
+                break
+        
+        avg_rent = None
+        if rent_col:
+            valid_rents = filtered_rental_data[rent_col].dropna()
+            if not valid_rents.empty:
+                avg_rent = valid_rents.mean()
+        
+        # Display metrics in columns
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total Units", total_units)
+            st.metric("Available Units", available_units, f"{available_units/total_units*100:.1f}%" if total_units > 0 else "0%")
+        
+        with col2:
+            st.metric("Rented Units", rented_units, f"{rented_units/total_units*100:.1f}%" if total_units > 0 else "0%")
+            st.metric("Occupancy Rate", f"{occupancy_rate:.1f}%")
+        
+        with col3:
+            st.metric("Expiring <90 days", expiring_soon)
+            st.metric("Expiring <30 days", expiring_30_days)
+        
+        with col4:
+            st.metric("Recently Vacant", recently_vacant)
+            if avg_rent is not None:
+                st.metric("Avg Annual Rent", f"AED {avg_rent:,.0f}")
+            else:
+                st.metric("Avg Annual Rent", "N/A")
+        
+        # Status breakdown chart
+        st.subheader("Status Breakdown")
+        status_data = {
+            'Available': available_units,
+            'Rented': rented_units,
+            'Expiring Soon': expiring_soon,
+            'Expiring <30d': expiring_30_days,
+            'Recently Vacant': recently_vacant
+        }
+        
+        # Create a simple bar chart
+        status_df = pd.DataFrame(list(status_data.items()), columns=['Status', 'Count'])
+        status_df = status_df[status_df['Count'] > 0]  # Only show non-zero values
+        
+        if not status_df.empty:
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=status_df['Status'],
+                    y=status_df['Count'],
+                    marker_color=['#28a745', '#dc3545', '#ffc107', '#6f42c1', '#17a2b8']
+                )
+            ])
+            fig.update_layout(
+                title="Rental Status Distribution",
+                xaxis_title="Status",
+                yaxis_title="Number of Units",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    
     # --- Step 2: Table Display ---
     if filtered_rental_data is not None and not filtered_rental_data.empty:
         st.subheader("Rental Data Table")
