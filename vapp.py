@@ -2708,52 +2708,107 @@ with tab5:
     # Load cached rental data
     rental_df_processed = load_rental_data()
     
-    # --- Filter Options for Performance ---
+    # --- Context-Aware Filter Options ---
     st.subheader("Filter Options")
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        # Project filter - use all projects from transaction data, not just layout files
-        project_options = sorted(all_transactions['All Developments'].dropna().unique()) if not all_transactions.empty else []
-        selected_project = st.selectbox("Project", options=["All"] + project_options, key="rental_project_filter")
+        # Development filter
+        dev_options = sorted(all_transactions['All Developments'].dropna().unique()) if not all_transactions.empty else []
+        selected_development = st.selectbox("Development", options=["All"] + dev_options, key="rental_dev_filter")
     
     with col2:
+        # Community filter - depends on selected Development
+        if selected_development != "All":
+            dev_filtered = all_transactions[all_transactions['All Developments'] == selected_development]
+            comm_options = sorted(dev_filtered['Community/Building'].dropna().unique()) if 'Community/Building' in dev_filtered.columns else []
+        else:
+            comm_options = sorted(all_transactions['Community/Building'].dropna().unique()) if 'Community/Building' in all_transactions.columns else []
+        selected_community = st.selectbox("Community", options=["All"] + comm_options, key="rental_comm_filter")
+    
+    with col3:
+        # Sub Community/Building filter - depends on selected Development and Community
+        if selected_development != "All" and selected_community != "All":
+            subcom_filtered = all_transactions[
+                (all_transactions['All Developments'] == selected_development) &
+                (all_transactions['Community/Building'] == selected_community)
+            ]
+            subcom_options = sorted(subcom_filtered['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in subcom_filtered.columns else []
+        elif selected_development != "All":
+            subcom_filtered = all_transactions[all_transactions['All Developments'] == selected_development]
+            subcom_options = sorted(subcom_filtered['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in subcom_filtered.columns else []
+        else:
+            subcom_options = sorted(all_transactions['Sub Community / Building'].dropna().unique()) if 'Sub Community / Building' in all_transactions.columns else []
+        selected_subcommunity = st.selectbox("Sub Community/Building", options=["All"] + subcom_options, key="rental_subcom_filter")
+    
+    # Status and Layout Type filters in a second row
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
         # Status filter
         status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
         selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
     
-    with col3:
-        # Layout Type filter - get from transaction data and layout mapping
-        if selected_project != "All":
-            # Get units for this project
-            project_units = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
-            # Get layout types from layout mapping for these units
-            if not layout_map_df.empty:
-                layout_map_df_clean = layout_map_df.copy()
-                layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
-                project_units_clean = [str(u).strip().upper() for u in project_units]
-                filtered_layouts = layout_map_df_clean[layout_map_df_clean['Unit No.'].isin(project_units_clean)]
-                layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
+    with col2:
+        # Layout Type filter - depends on all location filters
+        if selected_development != "All" or selected_community != "All" or selected_subcommunity != "All":
+            # Build filter conditions
+            filter_conditions = []
+            if selected_development != "All":
+                filter_conditions.append(all_transactions['All Developments'] == selected_development)
+            if selected_community != "All":
+                filter_conditions.append(all_transactions['Community/Building'] == selected_community)
+            if selected_subcommunity != "All":
+                filter_conditions.append(all_transactions['Sub Community / Building'] == selected_subcommunity)
+            
+            # Apply filters
+            if filter_conditions:
+                layout_filtered = all_transactions[pd.concat(filter_conditions, axis=1).all(axis=1)]
+                layout_units = layout_filtered['Unit No.'].dropna().unique()
+                
+                # Get layout types from layout mapping for these units
+                if not layout_map_df.empty:
+                    layout_map_df_clean = layout_map_df.copy()
+                    layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
+                    layout_units_clean = [str(u).strip().upper() for u in layout_units]
+                    filtered_layouts = layout_map_df_clean[layout_map_df_clean['Unit No.'].isin(layout_units_clean)]
+                    layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
+                else:
+                    layout_options = []
             else:
                 layout_options = []
         else:
             layout_options = []
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
     
+    with col3:
+        # Empty column for spacing
+        pass
+    
     # --- Efficient Data Filtering ---
     def get_filtered_rental_data(return_unfiltered=False):
         """Get filtered rental data based on user selections."""
-        # Only proceed if a project is selected
-        if selected_project == "All":
+        # Build filter conditions based on context-aware selections
+        filter_conditions = []
+        
+        if selected_development != "All":
+            filter_conditions.append(all_transactions['All Developments'] == selected_development)
+        if selected_community != "All":
+            filter_conditions.append(all_transactions['Community/Building'] == selected_community)
+        if selected_subcommunity != "All":
+            filter_conditions.append(all_transactions['Sub Community / Building'] == selected_subcommunity)
+        
+        # If no filters are selected, return None
+        if not filter_conditions:
             return None
         
-        # Get all units for the selected project from transaction data
-        project_units = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
+        # Apply filters to get filtered units
+        filtered_transactions = all_transactions[pd.concat(filter_conditions, axis=1).all(axis=1)]
+        project_units = filtered_transactions['Unit No.'].dropna().unique()
         
         # Create a DataFrame with unit numbers and project info
         units_df = pd.DataFrame({
-            'Unit No.': project_units,
-            'Project': selected_project
+            'Unit No.': project_units
         })
         
         # Add transaction data (Development, Community, Sub Community) for these units
@@ -2826,9 +2881,9 @@ with tab5:
     filtered_rental_data = get_filtered_rental_data()
     all_units_rental_data = get_filtered_rental_data(return_unfiltered=True)
     
-    # Only show table/metrics if a project is selected
-    if selected_project == "All":
-        st.info("Please select a project to view rental data.")
+    # Only show table/metrics if filters are selected
+    if selected_development == "All" and selected_community == "All" and selected_subcommunity == "All":
+        st.info("Please select at least one filter (Development, Community, or Sub Community) to view rental data.")
         # st.stop()  # Commented out to allow AI Valuation tab to render
     
     # Show data count
