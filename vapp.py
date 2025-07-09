@@ -2745,7 +2745,7 @@ with tab5:
     st.subheader("Filter Options")
     
     # Row 1: Development, Community, Sub Community (context-aware)
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         # Development filter - get from rental data
@@ -2773,7 +2773,19 @@ with tab5:
         else:
             subcom_options = sorted(rental_df['Sub Community/Building'].dropna().unique()) if not rental_df.empty and 'Sub Community/Building' in rental_df.columns else []
         selected_subcommunity = st.selectbox("Sub Community/Building", options=["All"] + subcom_options, key="rental_subcommunity_filter")
-    
+
+    with col4:
+        # Bedrooms filter - context-aware based on previous filters
+        bedrooms_df = rental_df.copy()
+        if selected_development != "All":
+            bedrooms_df = bedrooms_df[bedrooms_df['All Developments'] == selected_development]
+        if selected_community != "All":
+            bedrooms_df = bedrooms_df[bedrooms_df['Community/Building'] == selected_community]
+        if selected_subcommunity != "All":
+            bedrooms_df = bedrooms_df[bedrooms_df['Sub Community/Building'] == selected_subcommunity]
+        bedrooms_options = sorted(bedrooms_df['Beds'].dropna().astype(str).unique()) if not bedrooms_df.empty and 'Beds' in bedrooms_df.columns else []
+        selected_bedrooms = st.selectbox("Bedrooms", options=["All"] + bedrooms_options, key="rental_bedrooms_filter")
+
     # Row 2: Status, Layout Type, (empty for spacing)
     col1, col2, col3 = st.columns(3)
     
@@ -2800,7 +2812,7 @@ with tab5:
     with col3:
         # Empty column for spacing
         pass
-    
+
     # --- Data Filtering Logic ---
     def get_filtered_rental_data():
         """Get filtered rental data based on user selections."""
@@ -2816,7 +2828,9 @@ with tab5:
             filtered_data = filtered_data[filtered_data['Community/Building'] == selected_community]
         if selected_subcommunity != "All":
             filtered_data = filtered_data[filtered_data['Sub Community/Building'] == selected_subcommunity]
-        
+        # Apply bedrooms filter
+        if selected_bedrooms != "All":
+            filtered_data = filtered_data[filtered_data['Beds'].astype(str) == selected_bedrooms]
         # Apply layout type filter
         if selected_layout != "All":
             filtered_data = filtered_data[filtered_data['Layout Type'] == selected_layout]
