@@ -1420,47 +1420,49 @@ with tab2:
                     filtered_listings = pd.DataFrame(filtered_listings)
         else:
             # --- Tab-Specific Filter Logic ---
-            st.markdown("### Tab Filters")
+            with st.expander("Tab Filters", expanded=False):
+                # Start with all listings for tab filters
+                tab_filtered = filtered_listings.copy()
+                import pandas as pd
+                if not isinstance(tab_filtered, pd.DataFrame):
+                    tab_filtered = pd.DataFrame(tab_filtered)
 
-            # Start with all listings for tab filters
-            tab_filtered = filtered_listings.copy()
-            import pandas as pd
-            if not isinstance(tab_filtered, pd.DataFrame):
-                tab_filtered = pd.DataFrame(tab_filtered)
+                # Get unique values for each filter based on current selections
+                dev_options = sorted(tab_filtered['Development'].dropna().unique()) if 'Development' in tab_filtered.columns else []
+                com_options = sorted(tab_filtered['Community'].dropna().unique()) if 'Community' in tab_filtered.columns else []
+                subcom_options = sorted(tab_filtered['Subcommunity'].dropna().unique()) if 'Subcommunity' in tab_filtered.columns else []
+                type_options = sorted(tab_filtered['Type'].dropna().unique()) if 'Type' in tab_filtered.columns else []
+                beds_options = sorted(tab_filtered['Beds'].dropna().unique()) if 'Beds' in tab_filtered.columns else []
+                layout_options = sorted(tab_filtered['Layout Type'].dropna().unique()) if 'Layout Type' in tab_filtered.columns else []
 
-            # Get unique values for each filter based on current selections
-            dev_options = sorted(tab_filtered['Development'].dropna().unique()) if 'Development' in tab_filtered.columns else []
-            tab_development = st.selectbox("Development", options=["All"] + dev_options, key="tab_live_dev")
-            if tab_development != "All" and 'Development' in tab_filtered.columns:
-                tab_filtered = tab_filtered[tab_filtered['Development'] == tab_development]
+                # 3 columns, 2 rows
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    tab_development = st.selectbox("Development", options=["All"] + dev_options, key="tab_live_dev")
+                    tab_subcommunity = st.multiselect("Subcommunity", options=subcom_options, key="tab_live_subcomm")
+                with col2:
+                    tab_community = st.multiselect("Community", options=com_options, key="tab_live_comm")
+                    tab_property_type = st.selectbox("Property Type", options=["All"] + type_options, key="tab_live_type")
+                with col3:
+                    tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_live_beds")
+                    tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_live_layout")
 
-            com_options = sorted(tab_filtered['Community'].dropna().unique()) if 'Community' in tab_filtered.columns else []
-            tab_community = st.multiselect("Community", options=com_options, key="tab_live_comm")
-            if tab_community and 'Community' in tab_filtered.columns:
-                tab_filtered = tab_filtered[tab_filtered['Community'].isin(tab_community)]
+                # Apply filters in order
+                if tab_development != "All" and 'Development' in tab_filtered.columns:
+                    tab_filtered = tab_filtered[tab_filtered['Development'] == tab_development]
+                if tab_community and 'Community' in tab_filtered.columns:
+                    tab_filtered = tab_filtered[tab_filtered['Community'].isin(tab_community)]
+                if tab_subcommunity and 'Subcommunity' in tab_filtered.columns:
+                    tab_filtered = tab_filtered[tab_filtered['Subcommunity'].isin(tab_subcommunity)]
+                if tab_property_type != "All" and 'Type' in tab_filtered.columns:
+                    tab_filtered = tab_filtered[tab_filtered['Type'] == tab_property_type]
+                if tab_bedrooms != "All" and 'Beds' in tab_filtered.columns:
+                    tab_filtered = tab_filtered[tab_filtered['Beds'].astype(str) == tab_bedrooms]
+                if tab_layout_type and 'Layout Type' in tab_filtered.columns:
+                    tab_filtered = tab_filtered[tab_filtered['Layout Type'].isin(tab_layout_type)]
 
-            subcom_options = sorted(tab_filtered['Subcommunity'].dropna().unique()) if 'Subcommunity' in tab_filtered.columns else []
-            tab_subcommunity = st.multiselect("Subcommunity", options=subcom_options, key="tab_live_subcomm")
-            if tab_subcommunity and 'Subcommunity' in tab_filtered.columns:
-                tab_filtered = tab_filtered[tab_filtered['Subcommunity'].isin(tab_subcommunity)]
-
-            type_options = sorted(tab_filtered['Type'].dropna().unique()) if 'Type' in tab_filtered.columns else []
-            tab_property_type = st.selectbox("Property Type", options=["All"] + type_options, key="tab_live_type")
-            if tab_property_type != "All" and 'Type' in tab_filtered.columns:
-                tab_filtered = tab_filtered[tab_filtered['Type'] == tab_property_type]
-
-            beds_options = sorted(tab_filtered['Beds'].dropna().unique()) if 'Beds' in tab_filtered.columns else []
-            tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_live_beds")
-            if tab_bedrooms != "All" and 'Beds' in tab_filtered.columns:
-                tab_filtered = tab_filtered[tab_filtered['Beds'].astype(str) == tab_bedrooms]
-
-            layout_options = sorted(tab_filtered['Layout Type'].dropna().unique()) if 'Layout Type' in tab_filtered.columns else []
-            tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_live_layout")
-            if tab_layout_type and 'Layout Type' in tab_filtered.columns:
-                tab_filtered = tab_filtered[tab_filtered['Layout Type'].isin(tab_layout_type)]
-
-            # After all filters, assign to filtered_listings for display
-            filtered_listings = tab_filtered
+                # After all filters, assign to filtered_listings for display
+                filtered_listings = tab_filtered
 
         
         # Exclude listings marked as not available
