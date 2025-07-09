@@ -214,6 +214,9 @@ def _on_unit_number_change():
     if unit_number:
         # Get the unit's data
         unit_data = all_transactions[all_transactions['Unit No.'] == unit_number]
+        # Ensure unit_data is a DataFrame
+        if not isinstance(unit_data, pd.DataFrame):
+            unit_data = pd.DataFrame(unit_data)
         if not unit_data.empty:
             unit_row = unit_data.iloc[0]
             
