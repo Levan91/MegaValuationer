@@ -2955,6 +2955,7 @@ with tab5:
             st.plotly_chart(fig, use_container_width=True)
     
     # --- Step 2: Table Display ---
+    selected_row = None  # Always define before table logic
     if filtered_rental_data is not None and not filtered_rental_data.empty:
         st.subheader("Rental Data Table")
         
