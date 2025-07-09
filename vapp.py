@@ -1484,16 +1484,19 @@ with tab2:
             n_total = len(prices)
             n_below = (prices < asking_price).sum() if asking_price > 0 else 0
             n_above = (prices > asking_price).sum() if asking_price > 0 else 0
+            n_same = (prices == asking_price).sum() if asking_price > 0 else 0
             pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
             pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
+            pct_same = (n_same / n_total * 100) if n_total and asking_price > 0 else 0
             # Percentile rank
             percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
             
             # Display metrics
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
             col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
-            col3.metric("Percentile", f"{percentile:.1f}%")
+            col3.metric("Listings At Same Price", n_same, f"{pct_same:.1f}%")
+            col4.metric("Percentile", f"{percentile:.1f}%")
         else:
             st.info("No valid price data available for the selected filter.")
         
@@ -1682,16 +1685,19 @@ with tab3:
             n_total = len(prices)
             n_below = (prices < asking_price).sum() if asking_price > 0 else 0
             n_above = (prices > asking_price).sum() if asking_price > 0 else 0
+            n_same = (prices == asking_price).sum() if asking_price > 0 else 0
             pct_below = (n_below / n_total * 100) if n_total and asking_price > 0 else 0
             pct_above = (n_above / n_total * 100) if n_total and asking_price > 0 else 0
+            pct_same = (n_same / n_total * 100) if n_total and asking_price > 0 else 0
             # Percentile rank
             percentile = (prices < asking_price).sum() / n_total * 100 if n_total and asking_price > 0 else 0
             
             # Display metrics
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             col1.metric("Listings Below", n_below, f"{pct_below:.1f}%")
             col2.metric("Listings Above", n_above, f"{pct_above:.1f}%")
-            col3.metric("Percentile", f"{percentile:.1f}%")
+            col3.metric("Listings At Same Price", n_same, f"{pct_same:.1f}%")
+            col4.metric("Percentile", f"{percentile:.1f}%")
         else:
             st.info("No valid price data available for the selected filter.")
         
