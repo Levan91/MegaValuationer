@@ -141,6 +141,7 @@ from scipy.stats import norm
  
 import numpy as np
 from datetime import datetime, timedelta
+import time
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -201,22 +202,43 @@ def _reset_filters():
 
 def _on_unit_number_change():
     """Callback function for unit number selection changes"""
+    # Use state coordination to prevent race conditions
+    if not should_process_callback("unit_number", 500):
+        return
+    
+    # Set flag to prevent other callbacks from interfering
+    set_filter_update_flag()
+    
     # Clear other filters when unit is selected to avoid conflicts
     unit_number = st.session_state.get("unit_number", "")
     if unit_number:
-        # Clear location filters when unit is selected (unless locked)
+        # Only clear location filters if not locked and no update in progress
         if not st.session_state.get("lock_location_filters", False):
-            st.session_state.pop("development", None)
-            st.session_state.pop("community", None)
-            st.session_state.pop("subcommunity", None)
-        # Clear property filters
-        st.session_state.pop("property_type", None)
-        st.session_state.pop("bedrooms", None)
-        st.session_state.pop("bua", None)
-        st.session_state.pop("plot_size", None)
-        st.session_state.pop("layout_type", None)
+            if not is_filter_update_in_progress():
+                st.session_state.pop("development", None)
+                st.session_state.pop("community", None)
+                st.session_state.pop("subcommunity", None)
+        
+        # Clear property filters only if they don't match the unit
+        if not is_filter_update_in_progress():
+            st.session_state.pop("property_type", None)
+            st.session_state.pop("bedrooms", None)
+            st.session_state.pop("bua", None)
+            st.session_state.pop("plot_size", None)
+            st.session_state.pop("layout_type", None)
+    
+    # Clear flag
+    clear_filter_update_flag()
 
 def _on_development_change():
+    """Callback function for development selection changes"""
+    # Use state coordination to prevent race conditions
+    if not should_process_callback("development", 300):
+        return
+    
+    # Set flag to prevent other callbacks from interfering
+    set_filter_update_flag()
+    
     # Only clear unit_number if it no longer matches the selected development
     unit_number = st.session_state.get("unit_number", "")
     development = st.session_state.get("development", "")
@@ -232,10 +254,22 @@ def _on_development_change():
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
 
+    # Clear dependent filters
     st.session_state.pop("community", None)
     st.session_state.pop("subcommunity", None)
+    
+    # Clear flag
+    clear_filter_update_flag()
 
 def _on_community_change():
+    """Callback function for community selection changes"""
+    # Use state coordination to prevent race conditions
+    if not should_process_callback("community", 300):
+        return
+    
+    # Set flag to prevent other callbacks from interfering
+    set_filter_update_flag()
+    
     # Only clear unit_number if it no longer matches the selected communities
     unit_number = st.session_state.get("unit_number", "")
     community = st.session_state.get("community", [])
@@ -254,9 +288,21 @@ def _on_community_change():
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
 
+    # Clear dependent filters
     st.session_state.pop("subcommunity", None)
+    
+    # Clear flag
+    clear_filter_update_flag()
 
 def _on_subcommunity_change():
+    """Callback function for subcommunity selection changes"""
+    # Use state coordination to prevent race conditions
+    if not should_process_callback("subcommunity", 300):
+        return
+    
+    # Set flag to prevent other callbacks from interfering
+    set_filter_update_flag()
+    
     # Only clear unit_number if it no longer matches the selected subcommunities
     unit_number = st.session_state.get("unit_number", "")
     subcommunity = st.session_state.get("subcommunity", [])
@@ -276,15 +322,77 @@ def _on_subcommunity_change():
         valid_units = unit_nos.dropna().unique()
         if unit_number not in valid_units:
             st.session_state.pop("unit_number", None)
-    else:
-        st.session_state.pop("unit_number", None)
+    
+    # Clear flag
+    clear_filter_update_flag()
 
 def _on_bedrooms_change():
+    """Callback function for bedrooms selection changes"""
+    # Use state coordination to prevent race conditions
+    if not should_process_callback("bedrooms", 300):
+        return
+    
+    # Set flag to prevent other callbacks from interfering
+    set_filter_update_flag()
+    
     # Clear only the unit number selection when bedrooms changes
-    st.session_state["unit_number"] = ""
+    st.session_state.pop("unit_number", None)
+    
+    # Clear flag
+    clear_filter_update_flag()
 
 # --- Page Config ---
 st.set_page_config(page_title="Valuation App V2", layout="wide")
+
+# --- State Coordination System ---
+def initialize_state_coordination():
+    """Initialize state coordination to prevent race conditions"""
+    if "state_coordination" not in st.session_state:
+        st.session_state["state_coordination"] = {
+            "last_update": time.time(),
+            "updating_filters": False,
+            "filter_update_queue": [],
+            "debounce_timers": {}
+        }
+
+def should_process_callback(callback_name, debounce_ms=300):
+    """Check if callback should be processed based on debouncing"""
+    coord = st.session_state.get("state_coordination", {})
+    timers = coord.get("debounce_timers", {})
+    
+    current_time = time.time()
+    last_time = timers.get(callback_name, 0)
+    
+    if current_time - last_time < (debounce_ms / 1000):
+        return False
+    
+    # Update timer
+    timers[callback_name] = current_time
+    coord["debounce_timers"] = timers
+    st.session_state["state_coordination"] = coord
+    
+    return True
+
+def set_filter_update_flag():
+    """Set flag to indicate filter update in progress"""
+    coord = st.session_state.get("state_coordination", {})
+    coord["updating_filters"] = True
+    coord["last_update"] = time.time()
+    st.session_state["state_coordination"] = coord
+
+def clear_filter_update_flag():
+    """Clear flag when filter update is complete"""
+    coord = st.session_state.get("state_coordination", {})
+    coord["updating_filters"] = False
+    st.session_state["state_coordination"] = coord
+
+def is_filter_update_in_progress():
+    """Check if a filter update is currently in progress"""
+    coord = st.session_state.get("state_coordination", {})
+    return coord.get("updating_filters", False)
+
+# Initialize state coordination
+initialize_state_coordination()
 
 # --- Load Transaction Data from Data/Transactions (cached) ---
 transactions_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Transactions')
