@@ -2713,8 +2713,8 @@ with tab5:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        # Project filter
-        project_options = sorted(layout_map_df['Project'].dropna().unique()) if not layout_map_df.empty else []
+        # Project filter - use all projects from transaction data, not just layout files
+        project_options = sorted(all_transactions['All Developments'].dropna().unique()) if not all_transactions.empty else []
         selected_project = st.selectbox("Project", options=["All"] + project_options, key="rental_project_filter")
     
     with col2:
@@ -2723,12 +2723,21 @@ with tab5:
         selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
     
     with col3:
-        # Layout Type filter
+        # Layout Type filter - get from transaction data and layout mapping
         if selected_project != "All":
-            filtered_layouts = layout_map_df[layout_map_df['Project'] == selected_project]
+            # Get units for this project
+            project_units = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
+            # Get layout types from layout mapping for these units
+            if not layout_map_df.empty:
+                layout_map_df_clean = layout_map_df.copy()
+                layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
+                project_units_clean = [str(u).strip().upper() for u in project_units]
+                filtered_layouts = layout_map_df_clean[layout_map_df_clean['Unit No.'].isin(project_units_clean)]
+                layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
+            else:
+                layout_options = []
         else:
-            filtered_layouts = layout_map_df
-        layout_options = sorted(filtered_layouts['Layout Type'].dropna().unique()) if not filtered_layouts.empty else []
+            layout_options = []
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
     
     # --- Efficient Data Filtering ---
@@ -2737,17 +2746,35 @@ with tab5:
         # Only proceed if a project is selected
         if selected_project == "All":
             return None
-        # Filter layout_map_df to selected project/layout
-        layout_query = layout_map_df.copy()
-        layout_query['Unit No.'] = layout_query['Unit No.'].astype(str).str.strip().str.upper()
-        if selected_project != "All":
-            layout_query = layout_query[layout_query['Project'] == selected_project]
+        
+        # Get all units for the selected project from transaction data
+        project_units = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
+        
+        # Create a DataFrame with unit numbers and project info
+        units_df = pd.DataFrame({
+            'Unit No.': project_units,
+            'Project': selected_project
+        })
+        
+        # Add layout type if available from layout mapping
+        if not layout_map_df.empty:
+            layout_map_df_clean = layout_map_df.copy()
+            layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
+            units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
+            units_df = pd.merge(units_df, layout_map_df_clean[['Unit No.', 'Layout Type']], on='Unit No.', how='left')
+        else:
+            units_df['Layout Type'] = ''
+        
+        # Filter by layout type if selected
         if selected_layout != "All":
-            layout_query = layout_query[layout_query['Layout Type'] == selected_layout]
+            units_df = units_df[units_df['Layout Type'] == selected_layout]
+        
         # Merge with rental_df_processed (latest contract per unit, if any)
         rental_info = rental_df_processed.copy()
         rental_info['Unit No.'] = rental_info['Unit No.'].astype(str).str.strip().str.upper()
-        merged = pd.merge(layout_query, rental_info, on='Unit No.', how='left', suffixes=('', '_rental'))
+        units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
+        merged = pd.merge(units_df, rental_info, on='Unit No.', how='left', suffixes=('', '_rental'))
+        
         # Calculate status efficiently using vectorized operations
         today = pd.Timestamp.now().normalize()
         merged['Contract Start'] = pd.to_datetime(merged['Contract Start'], errors='coerce')
@@ -2802,13 +2829,12 @@ with tab5:
     else:
         st.info("📊 No rental data available")
     
-    # --- Calculate Total Units from Layout Map ---
-    total_units_query = layout_map_df.copy()
+    # --- Calculate Total Units from Transaction Data ---
     if selected_project != "All":
-        total_units_query = total_units_query[total_units_query['Project'] == selected_project]
-    if selected_layout != "All":
-        total_units_query = total_units_query[total_units_query['Layout Type'] == selected_layout]
-    total_units = total_units_query['Unit No.'].nunique() if not total_units_query.empty else 0
+        total_units_query = all_transactions[all_transactions['All Developments'] == selected_project]['Unit No.'].dropna().unique()
+        total_units = len(total_units_query)
+    else:
+        total_units = 0
     
     # Columns to show
     if filtered_rental_data is not None:
