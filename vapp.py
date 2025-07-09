@@ -453,27 +453,35 @@ else:
     st.warning("No transaction data loaded.")
 
 # --- Load rental data and extract contract dates ---
-rental_file_path = os.path.join(os.path.dirname(__file__), "Data", "Rentals", "Maple_rentals.xlsx")
-if os.path.exists(rental_file_path):
+rentals_dir = os.path.join(os.path.dirname(__file__), "Data", "Rentals")
+rental_files = [f for f in os.listdir(rentals_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+rental_dfs = []
+for file in rental_files:
+    file_path = os.path.join(rentals_dir, file)
     try:
-        rental_df = pd.read_excel(rental_file_path)
-        rental_df.columns = rental_df.columns.str.replace('\xa0', '', regex=False).str.strip()
+        df = pd.read_excel(file_path)
+        df.columns = df.columns.str.replace('\xa0', '', regex=False).str.strip()
         # Normalize unit numbers for matching
-        rental_df['Unit No.'] = rental_df['Unit No.'].astype(str).str.strip().str.upper()
-        # Split Evidence Date into start/end
-        rental_df[['Contract Start', 'Contract End']] = (
-            rental_df['Evidence Date']
-            .str.replace('\u00A0', '', regex=False)
-            .str.split('/', expand=True)
-        )
-        rental_df['Contract Start'] = pd.to_datetime(
-            rental_df['Contract Start'].str.strip(), errors='coerce', dayfirst=True
-        )
-        rental_df['Contract End'] = pd.to_datetime(
-            rental_df['Contract End'].str.strip(), errors='coerce', dayfirst=True
-        )
+        df['Unit No.'] = df['Unit No.'].astype(str).str.strip().str.upper()
+        # Split Evidence Date into start/end if present
+        if 'Evidence Date' in df.columns:
+            df[['Contract Start', 'Contract End']] = (
+                df['Evidence Date']
+                .astype(str)
+                .str.replace('\u00A0', '', regex=False)
+                .str.split('/', expand=True)
+            )
+            df['Contract Start'] = pd.to_datetime(
+                df['Contract Start'].str.strip(), errors='coerce', dayfirst=True
+            )
+            df['Contract End'] = pd.to_datetime(
+                df['Contract End'].str.strip(), errors='coerce', dayfirst=True
+            )
+        rental_dfs.append(df)
     except Exception as e:
-        st.warning(f"Failed to load rental data: {e}")
+        st.warning(f"Failed to load rental data from {file}: {e}")
+if rental_dfs:
+    rental_df = pd.concat(rental_dfs, ignore_index=True)
 else:
     import pandas as pd
     rental_df = pd.DataFrame(columns=pd.Index(['Unit No.', 'Contract Start', 'Contract End']))
