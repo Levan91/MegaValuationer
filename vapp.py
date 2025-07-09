@@ -1345,67 +1345,157 @@ with tab2:
     st.markdown("<!-- LIVE LISTINGS TAB START -->")
     if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
         st.subheader("All Live Listings")
+        
+        # --- Filter Mode Switch ---
+        filter_mode = st.radio(
+            "Filter Mode:",
+            ["Use Sidebar Filters", "Use Tab Filters"],
+            horizontal=True,
+            key="live_listings_filter_mode"
+        )
+        
         # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_listings = all_listings.copy()
         import pandas as pd
         if not isinstance(filtered_listings, pd.DataFrame):
             filtered_listings = pd.DataFrame(filtered_listings)
-        def norm(x):
-            return str(x).strip().lower() if pd.notnull(x) else ""
-        norm_community = [norm(c) for c in community] if community else []
-        norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
-        norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
-        # Always apply subcommunity/layout type filters if selected, regardless of other filters
-        if 'Development' in filtered_listings.columns and development:
-            filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
-        if 'Community' in filtered_listings.columns and community:
-            filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
-        if 'Subcommunity' in filtered_listings.columns and subcommunity:
-            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
-        if 'Layout Type' in filtered_listings.columns and layout_type:
-            filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
-        # Debug output
-        # st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
-        # st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
-        # st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
-        # st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
-        # st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
-        # st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
-        if not isinstance(filtered_listings, pd.DataFrame):
-            filtered_listings = pd.DataFrame(filtered_listings)
-        if property_type and 'Type' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Type'] == property_type]
+        
+        if filter_mode == "Use Sidebar Filters":
+            # --- Existing Sidebar Filter Logic ---
+            def norm(x):
+                return str(x).strip().lower() if pd.notnull(x) else ""
+            norm_community = [norm(c) for c in community] if community else []
+            norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
+            norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
+            # Always apply subcommunity/layout type filters if selected, regardless of other filters
+            if 'Development' in filtered_listings.columns and development:
+                filtered_listings = filtered_listings[filtered_listings['Development'].apply(norm) == norm(development)]
+            if 'Community' in filtered_listings.columns and community:
+                filtered_listings = filtered_listings[filtered_listings['Community'].apply(norm).isin(norm_community)]
+            if 'Subcommunity' in filtered_listings.columns and subcommunity:
+                filtered_listings = filtered_listings[filtered_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
+            if 'Layout Type' in filtered_listings.columns and layout_type:
+                filtered_listings = filtered_listings[filtered_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
+            # Debug output
+            # st.write('DEBUG: Listings after Development filter:', len(filtered_listings))
+            # st.write('DEBUG: Listings after Community filter:', len(filtered_listings))
+            # st.write('DEBUG: Listings after Subcommunity filter:', len(filtered_listings))
+            # st.write('DEBUG: Listings after Layout Type filter:', len(filtered_listings))
+            # st.write('DEBUG: Unique Subcommunity values:', filtered_listings["Subcommunity"].unique() if 'Subcommunity' in filtered_listings.columns else 'N/A')
+            # st.write('DEBUG: Unique Layout Type values:', filtered_listings["Layout Type"].unique() if 'Layout Type' in filtered_listings.columns else 'N/A')
             if not isinstance(filtered_listings, pd.DataFrame):
                 filtered_listings = pd.DataFrame(filtered_listings)
-        if bedrooms and 'Beds' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == bedrooms]
-            if not isinstance(filtered_listings, pd.DataFrame):
-                filtered_listings = pd.DataFrame(filtered_listings)
-        # Floor tolerance filter for live listings (optional, not specified in instructions)
-        if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_listings.columns:
-            try:
-                selected_floor = int(
-                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
-                )
-                tol = st.session_state['floor_tolerance']
-                low = selected_floor - tol
-                high = selected_floor + tol
-                filtered_listings = filtered_listings[
-                    (filtered_listings['Floor Level'] >= low) &
-                    (filtered_listings['Floor Level'] <= high)
-                ]
+            if property_type and 'Type' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Type'] == property_type]
                 if not isinstance(filtered_listings, pd.DataFrame):
                     filtered_listings = pd.DataFrame(filtered_listings)
-            except Exception:
-                pass
-        if layout_type and 'Layout Type' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(layout_type)]  # type: ignore
-            if not isinstance(filtered_listings, pd.DataFrame):
-                filtered_listings = pd.DataFrame(filtered_listings)
-        if sales_recurrence != "All" and 'Sales Recurrence' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Sales Recurrence'] == sales_recurrence]
-            if not isinstance(filtered_listings, pd.DataFrame):
-                filtered_listings = pd.DataFrame(filtered_listings)
+            if bedrooms and 'Beds' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == bedrooms]
+                if not isinstance(filtered_listings, pd.DataFrame):
+                    filtered_listings = pd.DataFrame(filtered_listings)
+            # Floor tolerance filter for live listings (optional, not specified in instructions)
+            if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_listings.columns:
+                try:
+                    selected_floor = int(
+                        all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+                    )
+                    tol = st.session_state['floor_tolerance']
+                    low = selected_floor - tol
+                    high = selected_floor + tol
+                    filtered_listings = filtered_listings[
+                        (filtered_listings['Floor Level'] >= low) &
+                        (filtered_listings['Floor Level'] <= high)
+                    ]
+                    if not isinstance(filtered_listings, pd.DataFrame):
+                        filtered_listings = pd.DataFrame(filtered_listings)
+                except Exception:
+                    pass
+            if layout_type and 'Layout Type' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(layout_type)]  # type: ignore
+                if not isinstance(filtered_listings, pd.DataFrame):
+                    filtered_listings = pd.DataFrame(filtered_listings)
+            if sales_recurrence != "All" and 'Sales Recurrence' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Sales Recurrence'] == sales_recurrence]
+                if not isinstance(filtered_listings, pd.DataFrame):
+                    filtered_listings = pd.DataFrame(filtered_listings)
+        else:
+            # --- Tab-Specific Filter Logic ---
+            st.markdown("### Tab Filters")
+            
+            # Get unique values from listings data for filter options
+            dev_options = sorted(filtered_listings['Development'].dropna().unique()) if 'Development' in filtered_listings.columns else []
+            com_options = sorted(filtered_listings['Community'].dropna().unique()) if 'Community' in filtered_listings.columns else []
+            subcom_options = sorted(filtered_listings['Subcommunity'].dropna().unique()) if 'Subcommunity' in filtered_listings.columns else []
+            type_options = sorted(filtered_listings['Type'].dropna().unique()) if 'Type' in filtered_listings.columns else []
+            beds_options = sorted(filtered_listings['Beds'].dropna().unique()) if 'Beds' in filtered_listings.columns else []
+            layout_options = sorted(filtered_listings['Layout Type'].dropna().unique()) if 'Layout Type' in filtered_listings.columns else []
+            
+            # Create filter columns
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                tab_development = st.selectbox("Development", options=["All"] + dev_options, key="tab_live_dev")
+                tab_community = st.multiselect("Community", options=com_options, key="tab_live_comm")
+                tab_property_type = st.selectbox("Property Type", options=["All"] + type_options, key="tab_live_type")
+            
+            with col2:
+                tab_subcommunity = st.multiselect("Subcommunity", options=subcom_options, key="tab_live_subcomm")
+                tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_live_beds")
+                tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_live_layout")
+            
+            with col3:
+                # Price range filters
+                if 'Price (AED)' in filtered_listings.columns:
+                    price_min = filtered_listings['Price (AED)'].min()
+                    price_max = filtered_listings['Price (AED)'].max()
+                    tab_price_min = st.number_input("Min Price (AED)", min_value=0, value=int(price_min) if pd.notnull(price_min) else 0, key="tab_live_price_min")
+                    tab_price_max = st.number_input("Max Price (AED)", min_value=0, value=int(price_max) if pd.notnull(price_max) else 1000000, key="tab_live_price_max")
+                
+                # BUA range filters
+                if 'BUA' in filtered_listings.columns:
+                    bua_min = filtered_listings['BUA'].min()
+                    bua_max = filtered_listings['BUA'].max()
+                    tab_bua_min = st.number_input("Min BUA (sq ft)", min_value=0, value=int(bua_min) if pd.notnull(bua_min) else 0, key="tab_live_bua_min")
+                    tab_bua_max = st.number_input("Max BUA (sq ft)", min_value=0, value=int(bua_max) if pd.notnull(bua_max) else 10000, key="tab_live_bua_max")
+                
+                # Days listed filter
+                if 'Days Listed' in filtered_listings.columns:
+                    tab_days_listed = st.number_input("Max Days Listed", min_value=1, value=365, key="tab_live_days")
+            
+            # Apply tab-specific filters
+            if tab_development != "All" and 'Development' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Development'] == tab_development]
+            
+            if tab_community and 'Community' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Community'].isin(tab_community)]
+            
+            if tab_subcommunity and 'Subcommunity' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Subcommunity'].isin(tab_subcommunity)]
+            
+            if tab_property_type != "All" and 'Type' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Type'] == tab_property_type]
+            
+            if tab_bedrooms != "All" and 'Beds' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == tab_bedrooms]
+            
+            if tab_layout_type and 'Layout Type' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(tab_layout_type)]
+            
+            if 'Price (AED)' in filtered_listings.columns:
+                filtered_listings = filtered_listings[
+                    (filtered_listings['Price (AED)'] >= tab_price_min) & 
+                    (filtered_listings['Price (AED)'] <= tab_price_max)
+                ]
+            
+            if 'BUA' in filtered_listings.columns:
+                filtered_listings = filtered_listings[
+                    (filtered_listings['BUA'] >= tab_bua_min) & 
+                    (filtered_listings['BUA'] <= tab_bua_max)
+                ]
+            
+            if 'Days Listed' in filtered_listings.columns:
+                filtered_listings = filtered_listings[filtered_listings['Days Listed'] <= tab_days_listed]
+        
         # Exclude listings marked as not available
         if 'Availability' in filtered_listings.columns:
             avail_col = filtered_listings['Availability']
@@ -1439,12 +1529,12 @@ with tab2:
         st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
 
         # Add a switch to filter listings: all, only unique, only duplicates
-        filter_mode = st.radio(
+        show_filter_mode = st.radio(
             "Show:",
             ["All listings", "Only unique listings", "Only duplicate listings"],
             index=0,
             horizontal=True,
-            key="live_listings_filter_mode"
+            key="live_listings_show_filter_mode"
         )
         # Compute DLD counts for filtering
         dld_col = filtered_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_listings.columns else pd.Series([])
@@ -1454,7 +1544,7 @@ with tab2:
         unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
         duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
         # Filter listings based on switch (corrected logic)
-        if filter_mode == "Only unique listings":
+        if show_filter_mode == "Only unique listings":
             # For each DLD Permit Number (excluding empty/null), show only the first occurrence
             mask = (
                 filtered_listings["DLD Permit Number"].notna() &
@@ -1462,7 +1552,7 @@ with tab2:
             )
             filtered_listings = filtered_listings[mask]
             filtered_listings = filtered_listings.drop_duplicates(subset=["DLD Permit Number"], keep="first")
-        elif filter_mode == "Only duplicate listings":
+        elif show_filter_mode == "Only duplicate listings":
             filtered_listings = filtered_listings[filtered_listings["DLD Permit Number"].isin(duplicate_dlds)]
         # (rest of code unchanged)
 
@@ -1553,60 +1643,150 @@ with tab3:
     st.markdown("<!-- RENT LISTINGS TAB START -->")
     if isinstance(all_rent_listings, pd.DataFrame) and all_rent_listings.shape[0] > 0:
         st.subheader("All Rent Listings")
+        
+        # --- Filter Mode Switch ---
+        filter_mode = st.radio(
+            "Filter Mode:",
+            ["Use Sidebar Filters", "Use Tab Filters"],
+            horizontal=True,
+            key="rent_listings_filter_mode"
+        )
+        
         # Apply sidebar filters to rent listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_rent_listings = all_rent_listings.copy()
         import pandas as pd
         if not isinstance(filtered_rent_listings, pd.DataFrame):
             filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
-        def norm(x):
-            return str(x).strip().lower() if pd.notnull(x) else ""
-        norm_community = [norm(c) for c in community] if community else []
-        norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
-        norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
-        # Always apply subcommunity/layout type filters if selected, regardless of other filters
-        if 'Development' in filtered_rent_listings.columns and development:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Development'].apply(norm) == norm(development)]
-        if 'Community' in filtered_rent_listings.columns and community:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Community'].apply(norm).isin(norm_community)]
-        if 'Subcommunity' in filtered_rent_listings.columns and subcommunity:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
-        if 'Layout Type' in filtered_rent_listings.columns and layout_type:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
-        if not isinstance(filtered_rent_listings, pd.DataFrame):
-            filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
-        if property_type and 'Type' in filtered_rent_listings.columns:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Type'] == property_type]
+        
+        if filter_mode == "Use Sidebar Filters":
+            # --- Existing Sidebar Filter Logic ---
+            def norm(x):
+                return str(x).strip().lower() if pd.notnull(x) else ""
+            norm_community = [norm(c) for c in community] if community else []
+            norm_subcommunity = [norm(s) for s in subcommunity] if subcommunity else []
+            norm_layout_type = [norm(l) for l in layout_type] if layout_type else []
+            # Always apply subcommunity/layout type filters if selected, regardless of other filters
+            if 'Development' in filtered_rent_listings.columns and development:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Development'].apply(norm) == norm(development)]
+            if 'Community' in filtered_rent_listings.columns and community:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Community'].apply(norm).isin(norm_community)]
+            if 'Subcommunity' in filtered_rent_listings.columns and subcommunity:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Subcommunity'].apply(norm).isin(norm_subcommunity)]
+            if 'Layout Type' in filtered_rent_listings.columns and layout_type:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].apply(norm).isin(norm_layout_type)]
             if not isinstance(filtered_rent_listings, pd.DataFrame):
                 filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
-        if bedrooms and 'Beds' in filtered_rent_listings.columns:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Beds'].astype(str) == bedrooms]
-            if not isinstance(filtered_rent_listings, pd.DataFrame):
-                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
-        # Floor tolerance filter for rent listings (optional, not specified in instructions)
-        if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_rent_listings.columns:
-            try:
-                selected_floor = int(
-                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
-                )
-                tol = st.session_state['floor_tolerance']
-                low = selected_floor - tol
-                high = selected_floor + tol
-                filtered_rent_listings = filtered_rent_listings[
-                    (filtered_rent_listings['Floor Level'] >= low) &
-                    (filtered_rent_listings['Floor Level'] <= high)
-                ]
+            if property_type and 'Type' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Type'] == property_type]
                 if not isinstance(filtered_rent_listings, pd.DataFrame):
                     filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
-            except Exception:
-                pass
-        if layout_type and 'Layout Type' in filtered_rent_listings.columns:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].isin(layout_type)]  # type: ignore
-            if not isinstance(filtered_rent_listings, pd.DataFrame):
-                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
-        if sales_recurrence != "All" and 'Sales Recurrence' in filtered_rent_listings.columns:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Sales Recurrence'] == sales_recurrence]
-            if not isinstance(filtered_rent_listings, pd.DataFrame):
-                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+            if bedrooms and 'Beds' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Beds'].astype(str) == bedrooms]
+                if not isinstance(filtered_rent_listings, pd.DataFrame):
+                    filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+            # Floor tolerance filter for rent listings (optional, not specified in instructions)
+            if property_type == "Apartment" and unit_number and 'floor_tolerance' in st.session_state and 'Floor Level' in filtered_rent_listings.columns:
+                try:
+                    selected_floor = int(
+                        all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+                    )
+                    tol = st.session_state['floor_tolerance']
+                    low = selected_floor - tol
+                    high = selected_floor + tol
+                    filtered_rent_listings = filtered_rent_listings[
+                        (filtered_rent_listings['Floor Level'] >= low) &
+                        (filtered_rent_listings['Floor Level'] <= high)
+                    ]
+                    if not isinstance(filtered_rent_listings, pd.DataFrame):
+                        filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+                except Exception:
+                    pass
+            if layout_type and 'Layout Type' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].isin(layout_type)]  # type: ignore
+                if not isinstance(filtered_rent_listings, pd.DataFrame):
+                    filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+            if sales_recurrence != "All" and 'Sales Recurrence' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Sales Recurrence'] == sales_recurrence]
+                if not isinstance(filtered_rent_listings, pd.DataFrame):
+                    filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        else:
+            # --- Tab-Specific Filter Logic ---
+            st.markdown("### Tab Filters")
+            
+            # Get unique values from rent listings data for filter options
+            dev_options = sorted(filtered_rent_listings['Development'].dropna().unique()) if 'Development' in filtered_rent_listings.columns else []
+            com_options = sorted(filtered_rent_listings['Community'].dropna().unique()) if 'Community' in filtered_rent_listings.columns else []
+            subcom_options = sorted(filtered_rent_listings['Subcommunity'].dropna().unique()) if 'Subcommunity' in filtered_rent_listings.columns else []
+            type_options = sorted(filtered_rent_listings['Type'].dropna().unique()) if 'Type' in filtered_rent_listings.columns else []
+            beds_options = sorted(filtered_rent_listings['Beds'].dropna().unique()) if 'Beds' in filtered_rent_listings.columns else []
+            layout_options = sorted(filtered_rent_listings['Layout Type'].dropna().unique()) if 'Layout Type' in filtered_rent_listings.columns else []
+            
+            # Create filter columns
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                tab_development = st.selectbox("Development", options=["All"] + dev_options, key="tab_rent_dev")
+                tab_community = st.multiselect("Community", options=com_options, key="tab_rent_comm")
+                tab_property_type = st.selectbox("Property Type", options=["All"] + type_options, key="tab_rent_type")
+            
+            with col2:
+                tab_subcommunity = st.multiselect("Subcommunity", options=subcom_options, key="tab_rent_subcomm")
+                tab_bedrooms = st.selectbox("Bedrooms", options=["All"] + [str(x) for x in beds_options], key="tab_rent_beds")
+                tab_layout_type = st.multiselect("Layout Type", options=layout_options, key="tab_rent_layout")
+            
+            with col3:
+                # Price range filters
+                if 'Price (AED)' in filtered_rent_listings.columns:
+                    price_min = filtered_rent_listings['Price (AED)'].min()
+                    price_max = filtered_rent_listings['Price (AED)'].max()
+                    tab_price_min = st.number_input("Min Price (AED)", min_value=0, value=int(price_min) if pd.notnull(price_min) else 0, key="tab_rent_price_min")
+                    tab_price_max = st.number_input("Max Price (AED)", min_value=0, value=int(price_max) if pd.notnull(price_max) else 1000000, key="tab_rent_price_max")
+                
+                # BUA range filters
+                if 'BUA' in filtered_rent_listings.columns:
+                    bua_min = filtered_rent_listings['BUA'].min()
+                    bua_max = filtered_rent_listings['BUA'].max()
+                    tab_bua_min = st.number_input("Min BUA (sq ft)", min_value=0, value=int(bua_min) if pd.notnull(bua_min) else 0, key="tab_rent_bua_min")
+                    tab_bua_max = st.number_input("Max BUA (sq ft)", min_value=0, value=int(bua_max) if pd.notnull(bua_max) else 10000, key="tab_rent_bua_max")
+                
+                # Days listed filter
+                if 'Days Listed' in filtered_rent_listings.columns:
+                    tab_days_listed = st.number_input("Max Days Listed", min_value=1, value=365, key="tab_rent_days")
+            
+            # Apply tab-specific filters
+            if tab_development != "All" and 'Development' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Development'] == tab_development]
+            
+            if tab_community and 'Community' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Community'].isin(tab_community)]
+            
+            if tab_subcommunity and 'Subcommunity' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Subcommunity'].isin(tab_subcommunity)]
+            
+            if tab_property_type != "All" and 'Type' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Type'] == tab_property_type]
+            
+            if tab_bedrooms != "All" and 'Beds' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Beds'].astype(str) == tab_bedrooms]
+            
+            if tab_layout_type and 'Layout Type' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Layout Type'].isin(tab_layout_type)]
+            
+            if 'Price (AED)' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[
+                    (filtered_rent_listings['Price (AED)'] >= tab_price_min) & 
+                    (filtered_rent_listings['Price (AED)'] <= tab_price_max)
+                ]
+            
+            if 'BUA' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[
+                    (filtered_rent_listings['BUA'] >= tab_bua_min) & 
+                    (filtered_rent_listings['BUA'] <= tab_bua_max)
+                ]
+            
+            if 'Days Listed' in filtered_rent_listings.columns:
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Days Listed'] <= tab_days_listed]
+        
         # Exclude listings marked as not available
         if 'Availability' in filtered_rent_listings.columns:
             avail_col = filtered_rent_listings['Availability']
@@ -1640,12 +1820,12 @@ with tab3:
         st.markdown(f"**Showing {total_rent_listings} rent listings | {total_unique_rent_listings} unique listings | Ratio: {ratio_str}**")
 
         # Add a switch to filter listings: all, only unique, only duplicates
-        filter_mode = st.radio(
+        show_filter_mode = st.radio(
             "Show:",
             ["All listings", "Only unique listings", "Only duplicate listings"],
             index=0,
             horizontal=True,
-            key="rent_listings_filter_mode"
+            key="rent_listings_show_filter_mode"
         )
         # Compute DLD counts for filtering
         dld_col = filtered_rent_listings["DLD Permit Number"] if "DLD Permit Number" in filtered_rent_listings.columns else pd.Series([])
@@ -1655,7 +1835,7 @@ with tab3:
         unique_dlds = [dld for dld in dld_counts.index if dld_counts[dld] == 1 and str(dld).strip() != ""]
         duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
         # Filter listings based on switch (corrected logic)
-        if filter_mode == "Only unique listings":
+        if show_filter_mode == "Only unique listings":
             # For each DLD Permit Number (excluding empty/null), show only the first occurrence
             mask = (
                 filtered_rent_listings["DLD Permit Number"].notna() &
@@ -1663,7 +1843,7 @@ with tab3:
             )
             filtered_rent_listings = filtered_rent_listings[mask]
             filtered_rent_listings = filtered_rent_listings.drop_duplicates(subset=["DLD Permit Number"], keep="first")
-        elif filter_mode == "Only duplicate listings":
+        elif show_filter_mode == "Only duplicate listings":
             filtered_rent_listings = filtered_rent_listings[filtered_rent_listings["DLD Permit Number"].isin(duplicate_dlds)]
         # (rest of code unchanged)
 
