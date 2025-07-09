@@ -2838,6 +2838,16 @@ with tab5:
         units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
         merged = pd.merge(units_df, rental_info, on='Unit No.', how='left', suffixes=('', '_rental'))
         
+        # DEBUG: Show samples and unique unit numbers for diagnosis
+        st.write('DEBUG: units_df sample', units_df.head(10))
+        st.write('DEBUG: rental_info sample', rental_info.head(10))
+        st.write('DEBUG: merged sample', merged.head(10))
+        st.write('DEBUG: units_df Unit No. unique', units_df['Unit No.'].unique()[:10])
+        st.write('DEBUG: rental_info Unit No. unique', rental_info['Unit No.'].unique()[:10])
+        st.write('DEBUG: merged Unit No. unique', merged['Unit No.'].unique()[:10])
+        st.write('DEBUG: merged columns', merged.columns.tolist())
+        st.write('DEBUG: Park Heights in rental_info', rental_info[rental_info.get('Community/Building', '') == 'Park Heights'])
+
         # Calculate status efficiently using vectorized operations
         today = pd.Timestamp.now().normalize()
         merged['Contract Start'] = pd.to_datetime(merged['Contract Start'], errors='coerce')
