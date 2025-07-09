@@ -341,7 +341,16 @@ else:
 @cache_data
 def load_all_listings(listings_dir):
     """Load and concatenate all Excel listing files, with caching."""
-    files = [f for f in os.listdir(listings_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+    # Check if directory exists, if not return empty DataFrame
+    if not os.path.exists(listings_dir):
+        return pd.DataFrame()
+    
+    try:
+        files = [f for f in os.listdir(listings_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+    except Exception as e:
+        st.warning(f"Failed to access listings directory: {e}")
+        return pd.DataFrame()
+    
     dfs = []
     for file in files:
         path = os.path.join(listings_dir, file)
@@ -358,7 +367,16 @@ def load_all_listings(listings_dir):
 @cache_data
 def load_all_rent_listings(rent_listings_dir):
     """Load and concatenate all Excel rent listing files, with caching."""
-    files = [f for f in os.listdir(rent_listings_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+    # Check if directory exists, if not return empty DataFrame
+    if not os.path.exists(rent_listings_dir):
+        return pd.DataFrame()
+    
+    try:
+        files = [f for f in os.listdir(rent_listings_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
+    except Exception as e:
+        st.warning(f"Failed to access rent listings directory: {e}")
+        return pd.DataFrame()
+    
     dfs = []
     for file in files:
         path = os.path.join(rent_listings_dir, file)
