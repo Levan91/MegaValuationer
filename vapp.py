@@ -499,19 +499,22 @@ with st.sidebar:
     if filter_mode == "Manual Selection":
         st.subheader("Property Info")
         with st.expander("🛠️ Manual Property Info", expanded=True):
-            property_type = st.session_state.get("property_type", "")
-            bedrooms = st.session_state.get("bedrooms", "")
-            bua = st.session_state.get("bua", "")
-            plot_size = st.session_state.get("plot_size", "")
+            # Get current values from session state
+            current_property_type = st.session_state.get("property_type", "")
+            current_bedrooms = st.session_state.get("bedrooms", "")
+            current_bua = st.session_state.get("bua", "")
+            current_plot_size = st.session_state.get("plot_size", "")
 
             prop_type_col = all_transactions['Unit Type']
             if not isinstance(prop_type_col, pd.Series):
                 prop_type_col = pd.Series(prop_type_col)
             prop_type_options = prop_type_col.dropna().unique().tolist()
+            
+            # Use session state for property type
             property_type = st.selectbox(
                 "Property Type",
                 options=[""] + sorted(prop_type_options),
-                index=0,
+                index=([""] + sorted(prop_type_options)).index(current_property_type) if current_property_type in prop_type_options else 0,
                 key="property_type"
             )
 
@@ -519,88 +522,24 @@ with st.sidebar:
             if not isinstance(beds_col, pd.Series):
                 beds_col = pd.Series(beds_col)
             bedrooms_options = beds_col.dropna().astype(str).unique().tolist()
+            
+            # Use session state for bedrooms
             bedrooms = st.selectbox(
                 "Bedrooms",
                 options=[""] + sorted(bedrooms_options),
-                index=0,
+                index=([""] + sorted(bedrooms_options)).index(current_bedrooms) if current_bedrooms in bedrooms_options else 0,
                 key="bedrooms"
             )
 
-            bua = st.text_input("BUA (sq ft)", value=bua, key="bua")
-            plot_size = st.text_input("Plot Size (sq ft)", value=plot_size, key="plot_size")
+            # Use session state for BUA and plot size
+            bua = st.text_input("BUA (sq ft)", value=current_bua, key="bua")
+            plot_size = st.text_input("Plot Size (sq ft)", value=current_plot_size, key="plot_size")
     else:
-        # In Unit Selection mode, show as disabled info fields (do not show property info fields)
+        # In Unit Selection mode, get values from session state but don't show input fields
         property_type = st.session_state.get("property_type", "")
         bedrooms = st.session_state.get("bedrooms", "")
         bua = st.session_state.get("bua", "")
         plot_size = st.session_state.get("plot_size", "")
-
-    unit_number = st.session_state.get("unit_number", "")
-    # Ensure variables are always defined to avoid NameError in layout filtering
-    development = st.session_state.get("development", "")
-    community = st.session_state.get("community", [])
-    subcommunity = st.session_state.get("subcommunity", "")
-
-    # --- If in Live Listings context, sync location/layout filters from selected unit ---
-    # This block ensures that when a unit is selected, the location and layout filters update accordingly
-    # (applies to both transactions and listings, but especially relevant for listings)
-    # Use all_listings columns if available, else fallback to all_transactions
-    units_df = all_listings if 'all_listings' in locals() and not all_listings.empty else all_transactions
-    selected_development = development
-    selected_community = community
-    selected_sub_communities = community if isinstance(community, list) else [community] if community else []
-    layout_type_options = []
-    selected_layout_type = None
-    if unit_number:
-        unit_row_df = all_transactions[all_transactions['Unit No.'] == unit_number]  # type: ignore
-        if not isinstance(unit_row_df, pd.DataFrame):
-            unit_row_df = pd.DataFrame(unit_row_df)
-        unit_row = unit_row_df.iloc[0]
-        if not unit_row.empty:
-            # Fix: handle Series vs DataFrame for .columns and .values
-            if isinstance(unit_row, pd.Series):
-                selected_development = unit_row.get("Development", unit_row.get("All Developments", ""))
-                selected_community = unit_row.get("Community", unit_row.get("Community/Building", ""))
-                sub_community = unit_row.get("Subcommunity", unit_row.get("Sub Community / Building", ""))
-                # Fix: robustly handle sub_community as scalar or iterable (but not string/None/DataFrame)
-                import numpy as np
-                if sub_community is None:
-                    sub_community_val = None
-                elif isinstance(sub_community, pd.DataFrame):
-                    vals = sub_community.values.flatten()
-                    sub_community_val = next((v for v in vals if pd.notna(v)), None)
-                elif isinstance(sub_community, pd.Series):
-                    vals = sub_community.tolist()
-                    sub_community_val = next((v for v in vals if pd.notna(v)), None)
-                elif hasattr(sub_community, '__iter__') and not isinstance(sub_community, str):
-                    vals = list(sub_community)
-                    sub_community_val = next((v for v in vals if pd.notna(v)), None)
-                else:
-                    sub_community_val = sub_community if pd.notna(sub_community) else None
-                selected_sub_communities = [sub_community_val] if sub_community_val is not None else []
-                layout = unit_row.get("Layout Type", "")
-            else:
-                selected_development = unit_row["Development"].values[0] if "Development" in unit_row.columns else unit_row["All Developments"].values[0] if "All Developments" in unit_row.columns else ""
-                selected_community = unit_row["Community"].values[0] if "Community" in unit_row.columns else unit_row["Community/Building"].values[0] if "Community/Building" in unit_row.columns else ""
-                sub_community = unit_row["Subcommunity"].values[0] if "Subcommunity" in unit_row.columns else unit_row["Sub Community / Building"].values[0] if "Sub Community / Building" in unit_row.columns else ""
-                # Fix: robustly handle sub_community as scalar or iterable (but not string/None/DataFrame)
-                import numpy as np
-                if sub_community is None:
-                    sub_community_val = None
-                elif isinstance(sub_community, pd.DataFrame):
-                    vals = sub_community.values.flatten()
-                    sub_community_val = next((v for v in vals if pd.notna(v)), None)
-                elif isinstance(sub_community, pd.Series):
-                    vals = sub_community.tolist()
-                    sub_community_val = next((v for v in vals if pd.notna(v)), None)
-                elif hasattr(sub_community, '__iter__') and not isinstance(sub_community, str):
-                    vals = list(sub_community)
-                    sub_community_val = next((v for v in vals if pd.notna(v)), None)
-                else:
-                    sub_community_val = sub_community if pd.notna(sub_community) else None
-                selected_sub_communities = [sub_community_val] if sub_community_val is not None else []
-                layout = unit_row["Layout Type"].values[0] if "Layout Type" in unit_row.columns else ""
-
 
     # --- Unit Number Filter ---
     st.subheader("Unit Number")
@@ -633,11 +572,11 @@ with st.sidebar:
     else:
         unit_number_options = []
     
-    current = st.session_state.get("unit_number", "")
+    current_unit = st.session_state.get("unit_number", "")
     options = [""] + unit_number_options
     # Safer index calculation
     try:
-        default_idx = options.index(current) if current in options else 0
+        default_idx = options.index(current_unit) if current_unit in options else 0
     except (ValueError, IndexError):
         default_idx = 0
     
@@ -698,14 +637,14 @@ with st.sidebar:
             unit_no_col = pd.Series(unit_no_col)
         layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
 
-    # If the unit selection logic above found layout_type_options, use them
-    if layout_type_options:
-        layout_options = layout_type_options
-    else:
-        layout_type_col = layout_df_filtered['Layout Type']
-        if not isinstance(layout_type_col, pd.Series):
-            layout_type_col = pd.Series(layout_type_col)
-        layout_options = sorted(layout_type_col.dropna().unique())
+    # Get current layout type from session state
+    current_layout_type = st.session_state.get("layout_type", [])
+    
+    # Get layout options from filtered layout data
+    layout_type_col = layout_df_filtered['Layout Type']
+    if not isinstance(layout_type_col, pd.Series):
+        layout_type_col = pd.Series(layout_type_col)
+    layout_options = sorted(layout_type_col.dropna().unique())
     
     normalized_unit_number = unit_number.strip().upper() if unit_number else ""
     mapped_layout = layout_map.get(normalized_unit_number, "") if normalized_unit_number else ""
@@ -747,14 +686,11 @@ with st.sidebar:
                 unit_no_col = pd.Series(unit_no_col)
             layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
 
-        # If the unit selection logic above found layout_type_options, use them
-        if layout_type_options:
-            layout_options = layout_type_options
-        else:
-            layout_type_col = layout_df_filtered['Layout Type']
-            if not isinstance(layout_type_col, pd.Series):
-                layout_type_col = pd.Series(layout_type_col)
-            layout_options = sorted(layout_type_col.dropna().unique())
+        # Get layout options from filtered layout data
+        layout_type_col = layout_df_filtered['Layout Type']
+        if not isinstance(layout_type_col, pd.Series):
+            layout_type_col = pd.Series(layout_type_col)
+        layout_options = sorted(layout_type_col.dropna().unique())
 
     # Debug: Show layout filtering info
     with st.expander("🔧 Debug Layout Filtering", expanded=False):
@@ -764,21 +700,21 @@ with st.sidebar:
         st.write(f"**Current Unit:** {unit_number}")
         st.write(f"**Mapped Layout:** {mapped_layout}")
         st.write(f"**Layout Options:** {layout_options}")
-        st.write(f"**Selected Layout Type:** {selected_layout_type}")
+        st.write(f"**Current Layout Type:** {current_layout_type}")
         st.write(f"**Current Community:** {current_community}")
         st.write(f"**Current Subcommunity:** {current_subcommunity}")
     
-    # If the unit selection logic above found selected_layout_type, use it
+    # Use session state for layout type with proper default handling
     layout_type = st.multiselect(
         "Layout Type",
         options=layout_options,
-        default=[selected_layout_type] if selected_layout_type and selected_layout_type in layout_options else ([mapped_layout] if mapped_layout in layout_options else []),
+        default=current_layout_type if current_layout_type and all(l in layout_options for l in current_layout_type) else ([mapped_layout] if mapped_layout in layout_options else []),
         key="layout_type"
     )
 
     # --- Location Filters ---
     st.subheader("Location")
-    lock_location_filters = st.checkbox("🔒 Lock Location Filters", value=False, key="lock_location_filters")
+    lock_location_filters = st.checkbox("🔒 Lock Location Filters", value=st.session_state.get("lock_location_filters", False), key="lock_location_filters")
     if not all_transactions.empty:
         dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique())
         com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique())
@@ -786,15 +722,10 @@ with st.sidebar:
     else:
         dev_options = com_options = subcom_options = []
 
-    development = st.session_state.get("development", "")
-    community = st.session_state.get("community", [])
-    subcommunity = st.session_state.get("subcommunity", "")
-    property_type = ""
-    bedrooms = ""
-    floor = ""
-    bua = ""
-    plot_size = ""
-    sales_recurrence = "All"
+    # Get current values from session state
+    current_development = st.session_state.get("development", "")
+    current_community = st.session_state.get("community", [])
+    current_subcommunity = st.session_state.get("subcommunity", [])
 
     # --- Filter Mode logic for autofill/disable ---
     # In Unit Selection mode, use unit_number to autofill fields. In Manual, allow manual input.
@@ -835,17 +766,17 @@ with st.sidebar:
             floor = str(unit_row['Floor Level']) if pd.notna(unit_row['Floor Level']) else ""
             plot_size = unit_row['Plot Size (sq ft)'] if pd.notna(unit_row['Plot Size (sq ft)']) else ""
         else:
-            development = st.session_state.get("development", "")
-            community = st.session_state.get("community", [])
-            subcommunity = st.session_state.get("subcommunity", "")
+            development = current_development
+            community = current_community
+            subcommunity = current_subcommunity
             property_type = st.session_state.get("property_type", "")
             bedrooms = st.session_state.get("bedrooms", "")
             bua = st.session_state.get("bua", "")
             plot_size = st.session_state.get("plot_size", "")
     else:
-        development = st.session_state.get("development", "")
-        community = st.session_state.get("community", [])
-        subcommunity = st.session_state.get("subcommunity", "")
+        development = current_development
+        community = current_community
+        subcommunity = current_subcommunity
         property_type = st.session_state.get("property_type", "")
         bedrooms = st.session_state.get("bedrooms", "")
         bua = st.session_state.get("bua", "")
@@ -877,52 +808,77 @@ with st.sidebar:
         if not isinstance(subcom_col, pd.Series):
             subcom_col = pd.Series(subcom_col)
         subcom_options = sorted(subcom_col.dropna().unique())
+    else:
+        subcom_options = []
+    
+    # Handle subcommunity as list or string properly
+    if isinstance(subcommunity, list):
+        subcommunity_default = subcommunity
+    else:
+        subcommunity_default = [subcommunity] if subcommunity else []
+    
     subcommunity = st.multiselect(
         "Sub community / Building",
         options=subcom_options,
-        default=[subcommunity] if subcommunity in subcom_options else [],
+        default=subcommunity_default,
         key="subcommunity",
         on_change=_on_subcommunity_change
     )
 
-
     # --- Time Period Filter ---
     st.subheader("Time Period")
-    time_filter_mode = st.selectbox("Time Filter Mode", ["", "Last N Days", "After Date", "From Date to Date"], index=1, key="time_filter_mode", placeholder="")
+    time_filter_mode = st.selectbox("Time Filter Mode", ["", "Last N Days", "After Date", "From Date to Date"], 
+                                   index=["", "Last N Days", "After Date", "From Date to Date"].index(st.session_state.get("time_filter_mode", "Last N Days")), 
+                                   key="time_filter_mode", placeholder="")
+    
     last_n_days = None
     after_date = None
     date_range = (None, None)
+    
     if time_filter_mode == "Last N Days":
-        last_n_days = st.number_input("Enter number of days", min_value=1, step=1, value=365, key="last_n_days")
+        last_n_days = st.number_input("Enter number of days", min_value=1, step=1, 
+                                     value=st.session_state.get("last_n_days", 365), key="last_n_days")
     elif time_filter_mode == "After Date":
-        after_date = st.date_input("Select start date", key="after_date")
+        after_date = st.date_input("Select start date", 
+                                  value=st.session_state.get("after_date", None), key="after_date")
     elif time_filter_mode == "From Date to Date":
-        date_range = st.date_input("Select date range", value=(None, None), key="date_range")
+        date_range = st.date_input("Select date range", 
+                                  value=st.session_state.get("date_range", (None, None)), key="date_range")
     st.markdown("---")
 
-
     # Floor Tolerance filter toggle
-    enable_floor_tol = st.checkbox("Enable floor tolerance", value=False, key="enable_floor_tol")
+    enable_floor_tol = st.checkbox("Enable floor tolerance", 
+                                  value=st.session_state.get("enable_floor_tol", False), key="enable_floor_tol")
     if enable_floor_tol and property_type == "Apartment":
         floor_tolerance = st.number_input(
-            "Floor tolerance (± floors)", min_value=0, step=1, value=0, key="floor_tolerance"
+            "Floor tolerance (± floors)", min_value=0, step=1, 
+            value=st.session_state.get("floor_tolerance", 0), key="floor_tolerance"
         )
     else:
         floor_tolerance = 0
+        
     # BUA Tolerance filter toggle
-    enable_bua_tol = st.checkbox("Enable BUA tolerance", value=False, key="enable_bua_tol")
+    enable_bua_tol = st.checkbox("Enable BUA tolerance", 
+                                value=st.session_state.get("enable_bua_tol", False), key="enable_bua_tol")
     if enable_bua_tol:
-        bua_tolerance = st.number_input("BUA tolerance (± sq ft)", min_value=0, step=1, value=0, key="bua_tolerance")
+        bua_tolerance = st.number_input("BUA tolerance (± sq ft)", min_value=0, step=1, 
+                                       value=st.session_state.get("bua_tolerance", 0), key="bua_tolerance")
     else:
         bua_tolerance = 0
+        
     # Plot Size Tolerance filter toggle
-    enable_plot_tol = st.checkbox("Enable Plot Size tolerance", value=False, key="enable_plot_tol")
+    enable_plot_tol = st.checkbox("Enable Plot Size tolerance", 
+                                 value=st.session_state.get("enable_plot_tol", False), key="enable_plot_tol")
     if enable_plot_tol:
-        plot_tolerance = st.number_input("Plot Size tolerance (± sq ft)", min_value=0, step=1, value=0, key="plot_tolerance")
+        plot_tolerance = st.number_input("Plot Size tolerance (± sq ft)", min_value=0, step=1, 
+                                        value=st.session_state.get("plot_tolerance", 0), key="plot_tolerance")
     else:
         plot_tolerance = 0
 
-    sales_recurrence = st.selectbox("Sales Recurrence", options=sales_rec_options, index=sales_rec_options.index(sales_recurrence) if sales_recurrence in sales_rec_options else 0, key="sales_recurrence", placeholder="")
+    sales_recurrence = st.selectbox("Sales Recurrence", 
+                                   options=sales_rec_options, 
+                                   index=sales_rec_options.index(st.session_state.get("sales_recurrence", "All")), 
+                                   key="sales_recurrence", placeholder="")
 
 # --- Filter Transactions based on Time Period ---
 filtered_transactions = all_transactions.copy()
