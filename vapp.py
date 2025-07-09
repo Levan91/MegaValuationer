@@ -2756,11 +2756,19 @@ with tab5:
             'Project': selected_project
         })
         
+        # Add transaction data (Development, Community, Sub Community) for these units
+        transaction_data = all_transactions[all_transactions['Unit No.'].isin(project_units)][
+            ['Unit No.', 'All Developments', 'Community/Building', 'Sub Community / Building']
+        ].drop_duplicates(subset=['Unit No.'])
+        
+        units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
+        transaction_data['Unit No.'] = transaction_data['Unit No.'].astype(str).str.strip().str.upper()
+        units_df = pd.merge(units_df, transaction_data, on='Unit No.', how='left')
+        
         # Add layout type if available from layout mapping
         if not layout_map_df.empty:
             layout_map_df_clean = layout_map_df.copy()
             layout_map_df_clean['Unit No.'] = layout_map_df_clean['Unit No.'].astype(str).str.strip().str.upper()
-            units_df['Unit No.'] = units_df['Unit No.'].astype(str).str.strip().str.upper()
             units_df = pd.merge(units_df, layout_map_df_clean[['Unit No.', 'Layout Type']], on='Unit No.', how='left')
         else:
             units_df['Layout Type'] = ''
@@ -2838,14 +2846,23 @@ with tab5:
     # --- Calculate Total Units from Filtered Data ---
     total_units = len(all_units_rental_data) if all_units_rental_data is not None else 0
     
-    # Columns to show
+        # Columns to show in specific order
     if filtered_rental_data is not None:
-        display_cols = [
-            'Unit No.', 'Layout Type', 'Project', 'Contract Start', 'Contract End',
-            'Annualised Rental Price(AED)', 'Annualised Rental Price (AED)',
-            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent', 'Rent Recurrence'
+        # Define the desired columns in order
+        desired_cols = [
+            'All Developments',  # Development
+            'Community/Building',  # Community
+            'Sub Community / Building',  # Sub Community
+            'Unit No.',
+            'Layout Type',
+            'Contract Start',
+            'Contract End',
+            'Annualised Rental Price(AED)',
+            'Rent Recurrence'
         ]
-        cols_to_show = [c for c in display_cols if c in filtered_rental_data.columns]
+        
+        # Get available columns that exist in the data
+        cols_to_show = [c for c in desired_cols if c in filtered_rental_data.columns]
         cols_final = cols_to_show
         
         # Prepare data for AgGrid
