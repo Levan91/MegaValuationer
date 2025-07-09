@@ -2754,24 +2754,20 @@ with tab5:
     
     with col2:
         # Community filter - context-aware based on selected development
-        if selected_development != "All" and not rental_df.empty:
-            comm_df = rental_df[rental_df['All Developments'] == selected_development]
-            community_options = sorted(comm_df['Community/Building'].dropna().unique()) if 'Community/Building' in comm_df.columns else []
-        else:
-            community_options = sorted(rental_df['Community/Building'].dropna().unique()) if not rental_df.empty and 'Community/Building' in rental_df.columns else []
+        comm_df = rental_df.copy()
+        if selected_development != "All":
+            comm_df = comm_df[comm_df['All Developments'] == selected_development]
+        community_options = sorted(comm_df['Community/Building'].dropna().unique()) if 'Community/Building' in comm_df.columns else []
         selected_community = st.selectbox("Community", options=["All"] + community_options, key="rental_community_filter")
     
     with col3:
         # Sub Community filter - context-aware based on selected development and community
-        if selected_development != "All" and selected_community != "All" and not rental_df.empty:
-            subcom_df = rental_df[rental_df['All Developments'] == selected_development]
+        subcom_df = rental_df.copy()
+        if selected_development != "All":
+            subcom_df = subcom_df[subcom_df['All Developments'] == selected_development]
+        if selected_community != "All":
             subcom_df = subcom_df[subcom_df['Community/Building'] == selected_community]
-            subcom_options = sorted(subcom_df['Sub Community/Building'].dropna().unique()) if 'Sub Community/Building' in subcom_df.columns else []
-        elif selected_development != "All" and not rental_df.empty:
-            subcom_df = rental_df[rental_df['All Developments'] == selected_development]
-            subcom_options = sorted(subcom_df['Sub Community/Building'].dropna().unique()) if 'Sub Community/Building' in subcom_df.columns else []
-        else:
-            subcom_options = sorted(rental_df['Sub Community/Building'].dropna().unique()) if not rental_df.empty and 'Sub Community/Building' in rental_df.columns else []
+        subcom_options = sorted(subcom_df['Sub Community/Building'].dropna().unique()) if 'Sub Community/Building' in subcom_df.columns else []
         selected_subcommunity = st.selectbox("Sub Community/Building", options=["All"] + subcom_options, key="rental_subcommunity_filter")
 
     # Row 2: Bedrooms, Status, Layout Type
@@ -2792,18 +2788,23 @@ with tab5:
         status_options = ["All", "🟢 Available", "🔴 Rented", "🟡 Expiring Soon", "🟣 Expiring <30 days", "🔵 Recently Vacant"]
         selected_status = st.selectbox("Status", options=status_options, key="rental_status_filter")
     with col3:
-        # Layout Type filter - context-aware based on all location filters
-        if selected_development != "All" or selected_community != "All" or selected_subcommunity != "All":
-            layout_df = rental_df.copy()
-            if selected_development != "All":
-                layout_df = layout_df[layout_df['All Developments'] == selected_development]
-            if selected_community != "All":
-                layout_df = layout_df[layout_df['Community/Building'] == selected_community]
-            if selected_subcommunity != "All":
-                layout_df = layout_df[layout_df['Sub Community/Building'] == selected_subcommunity]
-            layout_options = sorted(layout_df['Layout Type'].dropna().unique()) if 'Layout Type' in layout_df.columns else []
+        # Layout Type filter - context-aware based on all previous filters and mapped layout types
+        layout_df = rental_df.copy()
+        if selected_development != "All":
+            layout_df = layout_df[layout_df['All Developments'] == selected_development]
+        if selected_community != "All":
+            layout_df = layout_df[layout_df['Community/Building'] == selected_community]
+        if selected_subcommunity != "All":
+            layout_df = layout_df[layout_df['Sub Community/Building'] == selected_subcommunity]
+        if selected_bedrooms != "All":
+            layout_df = layout_df[layout_df['Beds'].astype(str) == selected_bedrooms]
+        # Use mapped layout types if available
+        if 'Unit No.' in layout_df.columns and layout_map:
+            layout_types = layout_df['Unit No.'].map(layout_map).dropna().unique().tolist()
+            layout_types = [lt for lt in layout_types if lt and lt != 'N/A']
         else:
-            layout_options = sorted(rental_df['Layout Type'].dropna().unique()) if not rental_df.empty and 'Layout Type' in rental_df.columns else []
+            layout_types = layout_df['Layout Type'].dropna().unique().tolist() if 'Layout Type' in layout_df.columns else []
+        layout_options = sorted(set(layout_types))
         selected_layout = st.selectbox("Layout Type", options=["All"] + layout_options, key="rental_layout_filter")
 
     # --- Data Filtering Logic ---
