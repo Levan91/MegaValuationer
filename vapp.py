@@ -2978,12 +2978,44 @@ with tab5:
             start_end = display_data['Evidence Date'].apply(split_evidence_date)
             display_data['Start Date'] = [d[0].strftime('%Y-%m-%d') if pd.notnull(d[0]) else '' for d in start_end]
             display_data['End Date'] = [d[1].strftime('%Y-%m-%d') if pd.notnull(d[1]) else '' for d in start_end]
+            display_data['Start Date_dt'] = [d[0] for d in start_end]
+            display_data['End Date_dt'] = [d[1] for d in start_end]
         else:
             display_data['Start Date'] = ''
             display_data['End Date'] = ''
+            display_data['Start Date_dt'] = pd.NaT
+            display_data['End Date_dt'] = pd.NaT
+        
+        # Calculate status using Start/End dates
+        today = pd.Timestamp.now().normalize()
+        days_left = (pd.to_datetime(display_data['End Date_dt'], errors='coerce') - today).dt.days
+        days_since_end = (today - pd.to_datetime(display_data['End Date_dt'], errors='coerce')).dt.days
+        start_dates = pd.to_datetime(display_data['Start Date_dt'], errors='coerce')
+        end_dates = pd.to_datetime(display_data['End Date_dt'], errors='coerce')
+        
+        status = []
+        for i in range(len(display_data)):
+            start = start_dates.iloc[i]
+            end = end_dates.iloc[i]
+            left = days_left.iloc[i]
+            since_end = days_since_end.iloc[i]
+            if pd.notnull(start) and pd.notnull(end):
+                if start <= today <= end:
+                    if left < 31:
+                        status.append('🟣')  # Expiring <30 days
+                    elif left <= 90:
+                        status.append('🟡')  # Expiring Soon
+                    else:
+                        status.append('🔴')  # Rented
+                elif 0 < since_end <= 60:
+                    status.append('🔵')  # Recently Vacant
+                else:
+                    status.append('🟢')  # Available
+            else:
+                status.append('🟢')  # Available
+        display_data['Status'] = status
         
         # Calculate days left for display using End Date
-        today = pd.Timestamp.now().normalize()
         if 'End Date' in display_data.columns:
             contract_end_dates = pd.to_datetime(display_data['End Date'], errors='coerce')
             days_left = (contract_end_dates - today).dt.days
