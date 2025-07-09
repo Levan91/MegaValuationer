@@ -3018,6 +3018,14 @@ with tab5:
         # Prepare data for display
         display_data = filtered_rental_data.copy()
         
+        # Deduplicate: keep only the most recent rental record per unit
+        if 'Unit No.' in display_data.columns:
+            # Use End Date if available, otherwise Start Date
+            display_data['End Date_dt'] = pd.to_datetime(display_data.get('End Date_dt', pd.NaT), errors='coerce')
+            display_data['Start Date_dt'] = pd.to_datetime(display_data.get('Start Date_dt', pd.NaT), errors='coerce')
+            display_data = display_data.sort_values(['Unit No.', 'End Date_dt', 'Start Date_dt'], ascending=[True, False, False])
+            display_data = display_data.drop_duplicates(subset=['Unit No.'], keep='first')
+        
         # Map Layout Type using layout_map if available
         if 'Unit No.' in display_data.columns and layout_map:
             display_data['Layout Type'] = display_data['Unit No.'].map(layout_map).fillna(display_data.get('Layout Type', ''))
