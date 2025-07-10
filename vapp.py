@@ -2914,13 +2914,72 @@ with tab5:
         st.subheader("📊 Rental Metrics Dashboard")
         
         # --- Total Units logic ---
-        # Use layout_map_df (Types sheet) for total units if available for the selected project
+        # Use layout_map_df (Types sheet) for total units if available, filtered by ALL selected filters
         layout_units_set = set()
-        if selected_development != "All" and not layout_map_df.empty:
-            # Strict match on Project column
-            layout_df = layout_map_df[layout_map_df['Project'].str.lower() == selected_development.lower()]
+        if not layout_map_df.empty:
+            # Start with layout data filtered by Project (Development)
+            layout_df = layout_map_df.copy()
+            if selected_development != "All":
+                layout_df = layout_df[layout_df['Project'].str.lower() == selected_development.lower()]
+            
+            # If we have layout data, apply additional filters based on transaction data
             if not layout_df.empty:
-                layout_units_set = set(layout_df['Unit No.'].dropna().astype(str).str.strip().str.upper().unique())
+                # Get unit numbers from layout data
+                layout_unit_nos = set(layout_df['Unit No.'].dropna().astype(str).str.strip().str.upper().unique())
+                
+                # Filter by Community, Sub Community, Layout Type, and Beds using transaction data
+                if not all_transactions.empty:
+                    # Create a mapping from unit numbers to their properties
+                    unit_properties = {}
+                    
+                    # Get relevant transaction data for the selected development
+                    txn_df = all_transactions.copy()
+                    if selected_development != "All":
+                        txn_df = txn_df[txn_df['All Developments'] == selected_development]
+                    
+                    # Create unit property mapping
+                    for _, row in txn_df.iterrows():
+                        unit_no = str(row.get('Unit No.', '')).strip().upper()
+                        if unit_no:
+                            unit_properties[unit_no] = {
+                                'community': row.get('Community/Building', ''),
+                                'subcommunity': row.get('Sub Community / Building', ''),
+                                'beds': str(row.get('Beds', '')),
+                                'layout_type': row.get('Layout Type', '')
+                            }
+                    
+                    # Filter layout units based on selected criteria
+                    filtered_layout_units = set()
+                    for unit_no in layout_unit_nos:
+                        if unit_no in unit_properties:
+                            props = unit_properties[unit_no]
+                            
+                            # Check Community filter
+                            if selected_community != "All" and props['community'] != selected_community:
+                                continue
+                            
+                            # Check Sub Community filter
+                            if selected_subcommunity != "All" and props['subcommunity'] != selected_subcommunity:
+                                continue
+                            
+                            # Check Beds filter
+                            if selected_bedrooms != "All" and props['beds'] != selected_bedrooms:
+                                continue
+                            
+                            # Check Layout Type filter (use mapped layout type if available)
+                            if selected_layout != "All":
+                                mapped_layout = layout_map.get(unit_no, props['layout_type'])
+                                if mapped_layout != selected_layout:
+                                    continue
+                            
+                            # If all filters pass, include this unit
+                            filtered_layout_units.add(unit_no)
+                    
+                    layout_units_set = filtered_layout_units
+                else:
+                    # No transaction data available, use all layout units for the development
+                    layout_units_set = layout_unit_nos
+        
         # If we have a filtered set from layout, use it
         if layout_units_set:
             total_units = len(layout_units_set)
