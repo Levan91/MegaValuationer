@@ -1391,13 +1391,24 @@ with tab2:
     if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
         st.subheader("All Live Listings")
         
+        # --- Verified Filter Switch ---
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            verified_filter = st.radio(
+                "Show:",
+                ["All Listings", "Verified Only"],
+                horizontal=True,
+                key="live_listings_verified_filter"
+            )
+        
         # --- Filter Mode Switch ---
-        filter_mode = st.radio(
-            "Filter Mode:",
-            ["Use Sidebar Filters", "Use Tab Filters"],
-            horizontal=True,
-            key="live_listings_filter_mode"
-        )
+        with col2:
+            filter_mode = st.radio(
+                "Filter Mode:",
+                ["Use Sidebar Filters", "Use Tab Filters"],
+                horizontal=True,
+                key="live_listings_filter_mode"
+            )
         
         # Apply sidebar filters to live listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_listings = all_listings.copy()
@@ -1544,6 +1555,15 @@ with tab2:
             filtered_listings = filtered_listings[avail_col.astype(str).str.strip().str.lower() != "not available"]
             if not isinstance(filtered_listings, pd.DataFrame):
                 filtered_listings = pd.DataFrame(filtered_listings)
+        
+        # Apply verified filter
+        if verified_filter == "Verified Only" and 'Verified' in filtered_listings.columns:
+            verified_col = filtered_listings['Verified']
+            if not isinstance(verified_col, pd.Series):
+                verified_col = pd.Series(verified_col)
+            filtered_listings = filtered_listings[verified_col.astype(str).str.lower() == 'yes']
+            if not isinstance(filtered_listings, pd.DataFrame):
+                filtered_listings = pd.DataFrame(filtered_listings)
 
         # Hide certain columns but keep them in the DataFrame (do NOT filter by Days Listed or any date here)
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
@@ -1685,13 +1705,24 @@ with tab3:
     if isinstance(all_rent_listings, pd.DataFrame) and all_rent_listings.shape[0] > 0:
         st.subheader("All Rent Listings")
         
+        # --- Verified Filter Switch ---
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            rent_verified_filter = st.radio(
+                "Show:",
+                ["All Listings", "Verified Only"],
+                horizontal=True,
+                key="rent_listings_verified_filter"
+            )
+        
         # --- Filter Mode Switch ---
-        filter_mode = st.radio(
-            "Filter Mode:",
-            ["Use Sidebar Filters", "Use Tab Filters"],
-            horizontal=True,
-            key="rent_listings_filter_mode"
-        )
+        with col2:
+            filter_mode = st.radio(
+                "Filter Mode:",
+                ["Use Sidebar Filters", "Use Tab Filters"],
+                horizontal=True,
+                key="rent_listings_filter_mode"
+            )
         
         # Apply sidebar filters to rent listings (NO date-based or "Days Listed"/"Listed When"/"Listed Date" filtering here)
         filtered_rent_listings = all_rent_listings.copy()
@@ -1801,6 +1832,15 @@ with tab3:
             if not isinstance(avail_col, pd.Series):
                 avail_col = pd.Series(avail_col)
             filtered_rent_listings = filtered_rent_listings[avail_col.astype(str).str.strip().str.lower() != "not available"]
+            if not isinstance(filtered_rent_listings, pd.DataFrame):
+                filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
+        
+        # Apply verified filter
+        if rent_verified_filter == "Verified Only" and 'Verified' in filtered_rent_listings.columns:
+            verified_col = filtered_rent_listings['Verified']
+            if not isinstance(verified_col, pd.Series):
+                verified_col = pd.Series(verified_col)
+            filtered_rent_listings = filtered_rent_listings[verified_col.astype(str).str.lower() == 'yes']
             if not isinstance(filtered_rent_listings, pd.DataFrame):
                 filtered_rent_listings = pd.DataFrame(filtered_rent_listings)
 
