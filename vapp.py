@@ -2719,12 +2719,12 @@ with tab5:
                 def split_contract_dates(val):
                     if pd.isnull(val):
                         return pd.NaT, pd.NaT
-                    val_str = str(val).replace('\u00A0', '').strip()
-                    if '-' in val_str:
-                        parts = val_str.split('-')
+                    val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
+                    if '/' in val_str:
+                        parts = val_str.split('/')
                         if len(parts) == 2:
-                            start = pd.to_datetime(parts[0].strip(), errors='coerce')
-                            end = pd.to_datetime(parts[1].strip(), errors='coerce')
+                            start = pd.to_datetime(parts[0].strip(), errors='coerce', dayfirst=True)
+                            end = pd.to_datetime(parts[1].strip(), errors='coerce', dayfirst=True)
                             return start, end
                     return pd.NaT, pd.NaT
                 
@@ -2845,7 +2845,7 @@ with tab5:
             def split_evidence_date(val):
                 if pd.isnull(val):
                     return pd.NaT, pd.NaT
-                val_str = str(val).replace('\u00A0', '').strip()
+                val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
                 if '/' in val_str:
                     parts = val_str.split('/')
                     if len(parts) == 2:
@@ -3118,7 +3118,7 @@ with tab5:
             def split_evidence_date(val):
                 if pd.isnull(val):
                     return pd.NaT, pd.NaT
-                val_str = str(val).replace('\u00A0', '').strip()
+                val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
                 if '/' in val_str:
                     parts = val_str.split('/')
                     if len(parts) == 2:
