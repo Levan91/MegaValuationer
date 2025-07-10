@@ -1569,7 +1569,7 @@ with tab2:
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
 
-        # Show count of live listings and unique listings
+        # Show count of live listings and unique listings (after all filters including verified)
         total_listings = filtered_listings.shape[0]
         if "DLD Permit Number" in filtered_listings.columns:
             dld_col = filtered_listings["DLD Permit Number"]
@@ -1586,7 +1586,10 @@ with tab2:
             ratio_str = f"{ratio_pct:.1f}%"
         else:
             ratio_str = "N/A"
-        st.markdown(f"**Showing {total_listings} live listings | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
+        
+        # Add verified status to display if verified filter is active
+        verified_text = f" ({verified_filter.lower()})" if verified_filter == "Verified Only" else ""
+        st.markdown(f"**Showing {total_listings} live listings{verified_text} | {total_unique_listings} unique listings | Ratio: {ratio_str}**")
 
         # Add a switch to filter listings: all, only unique, only duplicates
         show_filter_mode = st.radio(
@@ -1848,7 +1851,7 @@ with tab3:
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_rent_listings.columns if c not in columns_to_hide] + ["URL"]
 
-        # Show count of rent listings and unique listings
+        # Show count of rent listings and unique listings (after all filters including verified)
         total_rent_listings = filtered_rent_listings.shape[0]
         if "DLD Permit Number" in filtered_rent_listings.columns:
             dld_col = filtered_rent_listings["DLD Permit Number"]
@@ -1865,7 +1868,10 @@ with tab3:
             ratio_str = f"{ratio_pct:.1f}%"
         else:
             ratio_str = "N/A"
-        st.markdown(f"**Showing {total_rent_listings} rent listings | {total_unique_rent_listings} unique listings | Ratio: {ratio_str}**")
+        
+        # Add verified status to display if verified filter is active
+        rent_verified_text = f" ({rent_verified_filter.lower()})" if rent_verified_filter == "Verified Only" else ""
+        st.markdown(f"**Showing {total_rent_listings} rent listings{rent_verified_text} | {total_unique_rent_listings} unique listings | Ratio: {ratio_str}**")
 
         # Add a switch to filter listings: all, only unique, only duplicates
         show_filter_mode = st.radio(
