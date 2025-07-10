@@ -2987,13 +2987,21 @@ with tab5:
             # Fallback: use unique units in rental data
             total_units = filtered_rental_data['Unit No.'].nunique()
         
-        # Status counts
+        # Status counts from rental data
         status_counts = filtered_rental_data['Status'].value_counts()
-        available_units = status_counts.get('🟢', 0)
         rented_units = status_counts.get('🔴', 0)
         expiring_soon = status_counts.get('🟡', 0)
         expiring_30_days = status_counts.get('🟣', 0)
         recently_vacant = status_counts.get('🔵', 0)
+        
+        # Calculate non-available units (all units that are not available)
+        non_available_units = rented_units + expiring_soon + expiring_30_days + recently_vacant
+        
+        # Available units = Total units - Non-available units
+        available_units = total_units - non_available_units
+        
+        # Ensure available units is not negative
+        available_units = max(0, available_units)
         
         # Calculate occupancy rate
         occupied_units = rented_units + expiring_soon + expiring_30_days
@@ -3048,6 +3056,17 @@ with tab5:
             'Expiring <30d': expiring_30_days,
             'Recently Vacant': recently_vacant
         }
+        
+        # Add debug info to show the calculation
+        with st.expander("🔧 Debug Status Calculation", expanded=False):
+            st.write(f"**Total Units (from layout):** {total_units}")
+            st.write(f"**Non-Available Units:** {non_available_units}")
+            st.write(f"**Available Units (calculated):** {available_units}")
+            st.write(f"**Rented Units:** {rented_units}")
+            st.write(f"**Expiring Soon:** {expiring_soon}")
+            st.write(f"**Expiring <30d:** {expiring_30_days}")
+            st.write(f"**Recently Vacant:** {recently_vacant}")
+            st.write(f"**Occupancy Rate:** {occupancy_rate:.1f}%")
         
         # Create a simple bar chart
         status_df = pd.DataFrame(list(status_data.items()), columns=['Status', 'Count'])
