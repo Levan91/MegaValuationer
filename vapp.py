@@ -137,7 +137,6 @@ import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
-from scipy.stats import norm
  
 import numpy as np
 from datetime import datetime, timedelta
