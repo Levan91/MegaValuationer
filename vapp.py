@@ -1338,16 +1338,6 @@ with tab2:
         
         # Use filtered listings based on sidebar filters
         
-        # Calculate unique listings count
-        total_listings = filtered_listings.shape[0]
-        if 'DLD Permit Number' in filtered_listings.columns:
-            unique_dlds = filtered_listings['DLD Permit Number'].dropna().nunique()
-        else:
-            unique_dlds = total_listings
-        
-        # Show total count
-        st.markdown(f"**Total: {total_listings} listings / {unique_dlds} unique listings**")
-        
         # Add verified filter
         verified_filter = st.radio(
             "Verified listings:",
@@ -1360,7 +1350,16 @@ with tab2:
         # Apply verified filter
         if verified_filter == "Verified only" and 'Verified' in filtered_listings.columns:
             filtered_listings = filtered_listings[filtered_listings['Verified'].str.lower() == 'yes']
-            st.markdown(f"**Showing {filtered_listings.shape[0]} verified listings**")
+        
+        # Calculate unique listings count (after verified filter)
+        total_listings = filtered_listings.shape[0]
+        if 'DLD Permit Number' in filtered_listings.columns:
+            unique_dlds = filtered_listings['DLD Permit Number'].dropna().nunique()
+        else:
+            unique_dlds = total_listings
+        
+        # Show total count
+        st.markdown(f"**Total: {total_listings} listings / {unique_dlds} unique listings**")
         
         # Add listing type selector
         listing_type = st.radio(
@@ -1468,16 +1467,6 @@ with tab3:
         
         # Use filtered rent listings based on sidebar filters
         
-        # Calculate unique listings count
-        total_rent_listings = filtered_rent_listings.shape[0]
-        if 'DLD Permit Number' in filtered_rent_listings.columns:
-            unique_dlds = filtered_rent_listings['DLD Permit Number'].dropna().nunique()
-        else:
-            unique_dlds = total_rent_listings
-        
-        # Show total count
-        st.markdown(f"**Total: {total_rent_listings} listings / {unique_dlds} unique listings**")
-        
         # Add verified filter
         verified_filter = st.radio(
             "Verified listings:",
@@ -1490,7 +1479,16 @@ with tab3:
         # Apply verified filter
         if verified_filter == "Verified only" and 'Verified' in filtered_rent_listings.columns:
             filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Verified'].str.lower() == 'yes']
-            st.markdown(f"**Showing {filtered_rent_listings.shape[0]} verified listings**")
+        
+        # Calculate unique listings count (after verified filter)
+        total_rent_listings = filtered_rent_listings.shape[0]
+        if 'DLD Permit Number' in filtered_rent_listings.columns:
+            unique_dlds = filtered_rent_listings['DLD Permit Number'].dropna().nunique()
+        else:
+            unique_dlds = total_rent_listings
+        
+        # Show total count
+        st.markdown(f"**Total: {total_rent_listings} listings / {unique_dlds} unique listings**")
         
         # Add listing type selector
         listing_type = st.radio(
