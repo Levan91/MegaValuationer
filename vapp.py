@@ -1033,15 +1033,13 @@ with tab1:
     )
 
     if selected_unit:
-        # Remove unit details section, only show sales and rent transactions
-        # Show sales transactions for this unit
+        # Only show sales and rent transactions, remove status info
         st.markdown(f"#### Sales Transactions for {selected_unit}")
         sales_tx = filtered_transactions_no_time[filtered_transactions_no_time[unit_col].astype(str) == selected_unit]
         if not sales_tx.empty:
             st.dataframe(sales_tx)
         else:
             st.info("No sales transactions found for this unit.")
-        # Show rent transactions for this unit (if available)
         rent_tx = pd.DataFrame()
         rent_unit_col = None
         for col in unit_col_candidates:
@@ -1055,14 +1053,6 @@ with tab1:
             st.dataframe(rent_tx)
         else:
             st.info("No rent transactions found for this unit.")
-        # Show status if available
-        if not rent_tx.empty and 'Status' in rent_tx.columns:
-            status = rent_tx['Status'].iloc[0]
-            st.success(f"Status: {status}")
-        elif not rent_tx.empty:
-            st.info("Status info not available.")
-        else:
-            st.info("No rental status info available.")
     # --- End Search Unit Box ---
 
     # Transaction History
