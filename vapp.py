@@ -638,56 +638,12 @@ with st.sidebar:
             key="included_txn_files"
         )
 
-    # --- Filter Mode ---
-    st.subheader("Filter Mode")
-    filter_mode = st.radio("Select filter mode", ["Unit Selection", "Manual Selection"], key="filter_mode", horizontal=True)
-
     # --- Property Filters ---
-    # Show property info filters only in Manual Selection mode, wrapped in an expander
-    if filter_mode == "Manual Selection":
-        st.subheader("Property Info")
-        with st.expander("🛠️ Manual Property Info", expanded=True):
-            # Get current values from session state
-            current_property_type = st.session_state.get("property_type", "")
-            current_bedrooms = st.session_state.get("bedrooms", "")
-            current_bua = st.session_state.get("bua", "")
-            current_plot_size = st.session_state.get("plot_size", "")
-
-            prop_type_col = all_transactions['Unit Type']
-            if not isinstance(prop_type_col, pd.Series):
-                prop_type_col = pd.Series(prop_type_col)
-            prop_type_options = prop_type_col.dropna().unique().tolist()
-            
-            # Use session state for property type
-            property_type = st.selectbox(
-                "Property Type",
-                options=[""] + sorted(prop_type_options),
-                index=([""] + sorted(prop_type_options)).index(current_property_type) if current_property_type in prop_type_options else 0,
-                key="property_type"
-            )
-
-            beds_col = all_transactions['Beds']
-            if not isinstance(beds_col, pd.Series):
-                beds_col = pd.Series(beds_col)
-            bedrooms_options = beds_col.dropna().astype(str).unique().tolist()
-            
-            # Use session state for bedrooms
-            bedrooms = st.selectbox(
-                "Bedrooms",
-                options=[""] + sorted(bedrooms_options),
-                index=([""] + sorted(bedrooms_options)).index(current_bedrooms) if current_bedrooms in bedrooms_options else 0,
-                key="bedrooms"
-            )
-
-            # Use session state for BUA and plot size
-            bua = st.text_input("BUA (sq ft)", value=current_bua, key="bua")
-            plot_size = st.text_input("Plot Size (sq ft)", value=current_plot_size, key="plot_size")
-    else:
-        # In Unit Selection mode, get values from session state but don't show input fields
-        property_type = st.session_state.get("property_type", "")
-        bedrooms = st.session_state.get("bedrooms", "")
-        bua = st.session_state.get("bua", "")
-        plot_size = st.session_state.get("plot_size", "")
+    # Get values from session state (auto-filled from unit selection)
+    property_type = st.session_state.get("property_type", "")
+    bedrooms = st.session_state.get("bedrooms", "")
+    bua = st.session_state.get("bua", "")
+    plot_size = st.session_state.get("plot_size", "")
 
     # --- Unit Number Filter ---
     st.subheader("Unit Number")
@@ -732,20 +688,14 @@ with st.sidebar:
     except (ValueError, IndexError):
         default_idx = 0
     
-    if filter_mode == "Unit Selection":
-        unit_number = st.selectbox(
-            "Unit Number",
-            options=options,
-            index=default_idx,
-            key="unit_number",
-            on_change=_on_unit_number_change,
-            placeholder=""
-        )
-    else:
-        # Manual Selection: Hide/disable unit number
-        st.markdown("**Unit Number:** _(Disabled in Manual Selection)_")
-        unit_number = ""
-        st.session_state["unit_number"] = ""
+    unit_number = st.selectbox(
+        "Unit Number",
+        options=options,
+        index=default_idx,
+        key="unit_number",
+        on_change=_on_unit_number_change,
+        placeholder=""
+    )
 
     # --- Layout Type Filter (by Project, strictly by community/subcommunity) ---
     layout_df_filtered = layout_map_df.copy()
@@ -900,31 +850,22 @@ with st.sidebar:
         sales_rec_options = ['All']
 
     # --- Determine selected values for autofill ---
-    if filter_mode == "Unit Selection":
-        if unit_number:
-            unit_row = all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]  # type: ignore
+    if unit_number:
+        unit_row = all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]  # type: ignore
 
-            if not st.session_state.get("lock_location_filters", False):
-                development = unit_row['All Developments']
-                community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
-                subcommunity = unit_row['Sub Community / Building']
+        if not st.session_state.get("lock_location_filters", False):
+            development = unit_row['All Developments']
+            community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
+            subcommunity = unit_row['Sub Community / Building']
 
-            layout_type_val = unit_row['Layout Type'] if 'Layout Type' in unit_row else ''
-            # Use context-aware lookup for Beds, BUA, Type
-            details = get_unit_details(development, community[0] if community else '', subcommunity, layout_type_val)
-            property_type = details.get('Type', unit_row['Unit Type'] if 'Unit Type' in unit_row else '')
-            bedrooms = str(details.get('Beds', unit_row['Beds'] if 'Beds' in unit_row else ''))
-            bua = details.get('BUA', unit_row['Unit Size (sq ft)'] if 'Unit Size (sq ft)' in unit_row else '')
-            floor = str(unit_row['Floor Level']) if pd.notna(unit_row['Floor Level']) else ""
-            plot_size = unit_row['Plot Size (sq ft)'] if pd.notna(unit_row['Plot Size (sq ft)']) else ""
-        else:
-            development = current_development
-            community = current_community
-            subcommunity = current_subcommunity
-            property_type = st.session_state.get("property_type", "")
-            bedrooms = st.session_state.get("bedrooms", "")
-            bua = st.session_state.get("bua", "")
-            plot_size = st.session_state.get("plot_size", "")
+        layout_type_val = unit_row['Layout Type'] if 'Layout Type' in unit_row else ''
+        # Use context-aware lookup for Beds, BUA, Type
+        details = get_unit_details(development, community[0] if community else '', subcommunity, layout_type_val)
+        property_type = details.get('Type', unit_row['Unit Type'] if 'Unit Type' in unit_row else '')
+        bedrooms = str(details.get('Beds', unit_row['Beds'] if 'Beds' in unit_row else ''))
+        bua = details.get('BUA', unit_row['Unit Size (sq ft)'] if 'Unit Size (sq ft)' in unit_row else '')
+        floor = str(unit_row['Floor Level']) if pd.notna(unit_row['Floor Level']) else ""
+        plot_size = unit_row['Plot Size (sq ft)'] if pd.notna(unit_row['Plot Size (sq ft)']) else ""
     else:
         development = current_development
         community = current_community
@@ -1059,141 +1000,79 @@ if not filtered_transactions.empty:
 
 # --- Apply sidebar filters ---
 
-# --- Apply sidebar filters conditionally based on filter mode ---
-if filter_mode == "Unit Selection":
-    # Unit Selection: bedrooms, bua, plot_size are autofilled and used from selected unit
-    if development:
-        filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
-    if community:
-        community_col = filtered_transactions['Community/Building']
-        if not isinstance(community_col, pd.Series):
-            community_col = pd.Series(community_col)
-        filtered_transactions = filtered_transactions[community_col.isin(community)]
-    if subcommunity:
-        subcommunity_col = filtered_transactions['Sub Community / Building']
-        if not isinstance(subcommunity_col, pd.Series):
-            subcommunity_col = pd.Series(subcommunity_col)
-        filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
-    if property_type:
-        filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
-    if bedrooms:
-        filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
-    # Floor tolerance filter for apartments if enabled
-    if property_type == "Apartment" and unit_number and st.session_state.get("enable_floor_tol", False):
-        tol = st.session_state.get("floor_tolerance", 0)
+# --- Apply sidebar filters ---
+if development:
+    filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
+if community:
+    community_col = filtered_transactions['Community/Building']
+    if not isinstance(community_col, pd.Series):
+        community_col = pd.Series(community_col)
+    filtered_transactions = filtered_transactions[community_col.isin(community)]
+if subcommunity:
+    subcommunity_col = filtered_transactions['Sub Community / Building']
+    if not isinstance(subcommunity_col, pd.Series):
+        subcommunity_col = pd.Series(subcommunity_col)
+    filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
+if property_type:
+    filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
+if bedrooms:
+    filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
+# Floor tolerance filter for apartments if enabled
+if property_type == "Apartment" and unit_number and st.session_state.get("enable_floor_tol", False):
+    tol = st.session_state.get("floor_tolerance", 0)
+    try:
+        selected_floor = int(
+            all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+        )
+        if tol > 0:
+            low = selected_floor - tol
+            high = selected_floor + tol
+            filtered_transactions = filtered_transactions[
+                (filtered_transactions['Floor Level'] >= low) &
+                (filtered_transactions['Floor Level'] <= high)
+            ]
+        else:
+            filtered_transactions = filtered_transactions[
+                filtered_transactions['Floor Level'] == selected_floor
+            ]
+    except Exception:
+        pass
+if layout_type:
+    filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
+# BUA tolerance filter if enabled
+if property_type == "Apartment" and unit_number and st.session_state.get("enable_bua_tol", False):
+    tol = st.session_state.get("bua_tolerance", 0)
+    if tol > 0:
         try:
-            selected_floor = int(
-                all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
+            selected_bua = float(
+                all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Unit Size (sq ft)']  # type: ignore
             )
-            if tol > 0:
-                low = selected_floor - tol
-                high = selected_floor + tol
-                filtered_transactions = filtered_transactions[
-                    (filtered_transactions['Floor Level'] >= low) &
-                    (filtered_transactions['Floor Level'] <= high)
-                ]
-            else:
-                filtered_transactions = filtered_transactions[
-                    filtered_transactions['Floor Level'] == selected_floor
-                ]
+            low = selected_bua - tol
+            high = selected_bua + tol
+            filtered_transactions = filtered_transactions[
+                (filtered_transactions['Unit Size (sq ft)'] >= low) &
+                (filtered_transactions['Unit Size (sq ft)'] <= high)
+            ]
         except Exception:
             pass
-    if layout_type:
-        filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
-    # BUA tolerance filter if enabled
-    if property_type == "Apartment" and unit_number and st.session_state.get("enable_bua_tol", False):
-        tol = st.session_state.get("bua_tolerance", 0)
-        if tol > 0:
-            try:
-                selected_bua = float(
-                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Unit Size (sq ft)']  # type: ignore
-                )
-                low = selected_bua - tol
-                high = selected_bua + tol
-                filtered_transactions = filtered_transactions[
-                    (filtered_transactions['Unit Size (sq ft)'] >= low) &
-                    (filtered_transactions['Unit Size (sq ft)'] <= high)
-                ]
-            except Exception:
-                pass
-    # Plot Size tolerance filter if enabled
-    if unit_number and st.session_state.get("enable_plot_tol", False):
-        tol = st.session_state.get("plot_tolerance", 0)
-        if tol > 0:
-            try:
-                selected_plot = float(
-                    all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Plot Size (sq ft)']  # type: ignore
-                )
-                low = selected_plot - tol
-                high = selected_plot + tol
-                filtered_transactions = filtered_transactions[
-                    (filtered_transactions['Plot Size (sq ft)'] >= low) &
-                    (filtered_transactions['Plot Size (sq ft)'] <= high)
-                ]
-            except Exception:
-                pass
-    if sales_recurrence != "All":
-        filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
-elif filter_mode == "Manual Selection":
-    # Manual Selection: use user-specified bedrooms, bua, plot_size for filtering
-    if development:
-        filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
-    if community:
-        community_col = filtered_transactions['Community/Building']
-        if not isinstance(community_col, pd.Series):
-            community_col = pd.Series(community_col)
-        filtered_transactions = filtered_transactions[community_col.isin(community)]
-    if subcommunity:
-        subcommunity_col = filtered_transactions['Sub Community / Building']
-        if not isinstance(subcommunity_col, pd.Series):
-            subcommunity_col = pd.Series(subcommunity_col)
-        filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
-    if property_type:
-        filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
-    if bedrooms:
-        filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
-    # Floor tolerance filter for apartments if enabled
-    if property_type == "Apartment" and st.session_state.get("enable_floor_tol", False):
-        tol = st.session_state.get("floor_tolerance", 0)
+# Plot Size tolerance filter if enabled
+if unit_number and st.session_state.get("enable_plot_tol", False):
+    tol = st.session_state.get("plot_tolerance", 0)
+    if tol > 0:
         try:
-            # Use session_state or manual input for floor (not provided, so skip unless added)
-            pass  # Not filtering by floor in manual mode unless input provided
+            selected_plot = float(
+                all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Plot Size (sq ft)']  # type: ignore
+            )
+            low = selected_plot - tol
+            high = selected_plot + tol
+            filtered_transactions = filtered_transactions[
+                (filtered_transactions['Plot Size (sq ft)'] >= low) &
+                (filtered_transactions['Plot Size (sq ft)'] <= high)
+            ]
         except Exception:
             pass
-    if layout_type:
-        filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
-    # BUA tolerance filter if enabled
-    if st.session_state.get("enable_bua_tol", False):
-        tol = st.session_state.get("bua_tolerance", 0)
-        if tol > 0:
-            try:
-                if bua:
-                    selected_bua = float(bua)
-                    low = selected_bua - tol
-                    high = selected_bua + tol
-                    filtered_transactions = filtered_transactions[
-                        (filtered_transactions['Unit Size (sq ft)'] >= low) &
-                        (filtered_transactions['Unit Size (sq ft)'] <= high)
-                    ]
-            except Exception:
-                pass
-    # Plot Size tolerance filter if enabled
-    if st.session_state.get("enable_plot_tol", False):
-        tol = st.session_state.get("plot_tolerance", 0)
-        if tol > 0:
-            try:
-                if plot_size:
-                    selected_plot = float(plot_size)
-                    low = selected_plot - tol
-                    high = selected_plot + tol
-                    filtered_transactions = filtered_transactions[
-                        (filtered_transactions['Plot Size (sq ft)'] >= low) &
-                        (filtered_transactions['Plot Size (sq ft)'] <= high)
-                    ]
-            except Exception:
-                pass
-    if sales_recurrence != "All":
-        filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
+if sales_recurrence != "All":
+    filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
 
  # --- Load Live Listings Data from Data/Listings ---
 listings_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Listings')
