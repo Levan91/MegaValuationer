@@ -590,44 +590,6 @@ with st.sidebar:
     )
 
     # --- Subcommunity Filter (context-aware) ---
-    if community:
-        subcom_col = all_transactions[all_transactions['Community/Building'].isin(community)]['Sub Community / Building']
-        if not isinstance(subcom_col, pd.Series):
-            subcom_col = pd.Series(subcom_col)
-        subcom_options = sorted(subcom_col.dropna().unique())
-    else:
-        subcom_col = all_transactions['Sub Community / Building']
-        if not isinstance(subcom_col, pd.Series):
-            subcom_col = pd.Series(subcom_col)
-        subcom_options = sorted(subcom_col.dropna().unique())
-    current_subcommunity = st.session_state.get("subcommunity", [])
-    subcommunity = st.multiselect(
-        "Sub community / Building",
-        options=subcom_options,
-        default=current_subcommunity if current_subcommunity and all(s in subcom_options for s in current_subcommunity) else [],
-        key="subcommunity",
-        on_change=_on_subcommunity_change
-    )
-
-    # --- Bedroom Filter (context-aware) ---
-    bedroom_df = all_transactions.copy()
-    if community:
-        bedroom_df = bedroom_df[bedroom_df['Community/Building'].isin(community)]
-    if subcommunity:
-        bedroom_df = bedroom_df[bedroom_df['Sub Community / Building'].isin(subcommunity)]
-    beds_col = bedroom_df['Beds'] if 'Beds' in bedroom_df.columns else pd.Series([])
-    if not isinstance(beds_col, pd.Series):
-        beds_col = pd.Series(beds_col)
-    bedroom_options = sorted(beds_col.dropna().astype(str).unique())
-    current_bedrooms = st.session_state.get("bedrooms", "")
-    bedrooms = st.selectbox(
-        "Bedrooms",
-        options=[""] + bedroom_options,
-        index=([""] + bedroom_options).index(current_bedrooms) if current_bedrooms in bedroom_options else 0,
-        key="bedrooms",
-        on_change=_on_bedrooms_change
-    )
-
     # --- Layout Type Filter (context-aware) ---
     layout_df_filtered = layout_map_df.copy()
     if community:
@@ -639,7 +601,11 @@ with st.sidebar:
         if not isinstance(layout_df_filtered, pd.DataFrame):
             layout_df_filtered = pd.DataFrame(layout_df_filtered)
         comm_col = layout_df_filtered['Community/Building'] if 'Community/Building' in layout_df_filtered.columns else pd.Series([])
-        comm_col = pd.Series(comm_col)
+        if not isinstance(comm_col, pd.Series):
+            if isinstance(comm_col, np.ndarray):
+                comm_col = pd.Series(comm_col)
+            else:
+                comm_col = pd.Series([comm_col])
         layout_df_filtered = layout_df_filtered[comm_col.isin(community)]
     if subcommunity:
         if not isinstance(subcommunity, list):
@@ -650,14 +616,17 @@ with st.sidebar:
         if not isinstance(layout_df_filtered, pd.DataFrame):
             layout_df_filtered = pd.DataFrame(layout_df_filtered)
         subcom_col = layout_df_filtered['Sub Community / Building'] if 'Sub Community / Building' in layout_df_filtered.columns else pd.Series([])
-        subcom_col = pd.Series(subcom_col)
+        if not isinstance(subcom_col, pd.Series):
+            if isinstance(subcom_col, np.ndarray):
+                subcom_col = pd.Series(subcom_col)
+            else:
+                subcom_col = pd.Series([subcom_col])
         layout_df_filtered = layout_df_filtered[subcom_col.isin(subcommunity)]
     if bedrooms:
         if not isinstance(layout_df_filtered, pd.DataFrame):
             layout_df_filtered = pd.DataFrame(layout_df_filtered)
-        beds_col = layout_df_filtered['Beds'] if 'Beds' in layout_df_filtered.columns else pd.Series([])
-        beds_col = pd.Series(beds_col)
-        layout_df_filtered = layout_df_filtered[beds_col.astype(str) == bedrooms]
+        if 'Beds' in layout_df_filtered.columns:
+            layout_df_filtered = layout_df_filtered[layout_df_filtered['Beds'].astype(str) == str(bedrooms)]
     layout_type_col = layout_df_filtered['Layout Type'] if 'Layout Type' in layout_df_filtered.columns else pd.Series([])
     layout_type_col = pd.Series(layout_type_col)
     layout_options = sorted(layout_type_col.dropna().unique())
@@ -680,7 +649,11 @@ with st.sidebar:
         if not isinstance(unit_type_df, pd.DataFrame):
             unit_type_df = pd.DataFrame(unit_type_df)
         layout_type_col = unit_type_df['Layout Type'] if 'Layout Type' in unit_type_df.columns else pd.Series([])
-        layout_type_col = pd.Series(layout_type_col)
+        if not isinstance(layout_type_col, pd.Series):
+            if isinstance(layout_type_col, np.ndarray):
+                layout_type_col = pd.Series(layout_type_col)
+            else:
+                layout_type_col = pd.Series([layout_type_col])
         unit_type_df = unit_type_df[layout_type_col.isin(layout_type)]
     unit_type_col = unit_type_df['Unit Type'] if 'Unit Type' in unit_type_df.columns else pd.Series([])
     if not isinstance(unit_type_col, pd.Series):
