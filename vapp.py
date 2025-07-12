@@ -682,6 +682,34 @@ with st.sidebar:
         key="layout_type"
     )
 
+    # --- Unit Type Filter (context-aware) ---
+    # Filter unit types based on all other filters
+    filtered_unit_types_df = layout_df_filtered
+    if not isinstance(filtered_unit_types_df, pd.DataFrame):
+        filtered_unit_types_df = pd.DataFrame(filtered_unit_types_df)
+    if layout_type:
+        # Ensure layout_type is a list of strings
+        if isinstance(layout_type, (np.ndarray, pd.Series)):
+            layout_type = list(map(str, layout_type.tolist()))
+        elif not isinstance(layout_type, list):
+            layout_type = [str(layout_type)]
+        layout_type_col = filtered_unit_types_df['Layout Type'] if 'Layout Type' in filtered_unit_types_df.columns else pd.Series([])
+        if not isinstance(layout_type_col, pd.Series):
+            layout_type_col = pd.Series(layout_type_col)
+        # Ensure layout_type_col is a pandas Series
+        filtered_unit_types_df = filtered_unit_types_df[layout_type_col.isin(layout_type)]
+    unit_type_col = filtered_unit_types_df['Unit Type'] if 'Unit Type' in filtered_unit_types_df.columns else pd.Series([])
+    if not isinstance(unit_type_col, pd.Series):
+        unit_type_col = pd.Series(unit_type_col)
+    unit_type_options = sorted(unit_type_col.dropna().unique())
+    current_unit_type = st.session_state.get("unit_type", [])
+    unit_type = st.multiselect(
+        "Unit Type",
+        options=unit_type_options,
+        default=current_unit_type if current_unit_type and all(u in unit_type_options for u in current_unit_type) else [],
+        key="unit_type"
+    )
+
     # --- Time Period Filter ---
     st.subheader("Time Period")
     time_filter_mode = st.selectbox("Time Filter Mode", ["", "Last N Days", "After Date", "From Date to Date"], 
@@ -763,8 +791,6 @@ if not filtered_transactions.empty:
             ]
 
 # --- Apply sidebar filters ---
-
-# --- Apply sidebar filters ---
 if development:
     filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
 if community:
@@ -781,6 +807,12 @@ if property_type:
     filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
 if bedrooms:
     filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
+if layout_type:
+    filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
+# --- Unit Type filter ---
+unit_type = st.session_state.get("unit_type", [])
+if unit_type:
+    filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'].isin(unit_type)]
 # Floor tolerance filter for apartments if enabled
 if layout_type:
     filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
@@ -838,6 +870,7 @@ def apply_sidebar_filters_to_listings(listings_df, filtered_transactions):
     current_property_type = st.session_state.get("property_type", "")
     current_bedrooms = st.session_state.get("bedrooms", "")
     current_layout_type = st.session_state.get("layout_type", [])
+    current_unit_type = st.session_state.get("unit_type", [])
     
     # Apply development filter
     if current_development:
@@ -876,6 +909,10 @@ def apply_sidebar_filters_to_listings(listings_df, filtered_transactions):
     if current_layout_type:
         if 'Layout Type' in filtered_listings.columns:
             filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(current_layout_type)]
+    # Apply unit type filter
+    if current_unit_type:
+        if 'Unit Type' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Unit Type'].isin(current_unit_type)]
     
     return filtered_listings
 
@@ -893,6 +930,7 @@ def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
     current_property_type = st.session_state.get("property_type", "")
     current_bedrooms = st.session_state.get("bedrooms", "")
     current_layout_type = st.session_state.get("layout_type", [])
+    current_unit_type = st.session_state.get("unit_type", [])
     
     # Apply development filter
     if current_development:
@@ -923,6 +961,10 @@ def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
     if current_layout_type:
         if 'Layout Type' in filtered_rentals.columns:
             filtered_rentals = filtered_rentals[filtered_rentals['Layout Type'].isin(current_layout_type)]
+    # Apply unit type filter
+    if current_unit_type:
+        if 'Unit Type' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['Unit Type'].isin(current_unit_type)]
     
     return filtered_rentals
 
