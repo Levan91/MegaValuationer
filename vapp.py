@@ -667,12 +667,11 @@ with st.sidebar:
     # Get current layout type from session state
     current_layout_type = st.session_state.get("layout_type", [])
     
-    # Get layout options from filtered layout data
-    layout_type_col = layout_df_filtered['Layout Type']
+    # Get layout options from the full dataset
+    layout_type_col = layout_map_df['Layout Type'] if 'Layout Type' in layout_map_df.columns else pd.Series([])
     if not isinstance(layout_type_col, pd.Series):
         layout_type_col = pd.Series(layout_type_col)
     layout_options = sorted(layout_type_col.dropna().unique())
-    
 
     # Use session state for layout type with proper default handling
     layout_type = st.multiselect(
@@ -682,23 +681,8 @@ with st.sidebar:
         key="layout_type"
     )
 
-    # --- Unit Type Filter (context-aware) ---
-    # Filter unit types based on all other filters
-    filtered_unit_types_df = layout_df_filtered
-    if not isinstance(filtered_unit_types_df, pd.DataFrame):
-        filtered_unit_types_df = pd.DataFrame(filtered_unit_types_df)
-    if layout_type:
-        # Ensure layout_type is a list of strings
-        if isinstance(layout_type, (np.ndarray, pd.Series)):
-            layout_type = list(map(str, layout_type.tolist()))
-        elif not isinstance(layout_type, list):
-            layout_type = [str(layout_type)]
-        layout_type_col = filtered_unit_types_df['Layout Type'] if 'Layout Type' in filtered_unit_types_df.columns else pd.Series([])
-        if not isinstance(layout_type_col, pd.Series):
-            layout_type_col = pd.Series(layout_type_col)
-        # Ensure layout_type_col is a pandas Series
-        filtered_unit_types_df = filtered_unit_types_df[layout_type_col.isin(layout_type)]
-    unit_type_col = filtered_unit_types_df['Unit Type'] if 'Unit Type' in filtered_unit_types_df.columns else pd.Series([])
+    # --- Unit Type Filter (always available) ---
+    unit_type_col = layout_map_df['Unit Type'] if 'Unit Type' in layout_map_df.columns else pd.Series([])
     if not isinstance(unit_type_col, pd.Series):
         unit_type_col = pd.Series(unit_type_col)
     unit_type_options = sorted(unit_type_col.dropna().unique())
