@@ -1411,24 +1411,19 @@ with tab2:
         
         # Price comparison feature
         if 'Price (AED)' in filtered_listings.columns:
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                asking_price = st.number_input(
-                    "Enter asking price (AED):",
-                    min_value=0,
-                    value=st.session_state.get("sale_asking_price", 0),
-                    key="sale_asking_price"
-                )
-            
+            asking_price = st.number_input(
+                "Enter asking price (AED):",
+                min_value=0,
+                value=st.session_state.get("sale_asking_price", 0),
+                key="sale_asking_price"
+            )
             if asking_price > 0:
                 # Convert price column to numeric
                 prices = pd.to_numeric(filtered_listings['Price (AED)'], errors='coerce').dropna()
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
-                
-                with col2:
-                    st.markdown(f"**Price Analysis:** 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same")
+                st.markdown(f"<div style='margin-top: -0.5em; margin-bottom: 1em;'><b>Price Analysis:</b> 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same</div>", unsafe_allow_html=True)
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
@@ -1561,24 +1556,19 @@ with tab3:
         
         # Price comparison feature
         if 'Price (AED)' in filtered_rent_listings.columns:
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                asking_price = st.number_input(
-                    "Enter asking price (AED):",
-                    min_value=0,
-                    value=st.session_state.get("rent_asking_price", 0),
-                    key="rent_asking_price"
-                )
-            
+            asking_price = st.number_input(
+                "Enter asking price (AED):",
+                min_value=0,
+                value=st.session_state.get("rent_asking_price", 0),
+                key="rent_asking_price"
+            )
             if asking_price > 0:
                 # Convert price column to numeric
                 prices = pd.to_numeric(filtered_rent_listings['Price (AED)'], errors='coerce').dropna()
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
-                
-                with col2:
-                    st.markdown(f"**Price Analysis:** 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same")
+                st.markdown(f"<div style='margin-top: -0.5em; margin-bottom: 1em;'><b>Price Analysis:</b> 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same</div>", unsafe_allow_html=True)
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
