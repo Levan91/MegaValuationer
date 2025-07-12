@@ -572,108 +572,96 @@ with st.sidebar:
         on_change=_on_development_change,
         placeholder=""
     )
-    community = st.multiselect(
-        "Community",
-        options=com_options,
-        default=community if community else [],
-        key="community",
-        on_change=_on_community_change
-    )
-    # Filter subcom_options by selected community
-    if community:
+    # --- Community Filter ---
+    if not all_transactions.empty:
         community_col = all_transactions['Community/Building']
         if not isinstance(community_col, pd.Series):
             community_col = pd.Series(community_col)
-        subcom_df = all_transactions[community_col.isin(community)]
-        subcom_col = subcom_df['Sub Community / Building']
+        community_options = sorted(community_col.dropna().unique())
+    else:
+        community_options = []
+    current_community = st.session_state.get("community", [])
+    community = st.multiselect(
+        "Community",
+        options=community_options,
+        default=current_community if current_community and all(c in community_options for c in current_community) else [],
+        key="community",
+        on_change=_on_community_change
+    )
+
+    # --- Subcommunity Filter (context-aware) ---
+    if community:
+        subcom_col = all_transactions[all_transactions['Community/Building'].isin(community)]['Sub Community / Building']
         if not isinstance(subcom_col, pd.Series):
             subcom_col = pd.Series(subcom_col)
         subcom_options = sorted(subcom_col.dropna().unique())
     else:
-        subcom_options = []
-    
-    # Handle subcommunity as list or string properly
-    if isinstance(subcommunity, list):
-        subcommunity_default = subcommunity
-    else:
-        subcommunity_default = [subcommunity] if subcommunity else []
-    
+        subcom_col = all_transactions['Sub Community / Building']
+        if not isinstance(subcom_col, pd.Series):
+            subcom_col = pd.Series(subcom_col)
+        subcom_options = sorted(subcom_col.dropna().unique())
+    current_subcommunity = st.session_state.get("subcommunity", [])
     subcommunity = st.multiselect(
         "Sub community / Building",
         options=subcom_options,
-        default=subcommunity_default,
+        default=current_subcommunity if current_subcommunity and all(s in subcom_options for s in current_subcommunity) else [],
         key="subcommunity",
         on_change=_on_subcommunity_change
     )
 
-    # --- Bedroom Filter ---
-    if not all_transactions.empty:
-        beds_col = all_transactions['Beds']
-        if not isinstance(beds_col, pd.Series):
-            beds_col = pd.Series(beds_col)
-        bedroom_options = sorted(beds_col.dropna().astype(str).unique())
-    else:
-        bedroom_options = []
-    
+    # --- Bedroom Filter (context-aware) ---
+    bedroom_df = all_transactions.copy()
+    if community:
+        bedroom_df = bedroom_df[bedroom_df['Community/Building'].isin(community)]
+    if subcommunity:
+        bedroom_df = bedroom_df[bedroom_df['Sub Community / Building'].isin(subcommunity)]
+    beds_col = bedroom_df['Beds'] if 'Beds' in bedroom_df.columns else pd.Series([])
+    if not isinstance(beds_col, pd.Series):
+        beds_col = pd.Series(beds_col)
+    bedroom_options = sorted(beds_col.dropna().astype(str).unique())
+    current_bedrooms = st.session_state.get("bedrooms", "")
     bedrooms = st.selectbox(
         "Bedrooms",
         options=[""] + bedroom_options,
-        index=([""] + bedroom_options).index(bedrooms) if bedrooms in bedroom_options else 0,
+        index=([""] + bedroom_options).index(current_bedrooms) if current_bedrooms in bedroom_options else 0,
         key="bedrooms",
         on_change=_on_bedrooms_change
     )
 
-    # --- Layout Type Filter ---
+    # --- Layout Type Filter (context-aware) ---
     layout_df_filtered = layout_map_df.copy()
-    filtered_unit_nos = set()
-
-    # Get current filter values from session state
-    current_development = st.session_state.get("development", "")
-    current_community = st.session_state.get("community", [])
-    current_subcommunity = st.session_state.get("subcommunity", "")
-
-    if current_community:
-        community_col = all_transactions['Community/Building']
-        if not isinstance(community_col, pd.Series):
-            community_col = pd.Series(community_col)
-        unit_nos = all_transactions[community_col.isin(current_community)]['Unit No.']
-        if not isinstance(unit_nos, pd.Series):
-            unit_nos = pd.Series(unit_nos)
-        filtered_unit_nos.update(unit_nos.dropna().unique())
-    if current_subcommunity:
-        subcommunity_col = all_transactions['Sub Community / Building']
-        if not isinstance(subcommunity_col, pd.Series):
-            subcommunity_col = pd.Series(subcommunity_col)
-        mask = subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)
-        unit_nos = all_transactions[mask]['Unit No.']
-        if not isinstance(unit_nos, pd.Series):
-            unit_nos = pd.Series(unit_nos)
-        unit_nos = unit_nos.reset_index(drop=True)
-        valid_units = unit_nos.dropna().unique()
-        # (Removed all logic involving unit_number)
-        filtered_unit_nos.update(unit_nos.dropna().unique())
-
-    if filtered_unit_nos:
-        unit_no_col = layout_df_filtered['Unit No.']
-        if not isinstance(unit_no_col, pd.Series):
-            unit_no_col = pd.Series(unit_no_col)
-        layout_df_filtered = layout_df_filtered[unit_no_col.isin(list(filtered_unit_nos))]
-    else:
-        unit_no_col = layout_df_filtered['Unit No.']
-        if not isinstance(unit_no_col, pd.Series):
-            unit_no_col = pd.Series(unit_no_col)
-        layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
-
-    # Get current layout type from session state
-    current_layout_type = st.session_state.get("layout_type", [])
-    
-    # Get layout options from the full dataset
-    layout_type_col = layout_map_df['Layout Type'] if 'Layout Type' in layout_map_df.columns else pd.Series([])
-    if not isinstance(layout_type_col, pd.Series):
-        layout_type_col = pd.Series(layout_type_col)
+    if community:
+        if not isinstance(community, list):
+            if isinstance(community, (np.ndarray, pd.Series)):
+                community = list(map(str, community.tolist()))
+            else:
+                community = [str(community)]
+        if not isinstance(layout_df_filtered, pd.DataFrame):
+            layout_df_filtered = pd.DataFrame(layout_df_filtered)
+        comm_col = layout_df_filtered['Community/Building'] if 'Community/Building' in layout_df_filtered.columns else pd.Series([])
+        comm_col = pd.Series(comm_col)
+        layout_df_filtered = layout_df_filtered[comm_col.isin(community)]
+    if subcommunity:
+        if not isinstance(subcommunity, list):
+            if isinstance(subcommunity, (np.ndarray, pd.Series)):
+                subcommunity = list(map(str, subcommunity.tolist()))
+            else:
+                subcommunity = [str(subcommunity)]
+        if not isinstance(layout_df_filtered, pd.DataFrame):
+            layout_df_filtered = pd.DataFrame(layout_df_filtered)
+        subcom_col = layout_df_filtered['Sub Community / Building'] if 'Sub Community / Building' in layout_df_filtered.columns else pd.Series([])
+        subcom_col = pd.Series(subcom_col)
+        layout_df_filtered = layout_df_filtered[subcom_col.isin(subcommunity)]
+    if bedrooms:
+        if not isinstance(layout_df_filtered, pd.DataFrame):
+            layout_df_filtered = pd.DataFrame(layout_df_filtered)
+        beds_col = layout_df_filtered['Beds'] if 'Beds' in layout_df_filtered.columns else pd.Series([])
+        beds_col = pd.Series(beds_col)
+        layout_df_filtered = layout_df_filtered[beds_col.astype(str) == bedrooms]
+    layout_type_col = layout_df_filtered['Layout Type'] if 'Layout Type' in layout_df_filtered.columns else pd.Series([])
+    layout_type_col = pd.Series(layout_type_col)
     layout_options = sorted(layout_type_col.dropna().unique())
-
-    # Use session state for layout type with proper default handling
+    current_layout_type = st.session_state.get("layout_type", [])
     layout_type = st.multiselect(
         "Layout Type",
         options=layout_options,
@@ -681,8 +669,20 @@ with st.sidebar:
         key="layout_type"
     )
 
-    # --- Unit Type Filter (always available) ---
-    unit_type_col = layout_map_df['Unit Type'] if 'Unit Type' in layout_map_df.columns else pd.Series([])
+    # --- Unit Type Filter (context-aware) ---
+    unit_type_df = layout_df_filtered.copy()
+    if layout_type:
+        if not isinstance(layout_type, list):
+            if isinstance(layout_type, (np.ndarray, pd.Series)):
+                layout_type = list(map(str, layout_type.tolist()))
+            else:
+                layout_type = [str(layout_type)]
+        if not isinstance(unit_type_df, pd.DataFrame):
+            unit_type_df = pd.DataFrame(unit_type_df)
+        layout_type_col = unit_type_df['Layout Type'] if 'Layout Type' in unit_type_df.columns else pd.Series([])
+        layout_type_col = pd.Series(layout_type_col)
+        unit_type_df = unit_type_df[layout_type_col.isin(layout_type)]
+    unit_type_col = unit_type_df['Unit Type'] if 'Unit Type' in unit_type_df.columns else pd.Series([])
     if not isinstance(unit_type_col, pd.Series):
         unit_type_col = pd.Series(unit_type_col)
     unit_type_options = sorted(unit_type_col.dropna().unique())
