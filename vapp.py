@@ -590,6 +590,35 @@ with st.sidebar:
     )
 
     # --- Subcommunity Filter (context-aware) ---
+    layout_df_filtered = layout_map_df.copy()
+    if community:
+        if not isinstance(community, list):
+            if isinstance(community, (np.ndarray, pd.Series)):
+                community = list(map(str, community.tolist()))
+            else:
+                community = [str(community)]
+        if not isinstance(layout_df_filtered, pd.DataFrame):
+            layout_df_filtered = pd.DataFrame(layout_df_filtered)
+        comm_col = layout_df_filtered['Community/Building'] if 'Community/Building' in layout_df_filtered.columns else pd.Series([])
+        if not isinstance(comm_col, pd.Series):
+            if isinstance(comm_col, np.ndarray):
+                comm_col = pd.Series(comm_col)
+            else:
+                comm_col = pd.Series([comm_col])
+        layout_df_filtered = layout_df_filtered[comm_col.isin(community)]
+    # --- Subcommunity Filter (context-aware) ---
+    subcom_col = layout_df_filtered['Sub Community / Building'] if 'Sub Community / Building' in layout_df_filtered.columns else pd.Series([])
+    if not isinstance(subcom_col, pd.Series):
+        subcom_col = pd.Series(subcom_col)
+    subcom_options = sorted(subcom_col.dropna().unique())
+    current_subcommunity = st.session_state.get("subcommunity", [])
+    subcommunity = st.multiselect(
+        "Sub community / Building",
+        options=subcom_options,
+        default=current_subcommunity if current_subcommunity and all(s in subcom_options for s in current_subcommunity) else [],
+        key="subcommunity"
+    )
+
     # --- Layout Type Filter (context-aware) ---
     layout_df_filtered = layout_map_df.copy()
     if community:
