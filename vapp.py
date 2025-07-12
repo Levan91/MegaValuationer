@@ -697,126 +697,10 @@ with st.sidebar:
         placeholder=""
     )
 
-    # --- Layout Type Filter (by Project, strictly by community/subcommunity) ---
-    layout_df_filtered = layout_map_df.copy()
-    filtered_unit_nos = set()
 
-    # Get current filter values from session state
-    current_development = st.session_state.get("development", "")
-    current_community = st.session_state.get("community", [])
-    current_subcommunity = st.session_state.get("subcommunity", "")
-
-    if current_community:
-        community_col = all_transactions['Community/Building']
-        if not isinstance(community_col, pd.Series):
-            community_col = pd.Series(community_col)
-        unit_nos = all_transactions[community_col.isin(current_community)]['Unit No.']
-        if not isinstance(unit_nos, pd.Series):
-            unit_nos = pd.Series(unit_nos)
-        filtered_unit_nos.update(unit_nos.dropna().unique())
-    if current_subcommunity:
-        subcommunity_col = all_transactions['Sub Community / Building']
-        if not isinstance(subcommunity_col, pd.Series):
-            subcommunity_col = pd.Series(subcommunity_col)
-        mask = subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)
-        unit_nos = all_transactions[mask]['Unit No.']
-        if not isinstance(unit_nos, pd.Series):
-            unit_nos = pd.Series(unit_nos)
-        unit_nos = unit_nos.reset_index(drop=True)
-        valid_units = unit_nos.dropna().unique()
-        if unit_number not in valid_units:
-            st.session_state.pop("unit_number", None)
-        filtered_unit_nos.update(unit_nos.dropna().unique())
-
-    if filtered_unit_nos:
-        unit_no_col = layout_df_filtered['Unit No.']
-        if not isinstance(unit_no_col, pd.Series):
-            unit_no_col = pd.Series(unit_no_col)
-        layout_df_filtered = layout_df_filtered[unit_no_col.isin(list(filtered_unit_nos))]
-    else:
-        unit_no_col = layout_df_filtered['Unit No.']
-        if not isinstance(unit_no_col, pd.Series):
-            unit_no_col = pd.Series(unit_no_col)
-        layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
-
-    # Get current layout type from session state
-    current_layout_type = st.session_state.get("layout_type", [])
-    
-    # Get layout options from filtered layout data
-    layout_type_col = layout_df_filtered['Layout Type']
-    if not isinstance(layout_type_col, pd.Series):
-        layout_type_col = pd.Series(layout_type_col)
-    layout_options = sorted(layout_type_col.dropna().unique())
-    
-    normalized_unit_number = unit_number.strip().upper() if unit_number else ""
-    mapped_layout = layout_map.get(normalized_unit_number, "") if normalized_unit_number else ""
-
-    # If a unit is selected, show only its mapped layout as the option
-    if normalized_unit_number and mapped_layout:
-        layout_options = [mapped_layout]
-    else:
-        if current_community:
-            community_col = all_transactions['Community/Building']
-            if not isinstance(community_col, pd.Series):
-                community_col = pd.Series(community_col)
-            unit_nos = all_transactions[community_col.isin(current_community)]['Unit No.']
-            if not isinstance(unit_nos, pd.Series):
-                unit_nos = pd.Series(unit_nos)
-            filtered_unit_nos.update(unit_nos.dropna().unique())
-        if current_subcommunity:
-            subcommunity_col = all_transactions['Sub Community / Building']
-            if not isinstance(subcommunity_col, pd.Series):
-                subcommunity_col = pd.Series(subcommunity_col)
-            mask = subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)
-            unit_nos = all_transactions[mask]['Unit No.']
-            if not isinstance(unit_nos, pd.Series):
-                unit_nos = pd.Series(unit_nos)
-            unit_nos = unit_nos.reset_index(drop=True)
-            valid_units = unit_nos.dropna().unique()
-            if unit_number not in valid_units:
-                st.session_state.pop("unit_number", None)
-            filtered_unit_nos.update(unit_nos.dropna().unique())
-
-        if filtered_unit_nos:
-            unit_no_col = layout_df_filtered['Unit No.']
-            if not isinstance(unit_no_col, pd.Series):
-                unit_no_col = pd.Series(unit_no_col)
-            layout_df_filtered = layout_df_filtered[unit_no_col.isin(list(filtered_unit_nos))]
-        else:
-            unit_no_col = layout_df_filtered['Unit No.']
-            if not isinstance(unit_no_col, pd.Series):
-                unit_no_col = pd.Series(unit_no_col)
-            layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
-
-        # Get layout options from filtered layout data
-        layout_type_col = layout_df_filtered['Layout Type']
-        if not isinstance(layout_type_col, pd.Series):
-            layout_type_col = pd.Series(layout_type_col)
-        layout_options = sorted(layout_type_col.dropna().unique())
-
-    # Debug: Show layout filtering info
-    with st.expander("🔧 Debug Layout Filtering", expanded=False):
-        st.write(f"**Layout Map DF Shape:** {layout_map_df.shape}")
-        st.write(f"**Filtered Layout DF Shape:** {layout_df_filtered.shape}")
-        st.write(f"**Filtered Unit Numbers:** {len(filtered_unit_nos)}")
-        st.write(f"**Current Unit:** {unit_number}")
-        st.write(f"**Mapped Layout:** {mapped_layout}")
-        st.write(f"**Layout Options:** {layout_options}")
-        st.write(f"**Current Layout Type:** {current_layout_type}")
-        st.write(f"**Current Community:** {current_community}")
-        st.write(f"**Current Subcommunity:** {current_subcommunity}")
-    
-    # Use session state for layout type with proper default handling
-    layout_type = st.multiselect(
-        "Layout Type",
-        options=layout_options,
-        default=current_layout_type if current_layout_type and all(l in layout_options for l in current_layout_type) else ([mapped_layout] if mapped_layout in layout_options else []),
-        key="layout_type"
-    )
 
     # --- Location Filters ---
     st.subheader("Location")
-    lock_location_filters = st.checkbox("🔒 Lock Location Filters", value=st.session_state.get("lock_location_filters", False), key="lock_location_filters")
     if not all_transactions.empty:
         dev_options = sorted(pd.Series(all_transactions['All Developments']).dropna().unique())
         com_options = sorted(pd.Series(all_transactions['Community/Building']).dropna().unique())
@@ -829,34 +713,27 @@ with st.sidebar:
     current_community = st.session_state.get("community", [])
     current_subcommunity = st.session_state.get("subcommunity", [])
 
-    # --- Filter Mode logic for autofill/disable ---
-    # In Unit Selection mode, use unit_number to autofill fields. In Manual, allow manual input.
-    # Get options for property/beds from data
+    # Get options for property and sales recurrence from data
     if not all_transactions.empty:
         prop_type_col = all_transactions['Unit Type']
         if not isinstance(prop_type_col, pd.Series):
             prop_type_col = pd.Series(prop_type_col)
         prop_type_options = sorted(prop_type_col.dropna().unique())
-        beds_col = all_transactions['Beds']
-        if not isinstance(beds_col, pd.Series):
-            beds_col = pd.Series(beds_col)
-        bedrooms_options = sorted(beds_col.dropna().astype(str).unique())
         sales_rec_col = all_transactions['Sales Recurrence']
         if not isinstance(sales_rec_col, pd.Series):
             sales_rec_col = pd.Series(sales_rec_col)
         sales_rec_options = ['All'] + sorted(sales_rec_col.dropna().unique())
     else:
-        prop_type_options = bedrooms_options = []
+        prop_type_options = []
         sales_rec_options = ['All']
 
     # --- Determine selected values for autofill ---
     if unit_number:
         unit_row = all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]  # type: ignore
 
-        if not st.session_state.get("lock_location_filters", False):
-            development = unit_row['All Developments']
-            community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
-            subcommunity = unit_row['Sub Community / Building']
+        development = unit_row['All Developments']
+        community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
+        subcommunity = unit_row['Sub Community / Building']
 
         layout_type_val = unit_row['Layout Type'] if 'Layout Type' in unit_row else ''
         # Use context-aware lookup for Beds, BUA, Type
@@ -916,6 +793,89 @@ with st.sidebar:
         default=subcommunity_default,
         key="subcommunity",
         on_change=_on_subcommunity_change
+    )
+
+    # --- Bedroom Filter ---
+    if not all_transactions.empty:
+        beds_col = all_transactions['Beds']
+        if not isinstance(beds_col, pd.Series):
+            beds_col = pd.Series(beds_col)
+        bedroom_options = sorted(beds_col.dropna().astype(str).unique())
+    else:
+        bedroom_options = []
+    
+    bedrooms = st.selectbox(
+        "Bedrooms",
+        options=[""] + bedroom_options,
+        index=([""] + bedroom_options).index(bedrooms) if bedrooms in bedroom_options else 0,
+        key="bedrooms",
+        on_change=_on_bedrooms_change
+    )
+
+    # --- Layout Type Filter ---
+    layout_df_filtered = layout_map_df.copy()
+    filtered_unit_nos = set()
+
+    # Get current filter values from session state
+    current_development = st.session_state.get("development", "")
+    current_community = st.session_state.get("community", [])
+    current_subcommunity = st.session_state.get("subcommunity", "")
+
+    if current_community:
+        community_col = all_transactions['Community/Building']
+        if not isinstance(community_col, pd.Series):
+            community_col = pd.Series(community_col)
+        unit_nos = all_transactions[community_col.isin(current_community)]['Unit No.']
+        if not isinstance(unit_nos, pd.Series):
+            unit_nos = pd.Series(unit_nos)
+        filtered_unit_nos.update(unit_nos.dropna().unique())
+    if current_subcommunity:
+        subcommunity_col = all_transactions['Sub Community / Building']
+        if not isinstance(subcommunity_col, pd.Series):
+            subcommunity_col = pd.Series(subcommunity_col)
+        mask = subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)
+        unit_nos = all_transactions[mask]['Unit No.']
+        if not isinstance(unit_nos, pd.Series):
+            unit_nos = pd.Series(unit_nos)
+        unit_nos = unit_nos.reset_index(drop=True)
+        valid_units = unit_nos.dropna().unique()
+        if unit_number not in valid_units:
+            st.session_state.pop("unit_number", None)
+        filtered_unit_nos.update(unit_nos.dropna().unique())
+
+    if filtered_unit_nos:
+        unit_no_col = layout_df_filtered['Unit No.']
+        if not isinstance(unit_no_col, pd.Series):
+            unit_no_col = pd.Series(unit_no_col)
+        layout_df_filtered = layout_df_filtered[unit_no_col.isin(list(filtered_unit_nos))]
+    else:
+        unit_no_col = layout_df_filtered['Unit No.']
+        if not isinstance(unit_no_col, pd.Series):
+            unit_no_col = pd.Series(unit_no_col)
+        layout_df_filtered = layout_df_filtered[unit_no_col.isin([])]  # no match, disable options
+
+    # Get current layout type from session state
+    current_layout_type = st.session_state.get("layout_type", [])
+    
+    # Get layout options from filtered layout data
+    layout_type_col = layout_df_filtered['Layout Type']
+    if not isinstance(layout_type_col, pd.Series):
+        layout_type_col = pd.Series(layout_type_col)
+    layout_options = sorted(layout_type_col.dropna().unique())
+    
+    normalized_unit_number = unit_number.strip().upper() if unit_number else ""
+    mapped_layout = layout_map.get(normalized_unit_number, "") if normalized_unit_number else ""
+
+    # If a unit is selected, show only its mapped layout as the option
+    if normalized_unit_number and mapped_layout:
+        layout_options = [mapped_layout]
+
+    # Use session state for layout type with proper default handling
+    layout_type = st.multiselect(
+        "Layout Type",
+        options=layout_options,
+        default=current_layout_type if current_layout_type and all(l in layout_options for l in current_layout_type) else ([mapped_layout] if mapped_layout in layout_options else []),
+        key="layout_type"
     )
 
     # --- Time Period Filter ---
