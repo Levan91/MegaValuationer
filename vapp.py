@@ -199,69 +199,6 @@ def _reset_filters():
     # Restore sales_recurrence
     st.session_state["sales_recurrence"] = saved
 
-def _on_unit_number_change():
-    """Callback function for unit number selection changes"""
-    # Use state coordination to prevent race conditions
-    if not should_process_callback("unit_number", 500):
-        return
-    
-    # Set flag to prevent other callbacks from interfering
-    set_filter_update_flag()
-    
-    # Get the selected unit number
-    unit_number = st.session_state.get("unit_number", "")
-    if unit_number:
-        # Get the unit's data
-        unit_data = all_transactions[all_transactions['Unit No.'] == unit_number]
-        # Ensure unit_data is a DataFrame
-        if not isinstance(unit_data, pd.DataFrame):
-            unit_data = pd.DataFrame(unit_data)
-        if not unit_data.empty:
-            unit_row = unit_data.iloc[0]
-            
-            # Check if current filters are compatible with the selected unit
-            current_development = st.session_state.get("development", "")
-            current_community = st.session_state.get("community", [])
-            current_subcommunity = st.session_state.get("subcommunity", [])
-            
-            # Only update filters if they conflict with the unit or are not set
-            if not st.session_state.get("lock_location_filters", False):
-                # Development: only update if not set or conflicts
-                if not current_development:
-                    st.session_state["development"] = unit_row['All Developments']
-                elif current_development != unit_row['All Developments']:
-                    # Conflict detected - update to unit's development
-                    st.session_state["development"] = unit_row['All Developments']
-                
-                # Community: only update if not set or conflicts
-                unit_community = unit_row['Community/Building']
-                if not current_community:
-                    st.session_state["community"] = [unit_community] if pd.notna(unit_community) else []
-                elif unit_community not in current_community:
-                    # Conflict detected - update to unit's community
-                    st.session_state["community"] = [unit_community] if pd.notna(unit_community) else []
-                
-                # Subcommunity: only update if not set or conflicts
-                unit_subcommunity = unit_row['Sub Community / Building']
-                if not current_subcommunity:
-                    st.session_state["subcommunity"] = unit_subcommunity if pd.notna(unit_subcommunity) else ""
-                elif unit_subcommunity not in (current_subcommunity if isinstance(current_subcommunity, list) else [current_subcommunity]):
-                    # Conflict detected - update to unit's subcommunity
-                    st.session_state["subcommunity"] = unit_subcommunity if pd.notna(unit_subcommunity) else ""
-            
-            # Property filters: always update to match the unit
-            st.session_state["property_type"] = unit_row['Unit Type'] if 'Unit Type' in unit_row else ""
-            st.session_state["bedrooms"] = str(unit_row['Beds']) if 'Beds' in unit_row else ""
-            st.session_state["bua"] = str(unit_row['Unit Size (sq ft)']) if 'Unit Size (sq ft)' in unit_row else ""
-            st.session_state["plot_size"] = str(unit_row['Plot Size (sq ft)']) if 'Plot Size (sq ft)' in unit_row else ""
-            
-            # Layout Type: update to match the unit
-            if 'Layout Type' in unit_row:
-                st.session_state["layout_type"] = [unit_row['Layout Type']] if pd.notna(unit_row['Layout Type']) else []
-    
-    # Clear flag
-    clear_filter_update_flag()
-
 def _on_development_change():
     """Callback function for development selection changes"""
     # Use state coordination to prevent race conditions
@@ -644,60 +581,6 @@ with st.sidebar:
     bedrooms = st.session_state.get("bedrooms", "")
     bua = st.session_state.get("bua", "")
     plot_size = st.session_state.get("plot_size", "")
-
-    # --- Unit Number Filter ---
-    st.subheader("Unit Number")
-    if not all_transactions.empty:
-        # Check if Development is selected - if not, show message and empty options
-        current_development = st.session_state.get("development", "")
-        if not current_development:
-            st.info("Please select a Development to choose a Unit Number.")
-            unit_number_options = []
-        else:
-            unit_df = all_transactions.copy()
-            
-            # Get current filter values from session state
-            current_community = st.session_state.get("community", [])
-            current_subcommunity = st.session_state.get("subcommunity", "")
-            
-            # Apply filters based on current session state values
-            unit_df = unit_df[unit_df['All Developments'] == current_development]
-            if current_community:
-                community_col = unit_df['Community/Building']
-                if not isinstance(community_col, pd.Series):
-                    community_col = pd.Series(community_col)
-                unit_df = unit_df[community_col.isin(current_community)]
-            if current_subcommunity:
-                subcommunity_col = unit_df['Sub Community / Building']
-                if not isinstance(subcommunity_col, pd.Series):
-                    subcommunity_col = pd.Series(subcommunity_col)
-                unit_df = unit_df[subcommunity_col.isin([current_subcommunity] if isinstance(current_subcommunity, str) else current_subcommunity)]
-            
-            unit_no_col = unit_df['Unit No.']
-            if not isinstance(unit_no_col, pd.Series):
-                unit_no_col = pd.Series(unit_no_col)
-            unit_number_options = sorted(unit_no_col.dropna().unique())
-    else:
-        unit_number_options = []
-    
-    current_unit = st.session_state.get("unit_number", "")
-    options = [""] + unit_number_options
-    # Safer index calculation
-    try:
-        default_idx = options.index(current_unit) if current_unit in options else 0
-    except (ValueError, IndexError):
-        default_idx = 0
-    
-    unit_number = st.selectbox(
-        "Unit Number",
-        options=options,
-        index=default_idx,
-        key="unit_number",
-        on_change=_on_unit_number_change,
-        placeholder=""
-    )
-
-
 
     # --- Location Filters ---
     st.subheader("Location")
@@ -1177,83 +1060,15 @@ filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, fi
 filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Listings: Sale", "Listings: Rent", "Trend & Valuation", "Tracker"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
 
 with tab1:
-    # Remove unnecessary and error-prone variable deletion
-    # st.warning("DASHBOARD TEST MARKER - If you see this, you are in the Dashboard tab!")
-    st.markdown("<!-- DASHBOARD TAB START -->")
-    st.title("Real Estate Valuation Dashboard")
-
-    # Selected Unit Info box
-    st.markdown("### Selected Unit Info")
-    info_parts = []
-    if unit_number:
-        info_parts.append(f"📦 {unit_number}")
-    if subcommunity:
-        info_parts.append(f"🏙️ {subcommunity}")
-    if "Layout Type" in all_transactions.columns:
-        layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
-        if layout_val.size > 0:
-            info_parts.append(f"🗂️ {layout_val[0]}")
-    # Add last transaction date for this unit
-    last_txn_date = None
-    if unit_number and "Evidence Date" in all_transactions.columns:
-        unit_txns = all_transactions[all_transactions["Unit No."] == unit_number]
-        # Ensure unit_txns is a DataFrame before checking .empty
-        import pandas as pd
-        if not isinstance(unit_txns, pd.DataFrame):
-            unit_txns = pd.DataFrame(unit_txns)
-        if not unit_txns.empty:
-            # Ensure Evidence Date is datetime
-            unit_txns = unit_txns.copy()
-            unit_txns["Evidence Date"] = pd.to_datetime(unit_txns["Evidence Date"], errors="coerce")
-            last_txn = unit_txns["Evidence Date"].max()
-            # Ensure last_txn is a scalar Timestamp before formatting
-            if pd.notnull(last_txn) and isinstance(last_txn, pd.Timestamp):
-                last_txn_date = last_txn.strftime("%Y-%m-%d")
-    if last_txn_date:
-        # Make it bold and orange for visibility
-        info_parts.append(f"<b style='color:orange;'>🕒 Last Transaction: {last_txn_date}</b>")
-    rental_info_html = None
-    # Add rental contract start/end dates and amount for this unit in the requested format
-    if unit_number and not rental_df.empty:
-        normalized_unit_number = str(unit_number).strip().upper()
-        unit_rentals = rental_df[rental_df['Unit No.'] == normalized_unit_number]
-        import pandas as pd
-        if not isinstance(unit_rentals, pd.DataFrame):
-            unit_rentals = pd.DataFrame(unit_rentals)
-        # Ensure 'Contract Start' is datetime
-        if 'Contract Start' in unit_rentals.columns:
-            unit_rentals = unit_rentals.copy()
-            unit_rentals['Contract Start'] = pd.to_datetime(unit_rentals['Contract Start'], errors='coerce')
-        if not unit_rentals.empty and 'Contract Start' in unit_rentals.columns:
-            latest_rental = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]
-            start = latest_rental['Contract Start']
-            end = latest_rental['Contract End']
-            # Try to get the rent amount from several possible column names
-            rent_col_candidates = [
-                'Annualised Rental Price(AED)',  # no space (actual column in your file)
-                'Annualised Rental Price (AED)', # with space
-                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
-            ]
-            amount = None
-            for col in rent_col_candidates:
-                if col in latest_rental and pd.notnull(latest_rental[col]):
-                    amount = latest_rental[col]
-                    break
-            # Debug: print rent columns and value
-            st.write('DEBUG: Rental columns:', list(latest_rental.index))
-            st.write('DEBUG: Rental amount:', amount)
-            if pd.notnull(start) and pd.notnull(end):
-                rental_info_html = f"<b style='color:#007bff;'>Rented: {start.strftime('%d-%b-%Y')} / {end.strftime('%d-%b-%Y')}"
-                if amount is not None and pd.notnull(amount):
-                    rental_info_html += f" | Amount: AED {amount:,.0f}"
-                rental_info_html += "</b>"
-    if info_parts:
-        st.markdown(" | ".join(info_parts), unsafe_allow_html=True)
-    if rental_info_html:
-        st.markdown(rental_info_html, unsafe_allow_html=True)
+    # Remove the Selected Unit Info box
+    # st.markdown("### Selected Unit Info")
+    # ... (remove info_parts and rental_info_html display)
+    # ... (remove unit details and transaction history for selected unit)
+    st.markdown("<!-- SALES TAB START -->")
+    st.title("Real Estate Valuation Sales")
 
     # Unit details
     if unit_number:
@@ -1329,7 +1144,7 @@ with tab1:
     # ... removed metrics and histogram code ...
     # --- END METRICS AND HISTOGRAM ---
 
-    st.markdown("<!-- DASHBOARD TAB END -->")
+    st.markdown("<!-- SALES TAB END -->")
 
 with tab2:
     st.markdown("<!-- LISTINGS: SALE TAB START -->")
@@ -1620,133 +1435,6 @@ with tab3:
     else:
         st.info("No rent listings data found.")
     st.markdown("<!-- LISTINGS: RENT TAB END -->")
-
-# All Prophet/chart/forecast code is strictly inside tab4 below
-with tab4:
-    st.markdown("<!-- TREND & VALUATION TAB START -->")
-    # --- Selected Unit Info (keep this block) ---
-    today = pd.Timestamp.now().normalize()
-    rental_circle = "🟢"
-    if unit_number and 'Contract Start' in rental_df.columns:
-        unit_rentals = rental_df[rental_df['Unit No.'].astype(str) == unit_number]
-        if not unit_rentals.empty:
-            latest = unit_rentals.sort_values(by='Contract Start', ascending=False).iloc[0]  # type: ignore
-            start, end = latest['Contract Start'], latest['Contract End']
-            if pd.notnull(start) and pd.notnull(end):
-                days_left = (end - today).days
-                if start <= today <= end:
-                    rental_circle = "🟡" if days_left <= 90 else "🔴"
-
-    info_parts = [rental_circle]
-    if unit_number:
-        info_parts.append(f"📦 {unit_number}")
-    if development:
-        info_parts.append(f"🏢 {development}")
-    if community:
-        comm = ", ".join(community) if isinstance(community, list) else community
-        info_parts.append(f"🏘️ {comm}")
-    if subcommunity:
-        info_parts.append(f"🏙️ {subcommunity}")
-    if "Layout Type" in all_transactions.columns:
-        layout_val = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Layout Type"].values
-        if layout_val.size > 0:
-            info_parts.append(f"🗂️ {layout_val[0]}")
-    if 'Layout Type' in all_listings.columns:
-        unique_layouts = all_listings['Layout Type'].dropna().unique()
-        if len(unique_layouts) == 1:
-            info_parts.append(f"📐 Layout: {unique_layouts[0]}")
-        elif len(unique_layouts) > 1:
-            info_parts.append("📐 Layout: Multiple")
-    if unit_number and "Floor Level" in all_transactions.columns:
-        try:
-            fl = all_transactions.loc[all_transactions["Unit No."] == unit_number, "Floor Level"].iloc[0]
-            if pd.notna(fl):
-                info_parts.append(f"🛗 Floor {int(fl)}")
-        except:
-            pass
-    if info_parts:
-        st.markdown(" | ".join(info_parts))
-    st.header("Trend & Valuation")
-
-    # --- Chart: Show historical transactions and live listings ---
-    # Only show chart if at least one filter is selected
-    filters_selected = any([
-        bool(development),
-        bool(community),
-        bool(subcommunity),
-        bool(property_type),
-        bool(bedrooms),
-        bool(layout_type)
-    ])
-
-    if not filters_selected:
-        st.info("Please select at least one filter in the sidebar to view the chart.")
-    else:
-        # Prepare data for chart using filtered data
-        transaction_df = filtered_transactions.copy() if 'filtered_transactions' in locals() else all_transactions.copy()
-        if 'Evidence Date' in transaction_df.columns:
-            transaction_df['Evidence Date'] = pd.to_datetime(transaction_df['Evidence Date'], errors='coerce')
-        listing_df = filtered_listings.copy() if 'filtered_listings' in locals() else all_listings.copy()
-        if 'Listed When' in listing_df.columns:
-            listing_df['Listed When'] = pd.to_datetime(listing_df['Listed When'], errors='coerce')
-
-        import plotly.graph_objects as go
-        fig = go.Figure()
-
-        # Plot transactions
-        if not transaction_df.empty:
-            fig.add_trace(go.Scatter(
-                x=transaction_df['Evidence Date'],
-                y=transaction_df['Price (AED)'] if 'Price (AED)' in transaction_df.columns else transaction_df.iloc[:,1],
-                mode='markers',
-                marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
-                name='Transactions',
-                text=transaction_df.apply(
-                    lambda row: " | ".join(filter(None, [
-                        f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
-                        f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
-                        (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
-                        (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
-                    ])),
-                    axis=1
-                ),
-                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-            ))
-
-        # Plot live listings
-        if not listing_df.empty:
-            fig.add_trace(go.Scatter(
-                x=listing_df['Listed When'] if 'Listed When' in listing_df.columns else listing_df.index,
-                y=listing_df['Price (AED)'] if 'Price (AED)' in listing_df.columns else listing_df.iloc[:,1],
-                mode='markers',
-                marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
-                name='Live Listings',
-                text=listing_df.apply(lambda row: ", ".join(filter(None, [
-                    get_location_str(row),
-                    f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
-                    row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
-                ])), axis=1),
-                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-            ))
-
-        fig.update_layout(
-            title='Market Trend: Transactions & Listings',
-            xaxis_title='Date', yaxis_title='AED',
-            height=800
-        )
-        html_str = fig.to_html(include_plotlyjs='include')
-        components.html(f"""
-            {html_str}
-            <script>
-              const gd = document.querySelectorAll('.plotly-graph-div')[0];
-              gd.on('plotly_click', function(event) {{
-                const url = event.points[0].customdata;
-                if (url) window.open(url);
-              }});
-            </script>
-        """, height=800, scrolling=True)
-
-    st.markdown("<!-- TREND & VALUATION TAB END -->")
 
 with tab5:
     st.markdown("<!-- TRACKER TAB START -->")
