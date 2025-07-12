@@ -1071,81 +1071,103 @@ if not all_rent_listings.empty:
 # --- Apply sidebar filters to listings and rental data ---
 def apply_sidebar_filters_to_listings(listings_df, filtered_transactions):
     """Apply sidebar filters to listings data based on filtered transactions."""
-    if listings_df.empty or filtered_transactions.empty:
+    if listings_df.empty:
         return listings_df.copy()
     
     filtered_listings = listings_df.copy()
     
-    # Get unique values from filtered transactions for matching
-    if 'All Developments' in filtered_transactions.columns:
-        valid_developments = filtered_transactions['All Developments'].dropna().unique()
-        if 'Development' in filtered_listings.columns and len(valid_developments) > 0:
-            filtered_listings = filtered_listings[filtered_listings['Development'].isin(valid_developments)]
+    # Get current filter values from session state
+    current_development = st.session_state.get("development", "")
+    current_community = st.session_state.get("community", [])
+    current_subcommunity = st.session_state.get("subcommunity", "")
+    current_property_type = st.session_state.get("property_type", "")
+    current_bedrooms = st.session_state.get("bedrooms", "")
+    current_layout_type = st.session_state.get("layout_type", [])
     
-    if 'Community/Building' in filtered_transactions.columns:
-        valid_communities = filtered_transactions['Community/Building'].dropna().unique()
-        if 'Community' in filtered_listings.columns and len(valid_communities) > 0:
-            filtered_listings = filtered_listings[filtered_listings['Community'].isin(valid_communities)]
+    # Apply development filter
+    if current_development:
+        if 'Development' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Development'] == current_development]
+        elif 'All Developments' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['All Developments'] == current_development]
     
-    if 'Sub Community / Building' in filtered_transactions.columns:
-        valid_subcommunities = filtered_transactions['Sub Community / Building'].dropna().unique()
-        if 'Subcommunity' in filtered_listings.columns and len(valid_subcommunities) > 0:
-            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].isin(valid_subcommunities)]
+    # Apply community filter
+    if current_community:
+        if 'Community' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Community'].isin(current_community)]
+        elif 'Community/Building' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Community/Building'].isin(current_community)]
     
-    if 'Unit Type' in filtered_transactions.columns:
-        valid_property_types = filtered_transactions['Unit Type'].dropna().unique()
-        if 'Property Type' in filtered_listings.columns and len(valid_property_types) > 0:
-            filtered_listings = filtered_listings[filtered_listings['Property Type'].isin(valid_property_types)]
+    # Apply subcommunity filter
+    if current_subcommunity:
+        if 'Subcommunity' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].isin(current_subcommunity)]
+        elif 'Sub Community / Building' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Sub Community / Building'].isin(current_subcommunity)]
     
-    if 'Beds' in filtered_transactions.columns:
-        valid_beds = filtered_transactions['Beds'].dropna().unique()
-        if 'Beds' in filtered_listings.columns and len(valid_beds) > 0:
-            filtered_listings = filtered_listings[filtered_listings['Beds'].isin(valid_beds)]
+    # Apply property type filter
+    if current_property_type:
+        if 'Property Type' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Property Type'] == current_property_type]
+        elif 'Unit Type' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Unit Type'] == current_property_type]
     
-    if 'Layout Type' in filtered_transactions.columns:
-        valid_layouts = filtered_transactions['Layout Type'].dropna().unique()
-        if 'Layout Type' in filtered_listings.columns and len(valid_layouts) > 0:
-            filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(valid_layouts)]
+    # Apply bedroom filter
+    if current_bedrooms:
+        if 'Beds' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Beds'].astype(str) == current_bedrooms]
+    
+    # Apply layout type filter
+    if current_layout_type:
+        if 'Layout Type' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(current_layout_type)]
     
     return filtered_listings
 
 def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
     """Apply sidebar filters to rental data based on filtered transactions."""
-    if rental_df.empty or filtered_transactions.empty:
+    if rental_df.empty:
         return rental_df.copy()
     
     filtered_rentals = rental_df.copy()
     
-    # Get unique values from filtered transactions for matching
-    if 'All Developments' in filtered_transactions.columns:
-        valid_developments = filtered_transactions['All Developments'].dropna().unique()
-        if 'All Developments' in filtered_rentals.columns and len(valid_developments) > 0:
-            filtered_rentals = filtered_rentals[filtered_rentals['All Developments'].isin(valid_developments)]
+    # Get current filter values from session state
+    current_development = st.session_state.get("development", "")
+    current_community = st.session_state.get("community", [])
+    current_subcommunity = st.session_state.get("subcommunity", "")
+    current_property_type = st.session_state.get("property_type", "")
+    current_bedrooms = st.session_state.get("bedrooms", "")
+    current_layout_type = st.session_state.get("layout_type", [])
     
-    if 'Community/Building' in filtered_transactions.columns:
-        valid_communities = filtered_transactions['Community/Building'].dropna().unique()
-        if 'Community/Building' in filtered_rentals.columns and len(valid_communities) > 0:
-            filtered_rentals = filtered_rentals[filtered_rentals['Community/Building'].isin(valid_communities)]
+    # Apply development filter
+    if current_development:
+        if 'All Developments' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['All Developments'] == current_development]
     
-    if 'Sub Community / Building' in filtered_transactions.columns:
-        valid_subcommunities = filtered_transactions['Sub Community / Building'].dropna().unique()
-        if 'Sub Community/Building' in filtered_rentals.columns and len(valid_subcommunities) > 0:
-            filtered_rentals = filtered_rentals[filtered_rentals['Sub Community/Building'].isin(valid_subcommunities)]
+    # Apply community filter
+    if current_community:
+        if 'Community/Building' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['Community/Building'].isin(current_community)]
     
-    if 'Unit Type' in filtered_transactions.columns:
-        valid_property_types = filtered_transactions['Unit Type'].dropna().unique()
-        if 'Unit Type' in filtered_rentals.columns and len(valid_property_types) > 0:
-            filtered_rentals = filtered_rentals[filtered_rentals['Unit Type'].isin(valid_property_types)]
+    # Apply subcommunity filter
+    if current_subcommunity:
+        if 'Sub Community/Building' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['Sub Community/Building'].isin(current_subcommunity)]
     
-    if 'Beds' in filtered_transactions.columns:
-        valid_beds = filtered_transactions['Beds'].dropna().unique()
-        if 'Beds' in filtered_rentals.columns and len(valid_beds) > 0:
-            filtered_rentals = filtered_rentals[filtered_rentals['Beds'].isin(valid_beds)]
+    # Apply property type filter
+    if current_property_type:
+        if 'Unit Type' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['Unit Type'] == current_property_type]
     
-    if 'Layout Type' in filtered_transactions.columns:
-        valid_layouts = filtered_transactions['Layout Type'].dropna().unique()
-        if 'Layout Type' in filtered_rentals.columns and len(valid_layouts) > 0:
-            filtered_rentals = filtered_rentals[filtered_rentals['Layout Type'].isin(valid_layouts)]
+    # Apply bedroom filter
+    if current_bedrooms:
+        if 'Beds' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['Beds'].astype(str) == current_bedrooms]
+    
+    # Apply layout type filter
+    if current_layout_type:
+        if 'Layout Type' in filtered_rentals.columns:
+            filtered_rentals = filtered_rentals[filtered_rentals['Layout Type'].isin(current_layout_type)]
     
     return filtered_rentals
 
