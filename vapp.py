@@ -935,7 +935,6 @@ filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_tran
 tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
 
 with tab1:
-    st.markdown("<!-- SALES TAB START -->")
     st.title("Real Estate Valuation Sales")
 
     # Transaction History
@@ -961,10 +960,7 @@ with tab1:
     # ... removed metrics and histogram code ...
     # --- END METRICS AND HISTOGRAM ---
 
-    st.markdown("<!-- SALES TAB END -->")
-
 with tab2:
-    st.markdown("<!-- LISTINGS: SALE TAB START -->")
     if isinstance(filtered_listings, pd.DataFrame) and filtered_listings.shape[0] > 0:
         st.subheader("Sale Listings (Filtered)")
         
@@ -1112,10 +1108,7 @@ with tab2:
                 )
     else:
         st.info("No sale listings data found.")
-    st.markdown("<!-- LISTINGS: SALE TAB END -->")
-
 with tab3:
-    st.markdown("<!-- LISTINGS: RENT TAB START -->")
     if isinstance(filtered_rent_listings, pd.DataFrame) and filtered_rent_listings.shape[0] > 0:
         st.subheader("Rent Listings (Filtered)")
         
@@ -1263,10 +1256,7 @@ with tab3:
                 )
     else:
         st.info("No rent listings data found.")
-    st.markdown("<!-- LISTINGS: RENT TAB END -->")
-
 with tab4:
-    st.markdown("<!-- TRACKER TAB START -->")
     st.title("Rental Tracker (Filtered)")
     
     # Load all rental data from Data/Rentals directory
@@ -1543,6 +1533,4 @@ with tab4:
                 
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
-    
-    st.markdown("<!-- TRACKER TAB END -->")
 
