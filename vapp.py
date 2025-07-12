@@ -1113,6 +1113,7 @@ with tab3:
         st.subheader("Rent Listings (Filtered)")
         
         # Use filtered rent listings based on sidebar filters
+        rent_listings_to_display = filtered_rent_listings.copy()
         
         # Add verified filter
         verified_filter = st.radio(
@@ -1124,13 +1125,13 @@ with tab3:
         )
         
         # Apply verified filter
-        if verified_filter == "Verified only" and 'Verified' in filtered_rent_listings.columns:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Verified'].str.lower() == 'yes']
+        if verified_filter == "Verified only" and 'Verified' in rent_listings_to_display.columns:
+            rent_listings_to_display = rent_listings_to_display[rent_listings_to_display['Verified'].str.lower() == 'yes']
         
         # Calculate unique listings count (after verified filter)
-        total_rent_listings = filtered_rent_listings.shape[0]
-        if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
-            dld_col = filtered_rent_listings['DLD Permit Number']
+        total_rent_listings = rent_listings_to_display.shape[0]
+        if isinstance(rent_listings_to_display, pd.DataFrame) and 'DLD Permit Number' in rent_listings_to_display.columns:
+            dld_col = rent_listings_to_display['DLD Permit Number']
             if not isinstance(dld_col, pd.Series):
                 dld_col = pd.Series(dld_col)
             unique_dlds = dld_col.dropna().nunique()
@@ -1152,7 +1153,7 @@ with tab3:
         # Filter listings based on selection
         if listing_type == "Unique listings":
             # Select unique listings (prioritizing verified and most recent)
-            if 'DLD Permit Number' in filtered_rent_listings.columns:
+            if 'DLD Permit Number' in rent_listings_to_display.columns:
                 def select_unique_listings(df):
                     groups = []
                     for dld, group in df.groupby("DLD Permit Number"):
@@ -1177,22 +1178,22 @@ with tab3:
                     else:
                         return pd.DataFrame(columns=df.columns)
                 
-                filtered_rent_listings = select_unique_listings(filtered_rent_listings)
-                st.markdown(f"**Showing {filtered_rent_listings.shape[0]} unique listings**")
+                rent_listings_to_display = select_unique_listings(rent_listings_to_display)
+                st.markdown(f"**Showing {rent_listings_to_display.shape[0]} unique listings**")
                 
         elif listing_type == "Duplicate listings":
             # Show only listings that have duplicates
-            if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
-                dld_col = filtered_rent_listings['DLD Permit Number']
+            if isinstance(rent_listings_to_display, pd.DataFrame) and 'DLD Permit Number' in rent_listings_to_display.columns:
+                dld_col = rent_listings_to_display['DLD Permit Number']
                 if not isinstance(dld_col, pd.Series):
                     dld_col = pd.Series(dld_col)
                 dld_counts = dld_col.value_counts()
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-                filtered_rent_listings = filtered_rent_listings[dld_col.isin(duplicate_dlds)]
-                st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
+                rent_listings_to_display = rent_listings_to_display[dld_col.isin(duplicate_dlds)]
+                st.markdown(f"**Showing {rent_listings_to_display.shape[0]} duplicate listings**")
         
         # Price comparison feature
-        if 'Price (AED)' in filtered_rent_listings.columns:
+        if 'Price (AED)' in rent_listings_to_display.columns:
             asking_price = st.number_input(
                 "Enter asking price (AED):",
                 min_value=0,
@@ -1201,7 +1202,7 @@ with tab3:
             )
             if asking_price > 0:
                 # Convert price column to numeric
-                prices = pd.to_numeric(filtered_rent_listings['Price (AED)'], errors='coerce').dropna()
+                prices = pd.to_numeric(rent_listings_to_display['Price (AED)'], errors='coerce').dropna()
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
@@ -1209,15 +1210,15 @@ with tab3:
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
-        visible_columns = [c for c in filtered_rent_listings.columns if c not in columns_to_hide] + ["URL"]
+        visible_columns = [c for c in rent_listings_to_display.columns if c not in columns_to_hide] + ["URL"]
 
         # Use AgGrid for clickable selection
-        gb = GridOptionsBuilder.from_dataframe(filtered_rent_listings[visible_columns])
+        gb = GridOptionsBuilder.from_dataframe(rent_listings_to_display[visible_columns])
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         grid_options = gb.build()
 
         # Before passing to AgGrid, ensure DataFrame
-        data_for_aggrid = filtered_rent_listings[visible_columns]
+        data_for_aggrid = rent_listings_to_display[visible_columns]
         if not isinstance(data_for_aggrid, pd.DataFrame):
             data_for_aggrid = pd.DataFrame(data_for_aggrid)
         grid_response = AgGrid(
