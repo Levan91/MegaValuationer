@@ -959,6 +959,52 @@ filtered_listings = apply_sidebar_filters_to_listings(all_listings, filtered_tra
 filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, filtered_transactions)
 filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
 
+ # --- Apply sidebar filters except time period (for Search Unit) ---
+filtered_transactions_no_time = all_transactions.copy()
+if development:
+    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['All Developments'] == development]
+if community:
+    community_col = filtered_transactions_no_time['Community/Building']
+    if not isinstance(community_col, pd.Series):
+        community_col = pd.Series(community_col)
+    filtered_transactions_no_time = filtered_transactions_no_time[community_col.isin(community)]
+if subcommunity:
+    subcommunity_col = filtered_transactions_no_time['Sub Community / Building']
+    if not isinstance(subcommunity_col, pd.Series):
+        subcommunity_col = pd.Series(subcommunity_col)
+    filtered_transactions_no_time = filtered_transactions_no_time[subcommunity_col.isin(subcommunity)]
+if property_type:
+    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Unit Type'] == property_type]
+if bedrooms:
+    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Beds'].astype(str) == bedrooms]
+if layout_type:
+    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Layout Type'].isin(layout_type)]
+unit_type = st.session_state.get("unit_type", [])
+if unit_type:
+    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Unit Type'].isin(unit_type)]
+
+filtered_rental_data_no_time = rental_df.copy()
+if development:
+    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['All Developments'] == development]
+if community:
+    community_col = filtered_rental_data_no_time['Community/Building']
+    if not isinstance(community_col, pd.Series):
+        community_col = pd.Series(community_col)
+    filtered_rental_data_no_time = filtered_rental_data_no_time[community_col.isin(community)]
+if subcommunity:
+    subcommunity_col = filtered_rental_data_no_time['Sub Community / Building']
+    if not isinstance(subcommunity_col, pd.Series):
+        subcommunity_col = pd.Series(subcommunity_col)
+    filtered_rental_data_no_time = filtered_rental_data_no_time[subcommunity_col.isin(subcommunity)]
+if property_type:
+    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Unit Type'] == property_type]
+if bedrooms:
+    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Beds'].astype(str) == bedrooms]
+if layout_type:
+    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Layout Type'].isin(layout_type)]
+if unit_type:
+    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Unit Type'].isin(unit_type)]
+
  # --- Main Tabs ---
 tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
 
@@ -966,18 +1012,18 @@ with tab1:
     st.title("Real Estate Valuation Sales")
 
     # --- Search Unit Box ---
-    # Get all unique units from filtered_transactions (or another relevant DataFrame)
+    # Get all unique units from filtered_transactions_no_time (or another relevant DataFrame)
     unit_col_candidates = [
         'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
     ]
     unit_col = None
     for col in unit_col_candidates:
-        if col in filtered_transactions.columns:
+        if col in filtered_transactions_no_time.columns:
             unit_col = col
             break
     unit_options = []
     if unit_col:
-        unit_options = sorted(filtered_transactions[unit_col].dropna().astype(str).unique())
+        unit_options = sorted(filtered_transactions_no_time[unit_col].dropna().astype(str).unique())
     selected_unit = st.selectbox(
         "Search Unit",
         options=[""] + unit_options,
@@ -987,10 +1033,10 @@ with tab1:
     )
 
     if selected_unit:
-        # Show unit details from layout_map_df or filtered_transactions
+        # Show unit details from layout_map_df or filtered_transactions_no_time
         unit_info = None
         if unit_col:
-            unit_info = filtered_transactions[filtered_transactions[unit_col].astype(str) == selected_unit]
+            unit_info = filtered_transactions_no_time[filtered_transactions_no_time[unit_col].astype(str) == selected_unit]
         st.markdown(f"### Unit Details: {selected_unit}")
         if unit_info is not None and not unit_info.empty:
             st.dataframe(unit_info)
@@ -998,7 +1044,7 @@ with tab1:
             st.info("No details found for this unit.")
         # Show sales transactions for this unit
         st.markdown(f"#### Sales Transactions for {selected_unit}")
-        sales_tx = filtered_transactions[filtered_transactions[unit_col].astype(str) == selected_unit]
+        sales_tx = filtered_transactions_no_time[filtered_transactions_no_time[unit_col].astype(str) == selected_unit]
         if not sales_tx.empty:
             st.dataframe(sales_tx)
         else:
@@ -1007,11 +1053,11 @@ with tab1:
         rent_tx = pd.DataFrame()
         rent_unit_col = None
         for col in unit_col_candidates:
-            if col in filtered_rental_data.columns:
+            if col in filtered_rental_data_no_time.columns:
                 rent_unit_col = col
                 break
         if rent_unit_col:
-            rent_tx = filtered_rental_data[filtered_rental_data[rent_unit_col].astype(str) == selected_unit]
+            rent_tx = filtered_rental_data_no_time[filtered_rental_data_no_time[rent_unit_col].astype(str) == selected_unit]
         st.markdown(f"#### Rent Transactions for {selected_unit}")
         if not rent_tx.empty:
             st.dataframe(rent_tx)
