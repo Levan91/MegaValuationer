@@ -932,7 +932,7 @@ filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, fi
 filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
+tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
 
 with tab1:
     # Remove the Selected Unit Info box
