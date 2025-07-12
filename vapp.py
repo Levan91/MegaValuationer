@@ -1033,15 +1033,7 @@ with tab1:
     )
 
     if selected_unit:
-        # Show unit details from layout_map_df or filtered_transactions_no_time
-        unit_info = None
-        if unit_col:
-            unit_info = filtered_transactions_no_time[filtered_transactions_no_time[unit_col].astype(str) == selected_unit]
-        st.markdown(f"### Unit Details: {selected_unit}")
-        if unit_info is not None and not unit_info.empty:
-            st.dataframe(unit_info)
-        else:
-            st.info("No details found for this unit.")
+        # Remove unit details section, only show sales and rent transactions
         # Show sales transactions for this unit
         st.markdown(f"#### Sales Transactions for {selected_unit}")
         sales_tx = filtered_transactions_no_time[filtered_transactions_no_time[unit_col].astype(str) == selected_unit]
