@@ -1229,6 +1229,92 @@ if not all_rent_listings.empty:
     if 'Days Listed' in all_rent_listings.columns:
         all_rent_listings['Days Listed'] = pd.to_numeric(all_rent_listings['Days Listed'], errors='coerce')
 
+# --- Apply sidebar filters to listings and rental data ---
+def apply_sidebar_filters_to_listings(listings_df, filtered_transactions):
+    """Apply sidebar filters to listings data based on filtered transactions."""
+    if listings_df.empty or filtered_transactions.empty:
+        return listings_df.copy()
+    
+    filtered_listings = listings_df.copy()
+    
+    # Get unique values from filtered transactions for matching
+    if 'All Developments' in filtered_transactions.columns:
+        valid_developments = filtered_transactions['All Developments'].dropna().unique()
+        if 'Development' in filtered_listings.columns and len(valid_developments) > 0:
+            filtered_listings = filtered_listings[filtered_listings['Development'].isin(valid_developments)]
+    
+    if 'Community/Building' in filtered_transactions.columns:
+        valid_communities = filtered_transactions['Community/Building'].dropna().unique()
+        if 'Community' in filtered_listings.columns and len(valid_communities) > 0:
+            filtered_listings = filtered_listings[filtered_listings['Community'].isin(valid_communities)]
+    
+    if 'Sub Community / Building' in filtered_transactions.columns:
+        valid_subcommunities = filtered_transactions['Sub Community / Building'].dropna().unique()
+        if 'Subcommunity' in filtered_listings.columns and len(valid_subcommunities) > 0:
+            filtered_listings = filtered_listings[filtered_listings['Subcommunity'].isin(valid_subcommunities)]
+    
+    if 'Unit Type' in filtered_transactions.columns:
+        valid_property_types = filtered_transactions['Unit Type'].dropna().unique()
+        if 'Property Type' in filtered_listings.columns and len(valid_property_types) > 0:
+            filtered_listings = filtered_listings[filtered_listings['Property Type'].isin(valid_property_types)]
+    
+    if 'Beds' in filtered_transactions.columns:
+        valid_beds = filtered_transactions['Beds'].dropna().unique()
+        if 'Beds' in filtered_listings.columns and len(valid_beds) > 0:
+            filtered_listings = filtered_listings[filtered_listings['Beds'].isin(valid_beds)]
+    
+    if 'Layout Type' in filtered_transactions.columns:
+        valid_layouts = filtered_transactions['Layout Type'].dropna().unique()
+        if 'Layout Type' in filtered_listings.columns and len(valid_layouts) > 0:
+            filtered_listings = filtered_listings[filtered_listings['Layout Type'].isin(valid_layouts)]
+    
+    return filtered_listings
+
+def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
+    """Apply sidebar filters to rental data based on filtered transactions."""
+    if rental_df.empty or filtered_transactions.empty:
+        return rental_df.copy()
+    
+    filtered_rentals = rental_df.copy()
+    
+    # Get unique values from filtered transactions for matching
+    if 'All Developments' in filtered_transactions.columns:
+        valid_developments = filtered_transactions['All Developments'].dropna().unique()
+        if 'All Developments' in filtered_rentals.columns and len(valid_developments) > 0:
+            filtered_rentals = filtered_rentals[filtered_rentals['All Developments'].isin(valid_developments)]
+    
+    if 'Community/Building' in filtered_transactions.columns:
+        valid_communities = filtered_transactions['Community/Building'].dropna().unique()
+        if 'Community/Building' in filtered_rentals.columns and len(valid_communities) > 0:
+            filtered_rentals = filtered_rentals[filtered_rentals['Community/Building'].isin(valid_communities)]
+    
+    if 'Sub Community / Building' in filtered_transactions.columns:
+        valid_subcommunities = filtered_transactions['Sub Community / Building'].dropna().unique()
+        if 'Sub Community/Building' in filtered_rentals.columns and len(valid_subcommunities) > 0:
+            filtered_rentals = filtered_rentals[filtered_rentals['Sub Community/Building'].isin(valid_subcommunities)]
+    
+    if 'Unit Type' in filtered_transactions.columns:
+        valid_property_types = filtered_transactions['Unit Type'].dropna().unique()
+        if 'Unit Type' in filtered_rentals.columns and len(valid_property_types) > 0:
+            filtered_rentals = filtered_rentals[filtered_rentals['Unit Type'].isin(valid_property_types)]
+    
+    if 'Beds' in filtered_transactions.columns:
+        valid_beds = filtered_transactions['Beds'].dropna().unique()
+        if 'Beds' in filtered_rentals.columns and len(valid_beds) > 0:
+            filtered_rentals = filtered_rentals[filtered_rentals['Beds'].isin(valid_beds)]
+    
+    if 'Layout Type' in filtered_transactions.columns:
+        valid_layouts = filtered_transactions['Layout Type'].dropna().unique()
+        if 'Layout Type' in filtered_rentals.columns and len(valid_layouts) > 0:
+            filtered_rentals = filtered_rentals[filtered_rentals['Layout Type'].isin(valid_layouts)]
+    
+    return filtered_rentals
+
+# Apply filters to create filtered datasets for all tabs
+filtered_listings = apply_sidebar_filters_to_listings(all_listings, filtered_transactions)
+filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, filtered_transactions)
+filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
+
  # --- Main Tabs ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Listings: Sale", "Listings: Rent", "Trend & Valuation", "Tracker"])
 
@@ -1386,11 +1472,10 @@ with tab1:
 
 with tab2:
     st.markdown("<!-- LISTINGS: SALE TAB START -->")
-    if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
-        st.subheader("All Sale Listings")
+    if isinstance(filtered_listings, pd.DataFrame) and filtered_listings.shape[0] > 0:
+        st.subheader("Sale Listings (Filtered)")
         
-        # Use all listings without any filtering
-        filtered_listings = all_listings.copy()
+        # Use filtered listings based on sidebar filters
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
@@ -1449,11 +1534,10 @@ with tab2:
 
 with tab3:
     st.markdown("<!-- LISTINGS: RENT TAB START -->")
-    if isinstance(all_rent_listings, pd.DataFrame) and all_rent_listings.shape[0] > 0:
-        st.subheader("All Rent Listings")
+    if isinstance(filtered_rent_listings, pd.DataFrame) and filtered_rent_listings.shape[0] > 0:
+        st.subheader("Rent Listings (Filtered)")
         
-        # Use all rent listings without any filtering
-        filtered_rent_listings = all_rent_listings.copy()
+        # Use filtered rent listings based on sidebar filters
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
@@ -2270,7 +2354,7 @@ with tab4:
 
 with tab5:
     st.markdown("<!-- TRACKER TAB START -->")
-    st.title("Rental Tracker")
+    st.title("Rental Tracker (Filtered)")
     
     # Load all rental data from Data/Rentals directory
     rentals_dir = os.path.join(os.path.dirname(__file__), "Data", "Rentals")
@@ -2311,8 +2395,7 @@ with tab5:
     else:
         rental_df = pd.DataFrame()
 
-    # Use all rental data without filtering
-    filtered_rental_data = rental_df.copy()
+    # Use filtered rental data based on sidebar filters
     
     # Map Layout Type using layout_map if available
     if 'Unit No.' in filtered_rental_data.columns and layout_map:
