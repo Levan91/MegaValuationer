@@ -1409,6 +1409,27 @@ with tab2:
                 filtered_listings = filtered_listings[filtered_listings['DLD Permit Number'].isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
         
+        # Price comparison feature
+        if 'Price (AED)' in filtered_listings.columns:
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                asking_price = st.number_input(
+                    "Enter asking price (AED):",
+                    min_value=0,
+                    value=st.session_state.get("sale_asking_price", 0),
+                    key="sale_asking_price"
+                )
+            
+            if asking_price > 0:
+                # Convert price column to numeric
+                prices = pd.to_numeric(filtered_listings['Price (AED)'], errors='coerce').dropna()
+                above_count = (prices > asking_price).sum()
+                below_count = (prices < asking_price).sum()
+                same_count = (prices == asking_price).sum()
+                
+                with col2:
+                    st.markdown(f"**Price Analysis:** 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same")
+        
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
@@ -1537,6 +1558,27 @@ with tab3:
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
                 filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['DLD Permit Number'].isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
+        
+        # Price comparison feature
+        if 'Price (AED)' in filtered_rent_listings.columns:
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                asking_price = st.number_input(
+                    "Enter asking price (AED):",
+                    min_value=0,
+                    value=st.session_state.get("rent_asking_price", 0),
+                    key="rent_asking_price"
+                )
+            
+            if asking_price > 0:
+                # Convert price column to numeric
+                prices = pd.to_numeric(filtered_rent_listings['Price (AED)'], errors='coerce').dropna()
+                above_count = (prices > asking_price).sum()
+                below_count = (prices < asking_price).sum()
+                same_count = (prices == asking_price).sum()
+                
+                with col2:
+                    st.markdown(f"**Price Analysis:** 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same")
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
