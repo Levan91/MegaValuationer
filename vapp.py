@@ -1669,69 +1669,83 @@ with tab4:
     st.header("Trend & Valuation")
 
     # --- Chart: Show historical transactions and live listings ---
-    # Prepare data for chart
-    transaction_df = all_transactions.copy()
-    if 'Evidence Date' in transaction_df.columns:
-        transaction_df['Evidence Date'] = pd.to_datetime(transaction_df['Evidence Date'], errors='coerce')
-    listing_df = all_listings.copy()
-    if 'Listed When' in listing_df.columns:
-        listing_df['Listed When'] = pd.to_datetime(listing_df['Listed When'], errors='coerce')
+    # Only show chart if at least one filter is selected
+    filters_selected = any([
+        bool(development),
+        bool(community),
+        bool(subcommunity),
+        bool(property_type),
+        bool(bedrooms),
+        bool(layout_type)
+    ])
 
-    import plotly.graph_objects as go
-    fig = go.Figure()
+    if not filters_selected:
+        st.info("Please select at least one filter in the sidebar to view the chart.")
+    else:
+        # Prepare data for chart using filtered data
+        transaction_df = filtered_transactions.copy() if 'filtered_transactions' in locals() else all_transactions.copy()
+        if 'Evidence Date' in transaction_df.columns:
+            transaction_df['Evidence Date'] = pd.to_datetime(transaction_df['Evidence Date'], errors='coerce')
+        listing_df = filtered_listings.copy() if 'filtered_listings' in locals() else all_listings.copy()
+        if 'Listed When' in listing_df.columns:
+            listing_df['Listed When'] = pd.to_datetime(listing_df['Listed When'], errors='coerce')
 
-    # Plot transactions
-    if not transaction_df.empty:
-        fig.add_trace(go.Scatter(
-            x=transaction_df['Evidence Date'],
-            y=transaction_df['Price (AED)'] if 'Price (AED)' in transaction_df.columns else transaction_df.iloc[:,1],
-            mode='markers',
-            marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
-            name='Transactions',
-            text=transaction_df.apply(
-                lambda row: " | ".join(filter(None, [
-                    f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
-                    f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
-                    (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
-                    (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
-                ])),
-                axis=1
-            ),
-            hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-        ))
+        import plotly.graph_objects as go
+        fig = go.Figure()
 
-    # Plot live listings
-    if not listing_df.empty:
-        fig.add_trace(go.Scatter(
-            x=listing_df['Listed When'] if 'Listed When' in listing_df.columns else listing_df.index,
-            y=listing_df['Price (AED)'] if 'Price (AED)' in listing_df.columns else listing_df.iloc[:,1],
-            mode='markers',
-            marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
-            name='Live Listings',
-            text=listing_df.apply(lambda row: ", ".join(filter(None, [
-                get_location_str(row),
-                f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
-                row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
-            ])), axis=1),
-            hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
-        ))
+        # Plot transactions
+        if not transaction_df.empty:
+            fig.add_trace(go.Scatter(
+                x=transaction_df['Evidence Date'],
+                y=transaction_df['Price (AED)'] if 'Price (AED)' in transaction_df.columns else transaction_df.iloc[:,1],
+                mode='markers',
+                marker=dict(symbol='circle', size=6, opacity=0.7, color='blue'),
+                name='Transactions',
+                text=transaction_df.apply(
+                    lambda row: " | ".join(filter(None, [
+                        f"Unit: {row['Unit No.']}" if pd.notnull(row.get('Unit No.')) else "",
+                        f"Layout: {row['Layout Type']}" if pd.notnull(row.get('Layout Type')) else "",
+                        (lambda v: f"BUA: {int(v)} sqft" if isinstance(v, (int, float)) else (f"BUA: {v} sqft" if pd.notnull(v) else ""))(row.get('Unit Size (sq ft)')),
+                        (lambda v: f"Plot: {int(v)} sqft" if isinstance(v, (int, float)) else (f"Plot: {v} sqft" if pd.notnull(v) else ""))(row.get('Plot Size (sq ft)'))
+                    ])),
+                    axis=1
+                ),
+                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+            ))
 
-    fig.update_layout(
-        title='Market Trend: Transactions & Listings',
-        xaxis_title='Date', yaxis_title='AED',
-        height=800
-    )
-    html_str = fig.to_html(include_plotlyjs='include')
-    components.html(f"""
-        {html_str}
-        <script>
-          const gd = document.querySelectorAll('.plotly-graph-div')[0];
-          gd.on('plotly_click', function(event) {{
-            const url = event.points[0].customdata;
-            if (url) window.open(url);
-          }});
-        </script>
-    """, height=800, scrolling=True)
+        # Plot live listings
+        if not listing_df.empty:
+            fig.add_trace(go.Scatter(
+                x=listing_df['Listed When'] if 'Listed When' in listing_df.columns else listing_df.index,
+                y=listing_df['Price (AED)'] if 'Price (AED)' in listing_df.columns else listing_df.iloc[:,1],
+                mode='markers',
+                marker=dict(symbol='diamond', size=8, opacity=0.8, color='green'),
+                name='Live Listings',
+                text=listing_df.apply(lambda row: ", ".join(filter(None, [
+                    get_location_str(row),
+                    f'{int(row["Days Listed"])} days ago' if pd.notnull(row.get("Days Listed")) else '',
+                    row["Layout Type"] if pd.notnull(row.get("Layout Type")) else ''
+                ])), axis=1),
+                hovertemplate="Date: %{x|%b %d, %Y}<br>Price: AED %{y:,.0f}<br>%{text}<extra></extra>"
+            ))
+
+        fig.update_layout(
+            title='Market Trend: Transactions & Listings',
+            xaxis_title='Date', yaxis_title='AED',
+            height=800
+        )
+        html_str = fig.to_html(include_plotlyjs='include')
+        components.html(f"""
+            {html_str}
+            <script>
+              const gd = document.querySelectorAll('.plotly-graph-div')[0];
+              gd.on('plotly_click', function(event) {{
+                const url = event.points[0].customdata;
+                if (url) window.open(url);
+              }});
+            </script>
+        """, height=800, scrolling=True)
+
     st.markdown("<!-- TREND & VALUATION TAB END -->")
 
 with tab5:
