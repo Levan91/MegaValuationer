@@ -965,6 +965,68 @@ tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "
 with tab1:
     st.title("Real Estate Valuation Sales")
 
+    # --- Search Unit Box ---
+    # Get all unique units from filtered_transactions (or another relevant DataFrame)
+    unit_col_candidates = [
+        'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
+    ]
+    unit_col = None
+    for col in unit_col_candidates:
+        if col in filtered_transactions.columns:
+            unit_col = col
+            break
+    unit_options = []
+    if unit_col:
+        unit_options = sorted(filtered_transactions[unit_col].dropna().astype(str).unique())
+    selected_unit = st.selectbox(
+        "Search Unit",
+        options=[""] + unit_options,
+        index=0,
+        key="search_unit",
+        help="Select a unit to view its details, sales, and rent history."
+    )
+
+    if selected_unit:
+        # Show unit details from layout_map_df or filtered_transactions
+        unit_info = None
+        if unit_col:
+            unit_info = filtered_transactions[filtered_transactions[unit_col].astype(str) == selected_unit]
+        st.markdown(f"### Unit Details: {selected_unit}")
+        if unit_info is not None and not unit_info.empty:
+            st.dataframe(unit_info)
+        else:
+            st.info("No details found for this unit.")
+        # Show sales transactions for this unit
+        st.markdown(f"#### Sales Transactions for {selected_unit}")
+        sales_tx = filtered_transactions[filtered_transactions[unit_col].astype(str) == selected_unit]
+        if not sales_tx.empty:
+            st.dataframe(sales_tx)
+        else:
+            st.info("No sales transactions found for this unit.")
+        # Show rent transactions for this unit (if available)
+        rent_tx = pd.DataFrame()
+        rent_unit_col = None
+        for col in unit_col_candidates:
+            if col in filtered_rental_data.columns:
+                rent_unit_col = col
+                break
+        if rent_unit_col:
+            rent_tx = filtered_rental_data[filtered_rental_data[rent_unit_col].astype(str) == selected_unit]
+        st.markdown(f"#### Rent Transactions for {selected_unit}")
+        if not rent_tx.empty:
+            st.dataframe(rent_tx)
+        else:
+            st.info("No rent transactions found for this unit.")
+        # Show status if available
+        if not rent_tx.empty and 'Status' in rent_tx.columns:
+            status = rent_tx['Status'].iloc[0]
+            st.success(f"Status: {status}")
+        elif not rent_tx.empty:
+            st.info("Status info not available.")
+        else:
+            st.info("No rental status info available.")
+    # --- End Search Unit Box ---
+
     # Transaction History
     st.subheader("Transaction History")
     if isinstance(filtered_transactions, pd.DataFrame) and filtered_transactions.shape[0] > 0:
