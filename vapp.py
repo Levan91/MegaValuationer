@@ -1477,13 +1477,67 @@ with tab2:
         
         # Use filtered listings based on sidebar filters
         
+        # Calculate unique listings count
+        total_listings = filtered_listings.shape[0]
+        if 'DLD Permit Number' in filtered_listings.columns:
+            unique_dlds = filtered_listings['DLD Permit Number'].dropna().nunique()
+        else:
+            unique_dlds = total_listings
+        
+        # Show total count
+        st.markdown(f"**Total: {total_listings} listings / {unique_dlds} unique listings**")
+        
+        # Add listing type selector
+        listing_type = st.radio(
+            "Show listings:",
+            ["All listings", "Unique listings", "Duplicate listings"],
+            index=0,
+            horizontal=True,
+            key="sale_listing_type"
+        )
+        
+        # Filter listings based on selection
+        if listing_type == "Unique listings":
+            # Select unique listings (prioritizing verified and most recent)
+            if 'DLD Permit Number' in filtered_listings.columns:
+                def select_unique_listings(df):
+                    groups = []
+                    for dld, group in df.groupby("DLD Permit Number"):
+                        if pd.isna(dld) or str(dld).strip() == "":
+                            continue
+                        # Prioritize verified listings
+                        verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                        if not verified_group.empty:
+                            if "Listed When" in verified_group.columns:
+                                idx = verified_group["Listed When"].idxmax()
+                                groups.append(verified_group.loc[[idx]])
+                            else:
+                                groups.append(verified_group.iloc[[0]])
+                        else:
+                            if "Listed When" in group.columns:
+                                idx = group["Listed When"].idxmax()
+                                groups.append(group.loc[[idx]])
+                            else:
+                                groups.append(group.iloc[[0]])
+                    if groups:
+                        return pd.concat(groups, ignore_index=True)
+                    else:
+                        return pd.DataFrame(columns=df.columns)
+                
+                filtered_listings = select_unique_listings(filtered_listings)
+                st.markdown(f"**Showing {filtered_listings.shape[0]} unique listings**")
+                
+        elif listing_type == "Duplicate listings":
+            # Show only listings that have duplicates
+            if 'DLD Permit Number' in filtered_listings.columns:
+                dld_counts = filtered_listings['DLD Permit Number'].value_counts()
+                duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+                filtered_listings = filtered_listings[filtered_listings['DLD Permit Number'].isin(duplicate_dlds)]
+                st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
+        
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
-
-        # Show count of sale listings
-        total_listings = filtered_listings.shape[0]
-        st.markdown(f"**Showing {total_listings} sale listings**")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
@@ -1539,13 +1593,67 @@ with tab3:
         
         # Use filtered rent listings based on sidebar filters
         
+        # Calculate unique listings count
+        total_rent_listings = filtered_rent_listings.shape[0]
+        if 'DLD Permit Number' in filtered_rent_listings.columns:
+            unique_dlds = filtered_rent_listings['DLD Permit Number'].dropna().nunique()
+        else:
+            unique_dlds = total_rent_listings
+        
+        # Show total count
+        st.markdown(f"**Total: {total_rent_listings} listings / {unique_dlds} unique listings**")
+        
+        # Add listing type selector
+        listing_type = st.radio(
+            "Show listings:",
+            ["All listings", "Unique listings", "Duplicate listings"],
+            index=0,
+            horizontal=True,
+            key="rent_listing_type"
+        )
+        
+        # Filter listings based on selection
+        if listing_type == "Unique listings":
+            # Select unique listings (prioritizing verified and most recent)
+            if 'DLD Permit Number' in filtered_rent_listings.columns:
+                def select_unique_listings(df):
+                    groups = []
+                    for dld, group in df.groupby("DLD Permit Number"):
+                        if pd.isna(dld) or str(dld).strip() == "":
+                            continue
+                        # Prioritize verified listings
+                        verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
+                        if not verified_group.empty:
+                            if "Listed When" in verified_group.columns:
+                                idx = verified_group["Listed When"].idxmax()
+                                groups.append(verified_group.loc[[idx]])
+                            else:
+                                groups.append(verified_group.iloc[[0]])
+                        else:
+                            if "Listed When" in group.columns:
+                                idx = group["Listed When"].idxmax()
+                                groups.append(group.loc[[idx]])
+                            else:
+                                groups.append(group.iloc[[0]])
+                    if groups:
+                        return pd.concat(groups, ignore_index=True)
+                    else:
+                        return pd.DataFrame(columns=df.columns)
+                
+                filtered_rent_listings = select_unique_listings(filtered_rent_listings)
+                st.markdown(f"**Showing {filtered_rent_listings.shape[0]} unique listings**")
+                
+        elif listing_type == "Duplicate listings":
+            # Show only listings that have duplicates
+            if 'DLD Permit Number' in filtered_rent_listings.columns:
+                dld_counts = filtered_rent_listings['DLD Permit Number'].value_counts()
+                duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['DLD Permit Number'].isin(duplicate_dlds)]
+                st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
+        
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_rent_listings.columns if c not in columns_to_hide] + ["URL"]
-
-        # Show count of rent listings
-        total_rent_listings = filtered_rent_listings.shape[0]
-        st.markdown(f"**Showing {total_rent_listings} rent listings**")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_rent_listings[visible_columns])
