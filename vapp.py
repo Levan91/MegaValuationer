@@ -935,26 +935,8 @@ filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_tran
 tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
 
 with tab1:
-    # Remove the Selected Unit Info box
-    # st.markdown("### Selected Unit Info")
-    # ... (remove info_parts and rental_info_html display)
-    # ... (remove unit details and transaction history for selected unit)
     st.markdown("<!-- SALES TAB START -->")
     st.title("Real Estate Valuation Sales")
-
-    # Unit details
-    # (Removed all logic involving unit_number)
-    st.markdown(f"**Development:** {development}")
-    st.markdown(f"**Community:** {community}")
-    st.markdown(f"**Property Type:** {property_type}")
-    st.markdown(f"**Bedrooms:** {bedrooms}")
-    st.markdown(f"**BUA:** {bua}")
-    st.markdown(f"**Plot Size:** {plot_size}")
-    st.markdown(f"**Floor Level:**")
-
-    # Transaction history for selected unit
-    # (Removed all logic involving unit_number)
-    st.info("No transaction data found for selected unit.")
 
     # Transaction History
     st.subheader("Transaction History")
