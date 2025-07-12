@@ -1230,7 +1230,7 @@ if not all_rent_listings.empty:
         all_rent_listings['Days Listed'] = pd.to_numeric(all_rent_listings['Days Listed'], errors='coerce')
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Live Listings", "Rent Listings", "Trend & Valuation", "Rentals"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Listings: Sale", "Listings: Rent", "Trend & Valuation", "Tracker"])
 
 with tab1:
     # Remove unnecessary and error-prone variable deletion
@@ -1385,9 +1385,9 @@ with tab1:
     st.markdown("<!-- DASHBOARD TAB END -->")
 
 with tab2:
-    st.markdown("<!-- LIVE LISTINGS TAB START -->")
+    st.markdown("<!-- LISTINGS: SALE TAB START -->")
     if isinstance(all_listings, pd.DataFrame) and all_listings.shape[0] > 0:
-        st.subheader("All Live Listings")
+        st.subheader("All Sale Listings")
         
         # Use all listings without any filtering
         filtered_listings = all_listings.copy()
@@ -1396,9 +1396,9 @@ with tab2:
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
         visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
 
-        # Show count of live listings
+        # Show count of sale listings
         total_listings = filtered_listings.shape[0]
-        st.markdown(f"**Showing {total_listings} live listings**")
+        st.markdown(f"**Showing {total_listings} sale listings**")
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
@@ -1416,7 +1416,7 @@ with tab2:
             update_mode=GridUpdateMode.SELECTION_CHANGED,
             data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
             theme='alpine',
-            key="live_listings_grid"
+            key="sale_listings_grid"
         )
 
         # Handle selection from AgGrid (can be list of dicts or DataFrame)
@@ -1444,11 +1444,11 @@ with tab2:
                     height=1600
                 )
     else:
-        st.info("No live listings data found.")
-    st.markdown("<!-- LIVE LISTINGS TAB END -->")
+        st.info("No sale listings data found.")
+    st.markdown("<!-- LISTINGS: SALE TAB END -->")
 
 with tab3:
-    st.markdown("<!-- RENT LISTINGS TAB START -->")
+    st.markdown("<!-- LISTINGS: RENT TAB START -->")
     if isinstance(all_rent_listings, pd.DataFrame) and all_rent_listings.shape[0] > 0:
         st.subheader("All Rent Listings")
         
@@ -1508,7 +1508,7 @@ with tab3:
                 )
     else:
         st.info("No rent listings data found.")
-    st.markdown("<!-- RENT LISTINGS TAB END -->")
+    st.markdown("<!-- LISTINGS: RENT TAB END -->")
 
 # All Prophet/chart/forecast code is strictly inside tab4 below
 with tab4:
@@ -2269,8 +2269,8 @@ with tab4:
     st.markdown("<!-- TREND & VALUATION TAB END -->")
 
 with tab5:
-    st.markdown("<!-- RENTALS TAB START -->")
-    st.title("Rental Transactions")
+    st.markdown("<!-- TRACKER TAB START -->")
+    st.title("Rental Tracker")
     
     # Load all rental data from Data/Rentals directory
     rentals_dir = os.path.join(os.path.dirname(__file__), "Data", "Rentals")
@@ -2548,5 +2548,5 @@ with tab5:
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
     
-    st.markdown("<!-- RENTALS TAB END -->")
+    st.markdown("<!-- TRACKER TAB END -->")
 
