@@ -684,7 +684,7 @@ with st.sidebar:
             else:
                 layout_type_col = pd.Series([layout_type_col])
         unit_type_df = unit_type_df[layout_type_col.isin(layout_type)]
-    unit_type_col = unit_type_df['Unit Type'] if 'Unit Type' in unit_type_df.columns else pd.Series([])
+    unit_type_col = unit_type_df['Type'] if 'Type' in unit_type_df.columns else pd.Series([])
     if not isinstance(unit_type_col, pd.Series):
         unit_type_col = pd.Series(unit_type_col)
     unit_type_options = sorted(unit_type_col.dropna().unique())
