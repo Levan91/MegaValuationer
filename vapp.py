@@ -1348,6 +1348,20 @@ with tab2:
         # Show total count
         st.markdown(f"**Total: {total_listings} listings / {unique_dlds} unique listings**")
         
+        # Add verified filter
+        verified_filter = st.radio(
+            "Verified listings:",
+            ["All listings", "Verified only"],
+            index=0,
+            horizontal=True,
+            key="sale_verified_filter"
+        )
+        
+        # Apply verified filter
+        if verified_filter == "Verified only" and 'Verified' in filtered_listings.columns:
+            filtered_listings = filtered_listings[filtered_listings['Verified'].str.lower() == 'yes']
+            st.markdown(f"**Showing {filtered_listings.shape[0]} verified listings**")
+        
         # Add listing type selector
         listing_type = st.radio(
             "Show listings:",
@@ -1463,6 +1477,20 @@ with tab3:
         
         # Show total count
         st.markdown(f"**Total: {total_rent_listings} listings / {unique_dlds} unique listings**")
+        
+        # Add verified filter
+        verified_filter = st.radio(
+            "Verified listings:",
+            ["All listings", "Verified only"],
+            index=0,
+            horizontal=True,
+            key="rent_verified_filter"
+        )
+        
+        # Apply verified filter
+        if verified_filter == "Verified only" and 'Verified' in filtered_rent_listings.columns:
+            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Verified'].str.lower() == 'yes']
+            st.markdown(f"**Showing {filtered_rent_listings.shape[0]} verified listings**")
         
         # Add listing type selector
         listing_type = st.radio(
