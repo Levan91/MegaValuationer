@@ -208,20 +208,6 @@ def _on_development_change():
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-    # Only clear unit_number if it no longer matches the selected development
-    unit_number = st.session_state.get("unit_number", "")
-    development = st.session_state.get("development", "")
-
-    if unit_number and development:
-        unit_no_series = all_transactions[
-            all_transactions['All Developments'] == development
-        ]['Unit No.']
-        import pandas as pd
-        if not isinstance(unit_no_series, pd.Series):
-            unit_no_series = pd.Series(unit_no_series)
-        valid_units = unit_no_series.dropna().unique()
-        if unit_number not in valid_units:
-            st.session_state.pop("unit_number", None)
 
     # Clear dependent filters
     st.session_state.pop("community", None)
@@ -239,23 +225,6 @@ def _on_community_change():
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-    # Only clear unit_number if it no longer matches the selected communities
-    unit_number = st.session_state.get("unit_number", "")
-    community = st.session_state.get("community", [])
-
-    if unit_number and community:
-        import pandas as pd
-        community_col = all_transactions['Community/Building']
-        if not isinstance(community_col, pd.Series):
-            community_col = pd.Series(community_col)
-        valid_units = all_transactions[
-            community_col.isin(community)
-        ]['Unit No.']
-        if not isinstance(valid_units, pd.Series):
-            valid_units = pd.Series(valid_units)
-        valid_units = valid_units.dropna().unique()
-        if unit_number not in valid_units:
-            st.session_state.pop("unit_number", None)
 
     # Clear dependent filters
     st.session_state.pop("subcommunity", None)
@@ -272,25 +241,6 @@ def _on_subcommunity_change():
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-    # Only clear unit_number if it no longer matches the selected subcommunities
-    unit_number = st.session_state.get("unit_number", "")
-    subcommunity = st.session_state.get("subcommunity", [])
-
-    if unit_number and subcommunity:
-        import pandas as pd
-        subcommunity_col = all_transactions['Sub Community / Building']
-        if not isinstance(subcommunity_col, pd.Series):
-            subcommunity_col = pd.Series(subcommunity_col)
-        mask = subcommunity_col.isin(subcommunity)
-        if not isinstance(mask, pd.Series):
-            mask = pd.Series(mask)
-        unit_nos = all_transactions[mask]['Unit No.']
-        if not isinstance(unit_nos, pd.Series):
-            unit_nos = pd.Series(unit_nos)
-        unit_nos = unit_nos.reset_index(drop=True)
-        valid_units = unit_nos.dropna().unique()
-        if unit_number not in valid_units:
-            st.session_state.pop("unit_number", None)
     
     # Clear flag
     clear_filter_update_flag()
@@ -304,8 +254,6 @@ def _on_bedrooms_change():
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-    # Clear only the unit number selection when bedrooms changes
-    st.session_state.pop("unit_number", None)
     
     # Clear flag
     clear_filter_update_flag()
@@ -560,12 +508,10 @@ with st.sidebar:
 
     if st.button("🔄 Reset Filters", key="reset_filters"):
         _reset_filters()
-        st.rerun()
 
     # Unified refresh button for all data
     if st.button("🔄 Refresh All Data", key="refresh_all"):
         refresh_all_data()
-        st.rerun()
 
     with st.expander("📂 Select Transaction Files", expanded=False):
         all_txn_files = [f for f in os.listdir(transactions_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
@@ -611,31 +557,13 @@ with st.sidebar:
         sales_rec_options = ['All']
 
     # --- Determine selected values for autofill ---
-    if unit_number:
-        unit_row = all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]  # type: ignore
-
-        development = unit_row['All Developments']
-        community = [unit_row['Community/Building']] if pd.notna(unit_row['Community/Building']) else []
-        subcommunity = unit_row['Sub Community / Building']
-
-        layout_type_val = unit_row['Layout Type'] if 'Layout Type' in unit_row else ''
-        # Use context-aware lookup for Beds, BUA, Type
-        details = get_unit_details(development, community[0] if community else '', subcommunity, layout_type_val)
-        property_type = details.get('Type', unit_row['Unit Type'] if 'Unit Type' in unit_row else '')
-        bedrooms = str(details.get('Beds', unit_row['Beds'] if 'Beds' in unit_row else ''))
-        bua = details.get('BUA', unit_row['Unit Size (sq ft)'] if 'Unit Size (sq ft)' in unit_row else '')
-        floor = str(unit_row['Floor Level']) if pd.notna(unit_row['Floor Level']) else ""
-        plot_size = unit_row['Plot Size (sq ft)'] if pd.notna(unit_row['Plot Size (sq ft)']) else ""
-    else:
-        development = current_development
-        community = current_community
-        subcommunity = current_subcommunity
-        property_type = st.session_state.get("property_type", "")
-        bedrooms = st.session_state.get("bedrooms", "")
-        bua = st.session_state.get("bua", "")
-        plot_size = st.session_state.get("plot_size", "")
+    # (Removed all logic involving unit_number)
 
     # --- Location selectors (always enabled) ---
+    development = st.session_state.get("development", "")
+    community = st.session_state.get("community", [])
+    subcommunity = st.session_state.get("subcommunity", [])
+
     development = st.selectbox(
         "Development",
         options=[""] + dev_options,
@@ -722,8 +650,7 @@ with st.sidebar:
             unit_nos = pd.Series(unit_nos)
         unit_nos = unit_nos.reset_index(drop=True)
         valid_units = unit_nos.dropna().unique()
-        if unit_number not in valid_units:
-            st.session_state.pop("unit_number", None)
+        # (Removed all logic involving unit_number)
         filtered_unit_nos.update(unit_nos.dropna().unique())
 
     if filtered_unit_nos:
@@ -746,18 +673,12 @@ with st.sidebar:
         layout_type_col = pd.Series(layout_type_col)
     layout_options = sorted(layout_type_col.dropna().unique())
     
-    normalized_unit_number = unit_number.strip().upper() if unit_number else ""
-    mapped_layout = layout_map.get(normalized_unit_number, "") if normalized_unit_number else ""
-
-    # If a unit is selected, show only its mapped layout as the option
-    if normalized_unit_number and mapped_layout:
-        layout_options = [mapped_layout]
 
     # Use session state for layout type with proper default handling
     layout_type = st.multiselect(
         "Layout Type",
         options=layout_options,
-        default=current_layout_type if current_layout_type and all(l in layout_options for l in current_layout_type) else ([mapped_layout] if mapped_layout in layout_options else []),
+        default=current_layout_type if current_layout_type and all(l in layout_options for l in current_layout_type) else [],
         key="layout_type"
     )
 
@@ -861,59 +782,10 @@ if property_type:
 if bedrooms:
     filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
 # Floor tolerance filter for apartments if enabled
-if property_type == "Apartment" and unit_number and st.session_state.get("enable_floor_tol", False):
-    tol = st.session_state.get("floor_tolerance", 0)
-    try:
-        selected_floor = int(
-            all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Floor Level']  # type: ignore
-        )
-        if tol > 0:
-            low = selected_floor - tol
-            high = selected_floor + tol
-            filtered_transactions = filtered_transactions[
-                (filtered_transactions['Floor Level'] >= low) &
-                (filtered_transactions['Floor Level'] <= high)
-            ]
-        else:
-            filtered_transactions = filtered_transactions[
-                filtered_transactions['Floor Level'] == selected_floor
-            ]
-    except Exception:
-        pass
 if layout_type:
     filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
 # BUA tolerance filter if enabled
-if property_type == "Apartment" and unit_number and st.session_state.get("enable_bua_tol", False):
-    tol = st.session_state.get("bua_tolerance", 0)
-    if tol > 0:
-        try:
-            selected_bua = float(
-                all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Unit Size (sq ft)']  # type: ignore
-            )
-            low = selected_bua - tol
-            high = selected_bua + tol
-            filtered_transactions = filtered_transactions[
-                (filtered_transactions['Unit Size (sq ft)'] >= low) &
-                (filtered_transactions['Unit Size (sq ft)'] <= high)
-            ]
-        except Exception:
-            pass
 # Plot Size tolerance filter if enabled
-if unit_number and st.session_state.get("enable_plot_tol", False):
-    tol = st.session_state.get("plot_tolerance", 0)
-    if tol > 0:
-        try:
-            selected_plot = float(
-                all_transactions[all_transactions['Unit No.'] == unit_number].iloc[0]['Plot Size (sq ft)']  # type: ignore
-            )
-            low = selected_plot - tol
-            high = selected_plot + tol
-            filtered_transactions = filtered_transactions[
-                (filtered_transactions['Plot Size (sq ft)'] >= low) &
-                (filtered_transactions['Plot Size (sq ft)'] <= high)
-            ]
-        except Exception:
-            pass
 if sales_recurrence != "All":
     filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
 
@@ -1071,55 +943,18 @@ with tab1:
     st.title("Real Estate Valuation Sales")
 
     # Unit details
-    if unit_number:
-        selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
-        if not isinstance(selected_unit_data, pd.DataFrame):
-            selected_unit_data = pd.DataFrame(selected_unit_data)
-        if not selected_unit_data.empty:
-            unit_info = selected_unit_data.iloc[0]
-            st.markdown(f"**Development:** {unit_info['All Developments']}")
-            st.markdown(f"**Community:** {unit_info['Community/Building']}")
-            st.markdown(f"**Property Type:** {unit_info['Unit Type']}")
-            st.markdown(f"**Bedrooms:** {unit_info['Beds']}")
-            st.markdown(f"**BUA:** {unit_info['Unit Size (sq ft)']}")
-            st.markdown(f"**Plot Size:** {unit_info['Plot Size (sq ft)']}")
-            st.markdown(f"**Floor Level:** {unit_info['Floor Level']}")
-        else:
-            st.markdown(f"**Development:** {development}")
-            st.markdown(f"**Community:** {community}")
-            st.markdown(f"**Property Type:** {property_type}")
-            st.markdown(f"**Bedrooms:** {bedrooms}")
-            st.markdown(f"**BUA:** {bua}")
-            st.markdown(f"**Plot Size:** {plot_size}")
-            st.markdown(f"**Floor Level:**")
-    else:
-        st.markdown(f"**Development:** {development}")
-        st.markdown(f"**Community:** {community}")
-        st.markdown(f"**Property Type:** {property_type}")
-        st.markdown(f"**Bedrooms:** {bedrooms}")
-        st.markdown(f"**BUA:** {bua}")
-        st.markdown(f"**Plot Size:** {plot_size}")
-        st.markdown(f"**Floor Level:**")
+    # (Removed all logic involving unit_number)
+    st.markdown(f"**Development:** {development}")
+    st.markdown(f"**Community:** {community}")
+    st.markdown(f"**Property Type:** {property_type}")
+    st.markdown(f"**Bedrooms:** {bedrooms}")
+    st.markdown(f"**BUA:** {bua}")
+    st.markdown(f"**Plot Size:** {plot_size}")
+    st.markdown(f"**Floor Level:**")
 
     # Transaction history for selected unit
-    if unit_number:
-        selected_unit_data = all_transactions[all_transactions['Unit No.'] == unit_number].copy()
-        if not isinstance(selected_unit_data, pd.DataFrame):
-            selected_unit_data = pd.DataFrame(selected_unit_data)
-        if not selected_unit_data.empty:
-            st.markdown("---")
-            st.markdown("**Transaction History for Selected Unit:**")
-            unit_txn_columns_to_hide = ["Unit No.", "Unit Number", "Select Data Points", "Maid", "Study", "Balcony", "Developer Name", "Source", "Comments", "Source File", "View"]
-            unit_txn_visible_columns = [col for col in selected_unit_data.columns if col not in unit_txn_columns_to_hide]
-            if 'Sub Community / Building' in selected_unit_data.columns and selected_unit_data['Sub Community / Building'].dropna().empty:
-                if 'Sub Community / Building' in unit_txn_visible_columns:
-                    unit_txn_visible_columns.remove('Sub Community / Building')
-            if 'Evidence Date' in selected_unit_data.columns:
-                selected_unit_data = selected_unit_data.copy()
-                selected_unit_data['Evidence Date'] = selected_unit_data['Evidence Date'].dt.strftime('%Y-%m-%d')
-            st.dataframe(selected_unit_data[unit_txn_visible_columns])
-        else:
-            st.info("No transaction data found for selected unit.")
+    # (Removed all logic involving unit_number)
+    st.info("No transaction data found for selected unit.")
 
     # Transaction History
     st.subheader("Transaction History")
@@ -1168,8 +1003,11 @@ with tab2:
         
         # Calculate unique listings count (after verified filter)
         total_listings = filtered_listings.shape[0]
-        if 'DLD Permit Number' in filtered_listings.columns:
-            unique_dlds = filtered_listings['DLD Permit Number'].dropna().nunique()
+        if isinstance(filtered_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_listings.columns:
+            dld_col = filtered_listings['DLD Permit Number']
+            if not isinstance(dld_col, pd.Series):
+                dld_col = pd.Series(dld_col)
+            unique_dlds = dld_col.dropna().nunique()
         else:
             unique_dlds = total_listings
         
@@ -1218,10 +1056,13 @@ with tab2:
                 
         elif listing_type == "Duplicate listings":
             # Show only listings that have duplicates
-            if 'DLD Permit Number' in filtered_listings.columns:
-                dld_counts = filtered_listings['DLD Permit Number'].value_counts()
+            if isinstance(filtered_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_listings.columns:
+                dld_col = filtered_listings['DLD Permit Number']
+                if not isinstance(dld_col, pd.Series):
+                    dld_col = pd.Series(dld_col)
+                dld_counts = dld_col.value_counts()
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-                filtered_listings = filtered_listings[filtered_listings['DLD Permit Number'].isin(duplicate_dlds)]
+                filtered_listings = filtered_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
         
         # Price comparison feature
@@ -1313,8 +1154,11 @@ with tab3:
         
         # Calculate unique listings count (after verified filter)
         total_rent_listings = filtered_rent_listings.shape[0]
-        if 'DLD Permit Number' in filtered_rent_listings.columns:
-            unique_dlds = filtered_rent_listings['DLD Permit Number'].dropna().nunique()
+        if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
+            dld_col = filtered_rent_listings['DLD Permit Number']
+            if not isinstance(dld_col, pd.Series):
+                dld_col = pd.Series(dld_col)
+            unique_dlds = dld_col.dropna().nunique()
         else:
             unique_dlds = total_rent_listings
         
@@ -1363,10 +1207,13 @@ with tab3:
                 
         elif listing_type == "Duplicate listings":
             # Show only listings that have duplicates
-            if 'DLD Permit Number' in filtered_rent_listings.columns:
-                dld_counts = filtered_rent_listings['DLD Permit Number'].value_counts()
+            if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
+                dld_col = filtered_rent_listings['DLD Permit Number']
+                if not isinstance(dld_col, pd.Series):
+                    dld_col = pd.Series(dld_col)
+                dld_counts = dld_col.value_counts()
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-                filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['DLD Permit Number'].isin(duplicate_dlds)]
+                filtered_rent_listings = filtered_rent_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
         
         # Price comparison feature
@@ -1535,7 +1382,7 @@ with tab5:
             else:
                 status.append('🟢')  # Available
         else:
-            status.append('🟢')  # Available
+            status.append('��')  # Available
     filtered_rental_data['Status'] = status
     
     # Show data count
