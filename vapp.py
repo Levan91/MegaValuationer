@@ -1283,7 +1283,7 @@ with tab3:
         st.info("No rent listings data found.")
     st.markdown("<!-- LISTINGS: RENT TAB END -->")
 
-with tab5:
+with tab4:
     st.markdown("<!-- TRACKER TAB START -->")
     st.title("Rental Tracker (Filtered)")
     
