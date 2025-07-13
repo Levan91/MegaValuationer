@@ -1638,21 +1638,27 @@ with tab4:
         
         display_data = display_data.rename(columns=column_mapping)
         
+        # Format Contract Start and End columns to show only date
+        if 'Start Date_dt' in display_data.columns:
+            display_data['Start Date_dt'] = pd.to_datetime(display_data['Start Date_dt'], errors='coerce').dt.strftime('%d/%m/%Y')
+        if 'End Date_dt' in display_data.columns:
+            display_data['End Date_dt'] = pd.to_datetime(display_data['End Date_dt'], errors='coerce').dt.strftime('%d/%m/%Y')
+        
         # Use AgGrid for interactive table
         gb = GridOptionsBuilder.from_dataframe(display_data)
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         gb.configure_grid_options(domLayout='normal')
         
-        # Configure column properties
+        # Configure column properties for better layout
         for col in display_data.columns:
             if 'Rent' in col or 'AED' in col:
-                gb.configure_column(col, type=["numericColumn", "numberColumnFilter"], valueFormatter="value.toLocaleString()")
+                gb.configure_column(col, type=["numericColumn", "numberColumnFilter"], valueFormatter="value.toLocaleString()", flex=1)
             elif col == 'Status':
                 gb.configure_column(col, width=100)
             elif col == 'Unit No.':
                 gb.configure_column(col, width=100)
             else:
-                gb.configure_column(col, width=150)
+                gb.configure_column(col, flex=1)
         
         grid_options = gb.build()
         
