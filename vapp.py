@@ -1638,11 +1638,11 @@ with tab4:
         
         display_data = display_data.rename(columns=column_mapping)
         
-        # Format Contract Start and End columns to show only date
+        # Format Contract Start and End columns to show only date in DD/MM/YY format
         if 'Start Date_dt' in display_data.columns:
-            display_data['Start Date_dt'] = pd.to_datetime(display_data['Start Date_dt'], errors='coerce').dt.strftime('%d/%m/%Y')
+            display_data['Start Date_dt'] = pd.to_datetime(display_data['Start Date_dt'], errors='coerce').dt.strftime('%d/%m/%y')
         if 'End Date_dt' in display_data.columns:
-            display_data['End Date_dt'] = pd.to_datetime(display_data['End Date_dt'], errors='coerce').dt.strftime('%d/%m/%Y')
+            display_data['End Date_dt'] = pd.to_datetime(display_data['End Date_dt'], errors='coerce').dt.strftime('%d/%m/%y')
         
         # Use AgGrid for interactive table
         gb = GridOptionsBuilder.from_dataframe(display_data)
