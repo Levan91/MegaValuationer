@@ -141,6 +141,7 @@ from prophet.diagnostics import cross_validation, performance_metrics
 import numpy as np
 from datetime import datetime, timedelta
 import time
+import json
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -1533,10 +1534,25 @@ with tab4:
     else:
         st.info("📊 No rental data available")
     
-    # Simple metrics display
+    # --- Tracker Metrics Persistence ---
+    TRACKER_METRICS_FILE = "tracker_metrics.json"
+    def load_last_tracker_metrics():
+        try:
+            with open(TRACKER_METRICS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    def save_tracker_metrics(metrics):
+        try:
+            with open(TRACKER_METRICS_FILE, "w") as f:
+                json.dump(metrics, f)
+        except Exception:
+            pass
+
+    # ... inside the Tracker tab metrics display ...
     if filtered_rental_data is not None and not filtered_rental_data.empty:
-        st.subheader("📊 Rental Overview")
-        
+        st.subheader("�� Rental Overview")
         # Status counts from rental data
         status_counts = filtered_rental_data['Status'].value_counts()
         rented_units = status_counts.get('🔴', 0)
@@ -1544,22 +1560,34 @@ with tab4:
         expiring_30_days = status_counts.get('🟣', 0)
         recently_vacant = status_counts.get('🔵', 0)
         available_units = status_counts.get('🟢', 0)
-        
+
+        # Load last session's metrics
+        last_metrics = load_last_tracker_metrics() or {}
+        # Prepare current metrics
+        current_metrics = {
+            "Rented Units": rented_units,
+            "Available Units": available_units,
+            "Expiring Soon": expiring_soon,
+            "Expiring <30 days": expiring_30_days,
+            "Recently Vacant": recently_vacant
+        }
+
         # Display metrics in columns
         col1, col2, col3, col4 = st.columns(4)
-        
         with col1:
             st.metric("Total Units", len(filtered_rental_data))
-            st.metric("Available Units", available_units)
-        
+            delta = current_metrics["Available Units"] - last_metrics.get("Available Units", current_metrics["Available Units"])
+            st.metric("Available Units", available_units, delta if last_metrics else None)
         with col2:
-            st.metric("Rented Units", rented_units)
-            st.metric("Expiring Soon", expiring_soon)
-        
+            delta = current_metrics["Rented Units"] - last_metrics.get("Rented Units", current_metrics["Rented Units"])
+            st.metric("Rented Units", rented_units, delta if last_metrics else None)
+            delta = current_metrics["Expiring Soon"] - last_metrics.get("Expiring Soon", current_metrics["Expiring Soon"])
+            st.metric("Expiring Soon", expiring_soon, delta if last_metrics else None)
         with col3:
-            st.metric("Expiring <30 days", expiring_30_days)
-            st.metric("Recently Vacant", recently_vacant)
-        
+            delta = current_metrics["Expiring <30 days"] - last_metrics.get("Expiring <30 days", current_metrics["Expiring <30 days"])
+            st.metric("Expiring <30 days", expiring_30_days, delta if last_metrics else None)
+            delta = current_metrics["Recently Vacant"] - last_metrics.get("Recently Vacant", current_metrics["Recently Vacant"])
+            st.metric("Recently Vacant", recently_vacant, delta if last_metrics else None)
         with col4:
             # Calculate average rent if available
             rent_col_candidates = [
@@ -1572,7 +1600,6 @@ with tab4:
                 if col in filtered_rental_data.columns:
                     rent_col = col
                     break
-            
             if rent_col:
                 valid_rents = filtered_rental_data[rent_col].dropna()
                 if not valid_rents.empty:
@@ -1582,7 +1609,9 @@ with tab4:
                     st.metric("Avg Annual Rent", "N/A")
             else:
                 st.metric("Avg Annual Rent", "N/A")
-        
+        # Save current metrics for next session
+        save_tracker_metrics(current_metrics)
+    
     # --- Table Display ---
     if filtered_rental_data is not None and not filtered_rental_data.empty:
         st.subheader("Rental Data Table")
