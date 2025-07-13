@@ -608,9 +608,9 @@ with st.sidebar:
         layout_df_filtered = layout_df_filtered[comm_col.isin(community)]
     # --- Subcommunity Filter (context-aware) ---
     subcom_col = layout_df_filtered['Sub Community / Building'] if 'Sub Community / Building' in layout_df_filtered.columns else pd.Series([])
-        if not isinstance(subcom_col, pd.Series):
-            subcom_col = pd.Series(subcom_col)
-        subcom_options = sorted(subcom_col.dropna().unique())
+    if not isinstance(subcom_col, pd.Series):
+        subcom_col = pd.Series(subcom_col)
+    subcom_options = sorted(subcom_col.dropna().unique())
     current_subcommunity = st.session_state.get("subcommunity", [])
     subcommunity = st.multiselect(
         "Sub community / Building",
@@ -798,14 +798,23 @@ if not filtered_transactions.empty:
 # --- Unit Type filter ---
 unit_type = st.session_state.get("unit_type", [])
 if unit_type:
-    filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'].isin(unit_type)]
+    unit_type_col = filtered_transactions['Unit Type']
+    if not isinstance(unit_type_col, pd.Series):
+        unit_type_col = pd.Series(unit_type_col)
+    filtered_transactions = filtered_transactions[unit_type_col.isin(unit_type)]
     # Floor tolerance filter for apartments if enabled
     if layout_type:
-        filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
+        layout_type_col = filtered_transactions['Layout Type']
+        if not isinstance(layout_type_col, pd.Series):
+            layout_type_col = pd.Series(layout_type_col)
+        filtered_transactions = filtered_transactions[layout_type_col.isin(layout_type)]  # type: ignore
     # BUA tolerance filter if enabled
     # Plot Size tolerance filter if enabled
     if sales_recurrence != "All":
-        filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
+        sales_rec_col = filtered_transactions['Sales Recurrence']
+        if not isinstance(sales_rec_col, pd.Series):
+            sales_rec_col = pd.Series(sales_rec_col)
+        filtered_transactions = filtered_transactions[sales_rec_col == sales_recurrence]
 
  # --- Load Live Listings Data from Data/Listings ---
 listings_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Listings')
@@ -978,10 +987,16 @@ if property_type:
 if bedrooms:
     filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Beds'].astype(str) == bedrooms]
 if layout_type:
-    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Layout Type'].isin(layout_type)]
+    layout_type_col = filtered_transactions_no_time['Layout Type']
+    if not isinstance(layout_type_col, pd.Series):
+        layout_type_col = pd.Series(layout_type_col)
+    filtered_transactions_no_time = filtered_transactions_no_time[layout_type_col.isin(layout_type)]
 unit_type = st.session_state.get("unit_type", [])
 if unit_type:
-    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Unit Type'].isin(unit_type)]
+    unit_type_col = filtered_transactions_no_time['Unit Type']
+    if not isinstance(unit_type_col, pd.Series):
+        unit_type_col = pd.Series(unit_type_col)
+    filtered_transactions_no_time = filtered_transactions_no_time[unit_type_col.isin(unit_type)]
 
 filtered_rental_data_no_time = rental_df.copy()
 if development:
@@ -1001,9 +1016,15 @@ if property_type:
 if bedrooms:
     filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Beds'].astype(str) == bedrooms]
 if layout_type:
-    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Layout Type'].isin(layout_type)]
+    layout_type_col = filtered_rental_data_no_time['Layout Type']
+    if not isinstance(layout_type_col, pd.Series):
+        layout_type_col = pd.Series(layout_type_col)
+    filtered_rental_data_no_time = filtered_rental_data_no_time[layout_type_col.isin(layout_type)]
 if unit_type:
-    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Unit Type'].isin(unit_type)]
+    unit_type_col = filtered_rental_data_no_time['Unit Type']
+    if not isinstance(unit_type_col, pd.Series):
+        unit_type_col = pd.Series(unit_type_col)
+    filtered_rental_data_no_time = filtered_rental_data_no_time[unit_type_col.isin(unit_type)]
 
  # --- Main Tabs ---
 tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
@@ -1016,14 +1037,22 @@ with tab1:
     unit_col_candidates = [
         'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
     ]
+    # Ensure DataFrame for filtered_transactions_no_time and filtered_rental_data_no_time
+    if not isinstance(filtered_transactions_no_time, pd.DataFrame):
+        filtered_transactions_no_time = pd.DataFrame(filtered_transactions_no_time)
+    if not isinstance(filtered_rental_data_no_time, pd.DataFrame):
+        filtered_rental_data_no_time = pd.DataFrame(filtered_rental_data_no_time)
     unit_col = None
     for col in unit_col_candidates:
         if col in filtered_transactions_no_time.columns:
             unit_col = col
-                    break
+            break
     unit_options = []
     if unit_col:
-        unit_options = sorted(filtered_transactions_no_time[unit_col].dropna().astype(str).unique())
+        unit_col_data = filtered_transactions_no_time[unit_col]
+        if not isinstance(unit_col_data, pd.Series):
+            unit_col_data = pd.Series(unit_col_data)
+        unit_options = sorted(unit_col_data.dropna().astype(str).unique())
     selected_unit = st.selectbox(
         "Search Unit",
         options=[""] + unit_options,
@@ -1035,7 +1064,10 @@ with tab1:
     if selected_unit:
         # Only show sales and rent transactions, remove status info
         st.markdown(f"#### Sales Transactions for {selected_unit}")
-        sales_tx = filtered_transactions_no_time[filtered_transactions_no_time[unit_col].astype(str) == selected_unit]
+        sales_col = filtered_transactions_no_time[unit_col]
+        if not isinstance(sales_col, pd.Series):
+            sales_col = pd.Series(sales_col)
+        sales_tx = filtered_transactions_no_time[sales_col.astype(str) == selected_unit]
         if not sales_tx.empty:
             st.dataframe(sales_tx)
         else:
@@ -1047,10 +1079,15 @@ with tab1:
                 rent_unit_col = col
                 break
         if rent_unit_col:
-            rent_tx = filtered_rental_data_no_time[filtered_rental_data_no_time[rent_unit_col].astype(str) == selected_unit]
+            rent_col = filtered_rental_data_no_time[rent_unit_col]
+            if not isinstance(rent_col, pd.Series):
+                rent_col = pd.Series(rent_col)
+            rent_tx = filtered_rental_data_no_time[rent_col.astype(str) == selected_unit]
         st.markdown(f"#### Rent Transactions for {selected_unit}")
         if not rent_tx.empty:
             st.dataframe(rent_tx)
+        else:
+            st.info("No rent transactions found for this unit.")
     else:
             st.info("No rent transactions found for this unit.")
     # --- End Search Unit Box ---
@@ -1085,11 +1122,11 @@ with tab2:
         # Use filtered listings based on sidebar filters
         
         # Add verified filter
-            verified_filter = st.radio(
+        verified_filter = st.radio(
             "Verified listings:",
             ["All listings", "Verified only"],
             index=0,
-                horizontal=True,
+            horizontal=True,
             key="sale_verified_filter"
         )
         
@@ -1154,15 +1191,15 @@ with tab2:
             # Show only listings that have duplicates
             if isinstance(filtered_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_listings.columns:
                 dld_col = filtered_listings['DLD Permit Number']
-        if not isinstance(dld_col, pd.Series):
-            dld_col = pd.Series(dld_col)
-        dld_counts = dld_col.value_counts()
-        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+                if not isinstance(dld_col, pd.Series):
+                    dld_col = pd.Series(dld_col)
+                dld_counts = dld_col.value_counts()
+                duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
                 filtered_listings = filtered_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
         
         # Price comparison feature
-        if 'Price (AED)' in filtered_listings.columns:
+        if isinstance(filtered_listings, pd.DataFrame) and 'Price (AED)' in filtered_listings.columns:
             asking_price = st.number_input(
                 "Enter asking price (AED):",
                 min_value=0,
@@ -1171,7 +1208,13 @@ with tab2:
             )
             if asking_price > 0:
                 # Convert price column to numeric
-                prices = pd.to_numeric(filtered_listings['Price (AED)'], errors='coerce').dropna()
+                price_col = filtered_listings['Price (AED)']
+                if not isinstance(price_col, pd.Series):
+                    price_col = pd.Series(price_col)
+                prices_numeric = pd.to_numeric(price_col, errors='coerce')
+                if not isinstance(prices_numeric, pd.Series):
+                    prices_numeric = pd.Series(prices_numeric)
+                prices = prices_numeric.dropna()
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
@@ -1179,7 +1222,10 @@ with tab2:
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
-        visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
+        if isinstance(filtered_listings, pd.DataFrame):
+            visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
+        else:
+            visible_columns = []
 
         # Use AgGrid for clickable selection
         gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
@@ -1302,10 +1348,10 @@ with tab3:
             # Show only listings that have duplicates
             if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
                 dld_col = filtered_rent_listings['DLD Permit Number']
-        if not isinstance(dld_col, pd.Series):
-            dld_col = pd.Series(dld_col)
-        dld_counts = dld_col.value_counts()
-        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+                if not isinstance(dld_col, pd.Series):
+                    dld_col = pd.Series(dld_col)
+                dld_counts = dld_col.value_counts()
+                duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
                 filtered_rent_listings = filtered_rent_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
         
@@ -1319,7 +1365,13 @@ with tab3:
             )
             if asking_price > 0:
                 # Convert price column to numeric
-                prices = pd.to_numeric(filtered_rent_listings['Price (AED)'], errors='coerce').dropna()
+                price_col = filtered_rent_listings['Price (AED)']
+                if not isinstance(price_col, pd.Series):
+                    price_col = pd.Series(price_col)
+                prices_numeric = pd.to_numeric(price_col, errors='coerce')
+                if not isinstance(prices_numeric, pd.Series):
+                    prices_numeric = pd.Series(prices_numeric)
+                prices = prices_numeric.dropna()
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
