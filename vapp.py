@@ -1476,55 +1476,55 @@ with tab4:
         filtered_rental_data['Layout Type'] = filtered_rental_data['Layout Type'].replace('', 'N/A')
     elif 'Layout Type' in filtered_rental_data.columns:
         filtered_rental_data['Layout Type'] = filtered_rental_data['Layout Type'].replace('', 'N/A')
-        else:
+    else:
         filtered_rental_data['Layout Type'] = 'N/A'
     
     # Calculate status for all records
-        today = pd.Timestamp.now().normalize()
+    today = pd.Timestamp.now().normalize()
     if 'Evidence Date' in filtered_rental_data.columns:
-            def split_evidence_date(val):
-                if pd.isnull(val):
-                    return pd.NaT, pd.NaT
-                val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
-                if '/' in val_str:
-                    parts = val_str.split('/')
-                    if len(parts) == 2:
-                        start = pd.to_datetime(parts[0].strip(), errors='coerce', dayfirst=True)
-                        end = pd.to_datetime(parts[1].strip(), errors='coerce', dayfirst=True)
-                        return start, end
+        def split_evidence_date(val):
+            if pd.isnull(val):
                 return pd.NaT, pd.NaT
+            val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
+            if '/' in val_str:
+                parts = val_str.split('/')
+                if len(parts) == 2:
+                    start = pd.to_datetime(parts[0].strip(), errors='coerce', dayfirst=True)
+                    end = pd.to_datetime(parts[1].strip(), errors='coerce', dayfirst=True)
+                    return start, end
+            return pd.NaT, pd.NaT
         start_end = filtered_rental_data['Evidence Date'].apply(split_evidence_date)
         filtered_rental_data['Start Date_dt'] = [d[0] for d in start_end]
         filtered_rental_data['End Date_dt'] = [d[1] for d in start_end]
-        else:
+    else:
         filtered_rental_data['Start Date_dt'] = pd.NaT
         filtered_rental_data['End Date_dt'] = pd.NaT
     
-        # Calculate status using Start/End dates
+    # Calculate status using Start/End dates
     days_left = (pd.to_datetime(filtered_rental_data['End Date_dt'], errors='coerce') - today).dt.days
     days_since_end = (today - pd.to_datetime(filtered_rental_data['End Date_dt'], errors='coerce')).dt.days
     start_dates = pd.to_datetime(filtered_rental_data['Start Date_dt'], errors='coerce')
     end_dates = pd.to_datetime(filtered_rental_data['End Date_dt'], errors='coerce')
-        status = []
+    status = []
     for i in range(len(filtered_rental_data)):
-            start = start_dates.iloc[i]
-            end = end_dates.iloc[i]
-            left = days_left.iloc[i]
-            since_end = days_since_end.iloc[i]
-            if pd.notnull(start) and pd.notnull(end):
-                if start <= today <= end:
-                    if left < 31:
-                        status.append('🟣')  # Expiring <30 days
-                    elif left <= 90:
-                        status.append('🟡')  # Expiring Soon
-                    else:
-                        status.append('🔴')  # Rented
-                elif 0 < since_end <= 60:
-                    status.append('🔵')  # Recently Vacant
+        start = start_dates.iloc[i]
+        end = end_dates.iloc[i]
+        left = days_left.iloc[i]
+        since_end = days_since_end.iloc[i]
+        if pd.notnull(start) and pd.notnull(end):
+            if start <= today <= end:
+                if left < 31:
+                    status.append('🟣')  # Expiring <30 days
+                elif left <= 90:
+                    status.append('🟡')  # Expiring Soon
                 else:
-                    status.append('🟢')  # Available
+                    status.append('🔴')  # Rented
+            elif 0 < since_end <= 60:
+                status.append('🔵')  # Recently Vacant
             else:
-            status.append('��')  # Available
+                status.append('🟢')  # Available
+        else:
+            status.append('🟢')  # Available
     filtered_rental_data['Status'] = status
     
     # Show data count
@@ -1561,23 +1561,23 @@ with tab4:
             st.metric("Recently Vacant", recently_vacant)
         
         with col4:
-        # Calculate average rent if available
-        rent_col_candidates = [
-            'Annualised Rental Price(AED)',
-            'Annualised Rental Price (AED)',
-            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
-        ]
-        rent_col = None
-        for col in rent_col_candidates:
-            if col in filtered_rental_data.columns:
-                rent_col = col
-                break
-        
-        if rent_col:
-            valid_rents = filtered_rental_data[rent_col].dropna()
-            if not valid_rents.empty:
-                avg_rent = valid_rents.mean()
-                st.metric("Avg Annual Rent", f"AED {avg_rent:,.0f}")
+            # Calculate average rent if available
+            rent_col_candidates = [
+                'Annualised Rental Price(AED)',
+                'Annualised Rental Price (AED)',
+                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+            ]
+            rent_col = None
+            for col in rent_col_candidates:
+                if col in filtered_rental_data.columns:
+                    rent_col = col
+                    break
+            
+            if rent_col:
+                valid_rents = filtered_rental_data[rent_col].dropna()
+                if not valid_rents.empty:
+                    avg_rent = valid_rents.mean()
+                    st.metric("Avg Annual Rent", f"AED {avg_rent:,.0f}")
                 else:
                     st.metric("Avg Annual Rent", "N/A")
             else:
