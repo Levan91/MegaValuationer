@@ -523,10 +523,10 @@ with st.sidebar:
 
     # --- Property Filters ---
     # Get values from session state (auto-filled from unit selection)
-    property_type = st.session_state.get("property_type", "")
-    bedrooms = st.session_state.get("bedrooms", "")
-    bua = st.session_state.get("bua", "")
-    plot_size = st.session_state.get("plot_size", "")
+        property_type = st.session_state.get("property_type", "")
+        bedrooms = st.session_state.get("bedrooms", "")
+        bua = st.session_state.get("bua", "")
+        plot_size = st.session_state.get("plot_size", "")
 
     # --- Location Filters ---
     st.subheader("Location")
@@ -608,9 +608,9 @@ with st.sidebar:
         layout_df_filtered = layout_df_filtered[comm_col.isin(community)]
     # --- Subcommunity Filter (context-aware) ---
     subcom_col = layout_df_filtered['Sub Community / Building'] if 'Sub Community / Building' in layout_df_filtered.columns else pd.Series([])
-    if not isinstance(subcom_col, pd.Series):
-        subcom_col = pd.Series(subcom_col)
-    subcom_options = sorted(subcom_col.dropna().unique())
+        if not isinstance(subcom_col, pd.Series):
+            subcom_col = pd.Series(subcom_col)
+        subcom_options = sorted(subcom_col.dropna().unique())
     current_subcommunity = st.session_state.get("subcommunity", [])
     subcommunity = st.multiselect(
         "Sub community / Building",
@@ -777,35 +777,35 @@ if not filtered_transactions.empty:
             ]
 
 # --- Apply sidebar filters ---
-if development:
-    filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
-if community:
-    community_col = filtered_transactions['Community/Building']
-    if not isinstance(community_col, pd.Series):
-        community_col = pd.Series(community_col)
-    filtered_transactions = filtered_transactions[community_col.isin(community)]
-if subcommunity:
-    subcommunity_col = filtered_transactions['Sub Community / Building']
-    if not isinstance(subcommunity_col, pd.Series):
-        subcommunity_col = pd.Series(subcommunity_col)
-    filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
-if property_type:
-    filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
-if bedrooms:
-    filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
-if layout_type:
-    filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
+    if development:
+        filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
+    if community:
+        community_col = filtered_transactions['Community/Building']
+        if not isinstance(community_col, pd.Series):
+            community_col = pd.Series(community_col)
+        filtered_transactions = filtered_transactions[community_col.isin(community)]
+    if subcommunity:
+        subcommunity_col = filtered_transactions['Sub Community / Building']
+        if not isinstance(subcommunity_col, pd.Series):
+            subcommunity_col = pd.Series(subcommunity_col)
+        filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
+    if property_type:
+        filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
+    if bedrooms:
+        filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
+    if layout_type:
+        filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
 # --- Unit Type filter ---
 unit_type = st.session_state.get("unit_type", [])
 if unit_type:
     filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'].isin(unit_type)]
-# Floor tolerance filter for apartments if enabled
-if layout_type:
-    filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
-# BUA tolerance filter if enabled
-# Plot Size tolerance filter if enabled
-if sales_recurrence != "All":
-    filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
+    # Floor tolerance filter for apartments if enabled
+    if layout_type:
+        filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]  # type: ignore
+    # BUA tolerance filter if enabled
+    # Plot Size tolerance filter if enabled
+    if sales_recurrence != "All":
+        filtered_transactions = filtered_transactions[filtered_transactions['Sales Recurrence'] == sales_recurrence]
 
  # --- Load Live Listings Data from Data/Listings ---
 listings_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Listings')
@@ -1020,7 +1020,7 @@ with tab1:
     for col in unit_col_candidates:
         if col in filtered_transactions_no_time.columns:
             unit_col = col
-            break
+                    break
     unit_options = []
     if unit_col:
         unit_options = sorted(filtered_transactions_no_time[unit_col].dropna().astype(str).unique())
@@ -1051,7 +1051,7 @@ with tab1:
         st.markdown(f"#### Rent Transactions for {selected_unit}")
         if not rent_tx.empty:
             st.dataframe(rent_tx)
-        else:
+    else:
             st.info("No rent transactions found for this unit.")
     # --- End Search Unit Box ---
 
@@ -1085,11 +1085,11 @@ with tab2:
         # Use filtered listings based on sidebar filters
         
         # Add verified filter
-        verified_filter = st.radio(
+            verified_filter = st.radio(
             "Verified listings:",
             ["All listings", "Verified only"],
             index=0,
-            horizontal=True,
+                horizontal=True,
             key="sale_verified_filter"
         )
         
@@ -1154,10 +1154,10 @@ with tab2:
             # Show only listings that have duplicates
             if isinstance(filtered_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_listings.columns:
                 dld_col = filtered_listings['DLD Permit Number']
-                if not isinstance(dld_col, pd.Series):
-                    dld_col = pd.Series(dld_col)
-                dld_counts = dld_col.value_counts()
-                duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        dld_counts = dld_col.value_counts()
+        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
                 filtered_listings = filtered_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
         
@@ -1237,7 +1237,7 @@ with tab3:
             "Verified listings:",
             ["All listings", "Verified only"],
             index=0,
-            horizontal=True,
+                horizontal=True,
             key="rent_verified_filter"
         )
         
@@ -1302,10 +1302,10 @@ with tab3:
             # Show only listings that have duplicates
             if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
                 dld_col = filtered_rent_listings['DLD Permit Number']
-                if not isinstance(dld_col, pd.Series):
-                    dld_col = pd.Series(dld_col)
-                dld_counts = dld_col.value_counts()
-                duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
+        if not isinstance(dld_col, pd.Series):
+            dld_col = pd.Series(dld_col)
+        dld_counts = dld_col.value_counts()
+        duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
                 filtered_rent_listings = filtered_rent_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
         
@@ -1415,7 +1415,7 @@ with tab4:
         rental_df = pd.concat(rental_dfs, ignore_index=True)
     else:
         rental_df = pd.DataFrame()
-
+    
     # Use filtered rental data based on sidebar filters
     
     # Map Layout Type using layout_map if available
@@ -1424,54 +1424,54 @@ with tab4:
         filtered_rental_data['Layout Type'] = filtered_rental_data['Layout Type'].replace('', 'N/A')
     elif 'Layout Type' in filtered_rental_data.columns:
         filtered_rental_data['Layout Type'] = filtered_rental_data['Layout Type'].replace('', 'N/A')
-    else:
+        else:
         filtered_rental_data['Layout Type'] = 'N/A'
     
     # Calculate status for all records
-    today = pd.Timestamp.now().normalize()
+        today = pd.Timestamp.now().normalize()
     if 'Evidence Date' in filtered_rental_data.columns:
-        def split_evidence_date(val):
-            if pd.isnull(val):
+            def split_evidence_date(val):
+                if pd.isnull(val):
+                    return pd.NaT, pd.NaT
+                val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
+                if '/' in val_str:
+                    parts = val_str.split('/')
+                    if len(parts) == 2:
+                        start = pd.to_datetime(parts[0].strip(), errors='coerce', dayfirst=True)
+                        end = pd.to_datetime(parts[1].strip(), errors='coerce', dayfirst=True)
+                        return start, end
                 return pd.NaT, pd.NaT
-            val_str = str(val).replace('\u00A0', '').replace('\xa0', '').strip()
-            if '/' in val_str:
-                parts = val_str.split('/')
-                if len(parts) == 2:
-                    start = pd.to_datetime(parts[0].strip(), errors='coerce', dayfirst=True)
-                    end = pd.to_datetime(parts[1].strip(), errors='coerce', dayfirst=True)
-                    return start, end
-            return pd.NaT, pd.NaT
         start_end = filtered_rental_data['Evidence Date'].apply(split_evidence_date)
         filtered_rental_data['Start Date_dt'] = [d[0] for d in start_end]
         filtered_rental_data['End Date_dt'] = [d[1] for d in start_end]
-    else:
+        else:
         filtered_rental_data['Start Date_dt'] = pd.NaT
         filtered_rental_data['End Date_dt'] = pd.NaT
     
-    # Calculate status using Start/End dates
+        # Calculate status using Start/End dates
     days_left = (pd.to_datetime(filtered_rental_data['End Date_dt'], errors='coerce') - today).dt.days
     days_since_end = (today - pd.to_datetime(filtered_rental_data['End Date_dt'], errors='coerce')).dt.days
     start_dates = pd.to_datetime(filtered_rental_data['Start Date_dt'], errors='coerce')
     end_dates = pd.to_datetime(filtered_rental_data['End Date_dt'], errors='coerce')
-    status = []
+        status = []
     for i in range(len(filtered_rental_data)):
-        start = start_dates.iloc[i]
-        end = end_dates.iloc[i]
-        left = days_left.iloc[i]
-        since_end = days_since_end.iloc[i]
-        if pd.notnull(start) and pd.notnull(end):
-            if start <= today <= end:
-                if left < 31:
-                    status.append('🟣')  # Expiring <30 days
-                elif left <= 90:
-                    status.append('🟡')  # Expiring Soon
+            start = start_dates.iloc[i]
+            end = end_dates.iloc[i]
+            left = days_left.iloc[i]
+            since_end = days_since_end.iloc[i]
+            if pd.notnull(start) and pd.notnull(end):
+                if start <= today <= end:
+                    if left < 31:
+                        status.append('🟣')  # Expiring <30 days
+                    elif left <= 90:
+                        status.append('🟡')  # Expiring Soon
+                    else:
+                        status.append('🔴')  # Rented
+                elif 0 < since_end <= 60:
+                    status.append('🔵')  # Recently Vacant
                 else:
-                    status.append('🔴')  # Rented
-            elif 0 < since_end <= 60:
-                status.append('🔵')  # Recently Vacant
+                    status.append('🟢')  # Available
             else:
-                status.append('🟢')  # Available
-        else:
             status.append('��')  # Available
     filtered_rental_data['Status'] = status
     
@@ -1509,28 +1509,28 @@ with tab4:
             st.metric("Recently Vacant", recently_vacant)
         
         with col4:
-            # Calculate average rent if available
-            rent_col_candidates = [
-                'Annualised Rental Price(AED)',
-                'Annualised Rental Price (AED)',
-                'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
-            ]
-            rent_col = None
-            for col in rent_col_candidates:
-                if col in filtered_rental_data.columns:
-                    rent_col = col
-                    break
-            
-            if rent_col:
-                valid_rents = filtered_rental_data[rent_col].dropna()
-                if not valid_rents.empty:
-                    avg_rent = valid_rents.mean()
-                    st.metric("Avg Annual Rent", f"AED {avg_rent:,.0f}")
+        # Calculate average rent if available
+        rent_col_candidates = [
+            'Annualised Rental Price(AED)',
+            'Annualised Rental Price (AED)',
+            'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+        ]
+        rent_col = None
+        for col in rent_col_candidates:
+            if col in filtered_rental_data.columns:
+                rent_col = col
+                break
+        
+        if rent_col:
+            valid_rents = filtered_rental_data[rent_col].dropna()
+            if not valid_rents.empty:
+                avg_rent = valid_rents.mean()
+                st.metric("Avg Annual Rent", f"AED {avg_rent:,.0f}")
                 else:
                     st.metric("Avg Annual Rent", "N/A")
             else:
                 st.metric("Avg Annual Rent", "N/A")
-    
+        
     # --- Table Display ---
     if filtered_rental_data is not None and not filtered_rental_data.empty:
         st.subheader("Rental Data Table")
@@ -1651,4 +1651,17 @@ with tab4:
                 
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
+
+    # Add Status filter
+    status_options = []
+    if 'Status' in filtered_rental_data.columns:
+        status_options = sorted(filtered_rental_data['Status'].dropna().unique())
+    selected_status = st.multiselect(
+        "Status",
+        options=status_options,
+        default=status_options,
+        key="tracker_status_filter"
+    )
+    if selected_status and 'Status' in filtered_rental_data.columns:
+        filtered_rental_data = filtered_rental_data[filtered_rental_data['Status'].isin(selected_status)]
 
