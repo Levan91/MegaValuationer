@@ -1598,7 +1598,7 @@ with tab4:
         # Select columns to display
         columns_to_show = [
             'Status', 'Unit No.', 'All Developments', 'Community/Building', 'Sub Community/Building',
-            'Layout Type', 'Beds', 'Unit Size (sq ft)'
+            'Layout Type', 'Beds', 'Unit Size (sq ft)', 'Start Date_dt', 'End Date_dt'
         ]
         
         # Add rent amount column if available
@@ -1626,6 +1626,8 @@ with tab4:
             'Community/Building': 'Community',
             'Sub Community/Building': 'Sub Community',
             'Unit Size (sq ft)': 'BUA (sq ft)',
+            'Start Date_dt': 'Contract Start',
+            'End Date_dt': 'Contract End',
             'Annualised Rental Price(AED)': 'Annual Rent (AED)',
             'Annualised Rental Price (AED)': 'Annual Rent (AED)',
             'Rent (AED)': 'Rent (AED)',
