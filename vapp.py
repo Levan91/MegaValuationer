@@ -1075,7 +1075,12 @@ if property_type:
 if bedrooms:
     filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Beds'].astype(str) == bedrooms]
 if layout_type:
-    layout_type_col = filtered_rental_data_no_time['Layout Type']
+    if not isinstance(filtered_rental_data_no_time, pd.DataFrame):
+        filtered_rental_data_no_time = pd.DataFrame(filtered_rental_data_no_time)
+    if 'Layout Type' in filtered_rental_data_no_time.columns:
+        layout_type_col = filtered_rental_data_no_time['Layout Type']
+    else:
+        layout_type_col = pd.Series([])
     if not isinstance(layout_type_col, pd.Series):
         layout_type_col = pd.Series(layout_type_col)
     filtered_rental_data_no_time = filtered_rental_data_no_time[layout_type_col.isin(layout_type)]
