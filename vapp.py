@@ -620,6 +620,51 @@ with st.sidebar:
         key="subcommunity"
     )
 
+    # --- Bedrooms Filter (context-aware) ---
+    bedrooms_df = all_transactions.copy()
+    if not isinstance(bedrooms_df, pd.DataFrame):
+        bedrooms_df = pd.DataFrame(bedrooms_df)
+    if development:
+        filter_mask = bedrooms_df['All Developments'] == development
+        if not isinstance(filter_mask, pd.Series):
+            filter_mask = pd.Series(filter_mask)
+        bedrooms_df = bedrooms_df[filter_mask]
+        if not isinstance(bedrooms_df, pd.DataFrame):
+            bedrooms_df = pd.DataFrame(bedrooms_df)
+    if community:
+        community_col = bedrooms_df['Community/Building']
+        if not isinstance(community_col, pd.Series):
+            community_col = pd.Series(community_col)
+        filter_mask = community_col.isin(community)
+        if not isinstance(filter_mask, pd.Series):
+            filter_mask = pd.Series(filter_mask)
+        bedrooms_df = bedrooms_df[filter_mask]
+        if not isinstance(bedrooms_df, pd.DataFrame):
+            bedrooms_df = pd.DataFrame(bedrooms_df)
+    if subcommunity:
+        subcommunity_col = bedrooms_df['Sub Community / Building']
+        if not isinstance(subcommunity_col, pd.Series):
+            subcommunity_col = pd.Series(subcommunity_col)
+        filter_mask = subcommunity_col.isin(subcommunity)
+        if not isinstance(filter_mask, pd.Series):
+            filter_mask = pd.Series(filter_mask)
+        bedrooms_df = bedrooms_df[filter_mask]
+        if not isinstance(bedrooms_df, pd.DataFrame):
+            bedrooms_df = pd.DataFrame(bedrooms_df)
+    beds_col = bedrooms_df['Beds'] if 'Beds' in bedrooms_df.columns else pd.Series([])
+    if not isinstance(beds_col, pd.Series):
+        beds_col = pd.Series(beds_col)
+    beds_options = sorted(beds_col.dropna().unique())
+    current_bedrooms = st.session_state.get("bedrooms", "")
+    bedrooms = st.selectbox(
+        "Bedrooms",
+        options=[""] + beds_options,
+        index=([""] + beds_options).index(current_bedrooms) if current_bedrooms in beds_options else 0,
+        key="bedrooms",
+        on_change=_on_bedrooms_change,
+        placeholder=""
+    )
+
     # --- Layout Type Filter (context-aware) ---
     layout_df_filtered = layout_map_df.copy()
     if community:
@@ -695,52 +740,6 @@ with st.sidebar:
         options=unit_type_options,
         default=current_unit_type if current_unit_type and all(u in unit_type_options for u in current_unit_type) else [],
         key="unit_type"
-    )
-
-    # --- Bedrooms Filter (context-aware) ---
-    bedrooms_df = layout_df_filtered.copy()
-    if layout_type:
-        if not isinstance(layout_type, list):
-            if isinstance(layout_type, (np.ndarray, pd.Series)):
-                layout_type = list(map(str, layout_type.tolist()))
-            else:
-                layout_type = [str(layout_type)]
-        if not isinstance(bedrooms_df, pd.DataFrame):
-            bedrooms_df = pd.DataFrame(bedrooms_df)
-        layout_type_col = bedrooms_df['Layout Type'] if 'Layout Type' in bedrooms_df.columns else pd.Series([])
-        if not isinstance(layout_type_col, pd.Series):
-            if isinstance(layout_type_col, np.ndarray):
-                layout_type_col = pd.Series(layout_type_col)
-            else:
-                layout_type_col = pd.Series([layout_type_col])
-        bedrooms_df = bedrooms_df[layout_type_col.isin(layout_type)]
-    if unit_type:
-        if not isinstance(unit_type, list):
-            if isinstance(unit_type, (np.ndarray, pd.Series)):
-                unit_type = list(map(str, unit_type.tolist()))
-            else:
-                unit_type = [str(unit_type)]
-        if not isinstance(bedrooms_df, pd.DataFrame):
-            bedrooms_df = pd.DataFrame(bedrooms_df)
-        unit_type_col = bedrooms_df['Type'] if 'Type' in bedrooms_df.columns else pd.Series([])
-        if not isinstance(unit_type_col, pd.Series):
-            if isinstance(unit_type_col, np.ndarray):
-                unit_type_col = pd.Series(unit_type_col)
-            else:
-                unit_type_col = pd.Series([unit_type_col])
-        bedrooms_df = bedrooms_df[unit_type_col.isin(unit_type)]
-    beds_col = bedrooms_df['Beds'] if 'Beds' in bedrooms_df.columns else pd.Series([])
-    if not isinstance(beds_col, pd.Series):
-        beds_col = pd.Series(beds_col)
-    beds_options = sorted(beds_col.dropna().unique())
-    current_bedrooms = st.session_state.get("bedrooms", "")
-    bedrooms = st.selectbox(
-        "Bedrooms",
-        options=[""] + beds_options,
-        index=([""] + beds_options).index(current_bedrooms) if current_bedrooms in beds_options else 0,
-        key="bedrooms",
-        on_change=_on_bedrooms_change,
-        placeholder=""
     )
 
     # --- Time Period Filter ---
