@@ -1612,12 +1612,27 @@ with tab4:
         # Save current metrics for next session
         save_tracker_metrics(current_metrics)
     
+    # Status filter (single-select, with 'All' option)
+    status_options = []
+    if 'Status' in filtered_rental_data.columns:
+        status_options = sorted(filtered_rental_data['Status'].dropna().unique())
+    status_select_options = ['All'] + status_options
+    selected_status = st.selectbox(
+        "Status",
+        options=status_select_options,
+        index=0,
+        key="tracker_status_filter"
+    )
+    # Apply the Status filter BEFORE the table
+    filtered_table_data = filtered_rental_data.copy()
+    if selected_status != 'All' and 'Status' in filtered_table_data.columns:
+        filtered_table_data = filtered_table_data[filtered_table_data['Status'] == selected_status]
+
     # --- Table Display ---
-    if filtered_rental_data is not None and not filtered_rental_data.empty:
+    if filtered_table_data is not None and not filtered_table_data.empty:
         st.subheader("Rental Data Table")
-        
         # Prepare data for display
-        display_data = filtered_rental_data.copy()
+        display_data = filtered_table_data.copy()
         
         # Deduplicate: keep only the most recent rental record per unit
         if 'Unit No.' in display_data.columns:
@@ -1740,18 +1755,4 @@ with tab4:
                 
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
-
-    # Add Status filter (as a multiselect dropdown, same as Sub community filter)
-    status_options = []
-    if 'Status' in filtered_rental_data.columns:
-        status_options = sorted(filtered_rental_data['Status'].dropna().unique())
-    selected_status = st.multiselect(
-        "Status",
-        options=status_options,
-        default=status_options,
-        key="tracker_status_filter"
-    )
-    # Apply the Status filter BEFORE metrics and table
-    if selected_status and 'Status' in filtered_rental_data.columns:
-        filtered_rental_data = filtered_rental_data[filtered_rental_data['Status'].isin(selected_status)]
 
