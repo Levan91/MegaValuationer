@@ -1257,7 +1257,7 @@ with tab2:
                 filtered_listings = filtered_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
         
-        # Price comparison feature
+        # --- Price comparison feature (MOVED HERE, ENSURED NUMERIC) ---
         if isinstance(filtered_listings, pd.DataFrame) and 'Price (AED)' in filtered_listings.columns:
             asking_price = st.number_input(
                 "Enter asking price (AED):",
@@ -1265,19 +1265,22 @@ with tab2:
                 value=st.session_state.get("sale_asking_price", 0),
                 key="sale_asking_price"
             )
-            if asking_price > 0:
-                # Convert price column to numeric
-                price_col = filtered_listings['Price (AED)']
-                if not isinstance(price_col, pd.Series):
+            price_col = filtered_listings['Price (AED)']
+            if not isinstance(price_col, pd.Series):
+                if isinstance(price_col, (list, np.ndarray)):
                     price_col = pd.Series(price_col)
-                prices_numeric = pd.to_numeric(price_col, errors='coerce')
-                if not isinstance(prices_numeric, pd.Series):
-                    prices_numeric = pd.Series(prices_numeric)
-                prices = prices_numeric.dropna()
+                else:
+                    price_col = pd.Series([price_col])
+            prices_numeric = pd.to_numeric(price_col, errors='coerce')
+            if not isinstance(prices_numeric, pd.Series):
+                prices_numeric = pd.Series(prices_numeric)
+            prices = prices_numeric.dropna()
+            above_count = below_count = same_count = 0
+            if asking_price > 0 and not prices.empty:
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
-                st.markdown(f"<div style='margin-top: -0.5em; margin-bottom: 1em;'><b>Price Analysis:</b> 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top: -0.5em; margin-bottom: 1em;'><b>Price Analysis:</b> 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same</div>", unsafe_allow_html=True)
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
@@ -1414,27 +1417,30 @@ with tab3:
                 filtered_rent_listings = filtered_rent_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
         
-        # Price comparison feature
-        if 'Price (AED)' in filtered_rent_listings.columns:
+        # --- Price comparison feature (MOVED HERE, ENSURED NUMERIC) ---
+        if isinstance(filtered_rent_listings, pd.DataFrame) and 'Price (AED)' in filtered_rent_listings.columns:
             asking_price = st.number_input(
                 "Enter asking price (AED):",
                 min_value=0,
                 value=st.session_state.get("rent_asking_price", 0),
                 key="rent_asking_price"
             )
-            if asking_price > 0:
-                # Convert price column to numeric
-                price_col = filtered_rent_listings['Price (AED)']
-                if not isinstance(price_col, pd.Series):
+            price_col = filtered_rent_listings['Price (AED)']
+            if not isinstance(price_col, pd.Series):
+                if isinstance(price_col, (list, np.ndarray)):
                     price_col = pd.Series(price_col)
-                prices_numeric = pd.to_numeric(price_col, errors='coerce')
-                if not isinstance(prices_numeric, pd.Series):
-                    prices_numeric = pd.Series(prices_numeric)
-                prices = prices_numeric.dropna()
+                else:
+                    price_col = pd.Series([price_col])
+            prices_numeric = pd.to_numeric(price_col, errors='coerce')
+            if not isinstance(prices_numeric, pd.Series):
+                prices_numeric = pd.Series(prices_numeric)
+            prices = prices_numeric.dropna()
+            above_count = below_count = same_count = 0
+            if asking_price > 0 and not prices.empty:
                 above_count = (prices > asking_price).sum()
                 below_count = (prices < asking_price).sum()
                 same_count = (prices == asking_price).sum()
-                st.markdown(f"<div style='margin-top: -0.5em; margin-bottom: 1em;'><b>Price Analysis:</b> 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top: -0.5em; margin-bottom: 1em;'><b>Price Analysis:</b> 🔺 {above_count} above | 🔻 {below_count} below | ⚖️ {same_count} same</div>", unsafe_allow_html=True)
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
