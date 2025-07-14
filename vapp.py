@@ -1741,7 +1741,7 @@ with tab4:
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
 
-    # Add Status filter (as a visible list of checkboxes, not dropdown)
+    # Add Status filter (as a multiselect dropdown, same as Sub community filter)
     status_options = []
     if 'Status' in filtered_rental_data.columns:
         status_options = sorted(filtered_rental_data['Status'].dropna().unique())
@@ -1749,9 +1749,7 @@ with tab4:
         "Status",
         options=status_options,
         default=status_options,
-        key="tracker_status_filter",
-        format_func=lambda x: x,
-        help="Filter by rental status."
+        key="tracker_status_filter"
     )
     # Apply the Status filter BEFORE metrics and table
     if selected_status and 'Status' in filtered_rental_data.columns:
