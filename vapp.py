@@ -1832,3 +1832,25 @@ with tab4:
                 if rent_amount is not None:
                     st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
 
+            # --- Related Transactions Section ---
+            unit_no = selected_row.get('Unit No.', None)
+            if unit_no:
+                st.markdown(f"#### Related Transactions for Unit {unit_no}")
+                # Use all_transactions or filtered_transactions as appropriate
+                txn_candidates = [
+                    'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
+                ]
+                txn_col = None
+                for col in txn_candidates:
+                    if col in all_transactions.columns:
+                        txn_col = col
+                        break
+                if txn_col:
+                    txns = all_transactions[all_transactions[txn_col].astype(str) == str(unit_no)]
+                    if not txns.empty:
+                        st.dataframe(txns)
+                    else:
+                        st.info("No related transactions found for this unit.")
+                else:
+                    st.info("No unit column found in transactions data.")
+
