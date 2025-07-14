@@ -1612,16 +1612,28 @@ with tab4:
         # Save current metrics for next session
         save_tracker_metrics(current_metrics)
     
-    # Status filter (single-select, with 'All' option)
+    # Status filter (single-select, with 'All' option and text labels)
+    status_label_map = {
+        '🔴': 'Rented',
+        '🟢': 'Available',
+        '🟡': 'Expiring Soon',
+        '🟣': 'Expiring <30 days',
+        '🔵': 'Recently Vacant'
+    }
     status_options = []
     if 'Status' in filtered_rental_data.columns:
         status_options = sorted(filtered_rental_data['Status'].dropna().unique())
     status_select_options = ['All'] + status_options
+    def status_format_func(val):
+        if val == 'All':
+            return 'All'
+        return f"{val} {status_label_map.get(val, '')}".strip()
     selected_status = st.selectbox(
         "Status",
         options=status_select_options,
         index=0,
-        key="tracker_status_filter"
+        key="tracker_status_filter",
+        format_func=status_format_func
     )
     # Apply the Status filter BEFORE the table
     filtered_table_data = filtered_rental_data.copy()
