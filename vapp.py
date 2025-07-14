@@ -652,8 +652,10 @@ with st.sidebar:
         if not isinstance(bedrooms_df, pd.DataFrame):
             bedrooms_df = pd.DataFrame(bedrooms_df)
     beds_col = bedrooms_df['Beds'] if 'Beds' in bedrooms_df.columns else pd.Series([])
+    # Ensure we have a pandas Series
     if not isinstance(beds_col, pd.Series):
         beds_col = pd.Series(beds_col)
+    # Now we can safely use pandas methods
     beds_options = sorted(beds_col.dropna().unique())
     current_bedrooms = st.session_state.get("bedrooms", "")
     bedrooms = st.selectbox(
