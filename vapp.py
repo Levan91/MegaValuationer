@@ -651,12 +651,23 @@ with st.sidebar:
         bedrooms_df = bedrooms_df[filter_mask]
         if not isinstance(bedrooms_df, pd.DataFrame):
             bedrooms_df = pd.DataFrame(bedrooms_df)
-    beds_col = bedrooms_df['Beds'] if 'Beds' in bedrooms_df.columns else pd.Series([])
-    # Ensure we have a pandas Series
-    if not isinstance(beds_col, pd.Series):
-        beds_col = pd.Series(beds_col)
-    # Now we can safely use pandas methods
-    beds_options = sorted(beds_col.dropna().unique())
+    # Get beds column with error handling
+    try:
+        if 'Beds' in bedrooms_df.columns:
+            beds_col = bedrooms_df['Beds']
+            # Convert to pandas Series and handle any data type issues
+            beds_col = pd.Series(beds_col)
+            # Convert to string and filter out problematic values
+            beds_col_str = beds_col.astype(str)
+            beds_col_clean = beds_col_str[beds_col_str != 'nan']
+            beds_col_clean = beds_col_clean[beds_col_clean != 'None']
+            beds_col_clean = beds_col_clean[beds_col_clean != '']
+            beds_options = sorted(beds_col_clean.unique()) if not beds_col_clean.empty else []
+        else:
+            beds_options = []
+    except Exception:
+        # Fallback to empty list if anything goes wrong
+        beds_options = []
     current_bedrooms = st.session_state.get("bedrooms", "")
     bedrooms = st.selectbox(
         "Bedrooms",
