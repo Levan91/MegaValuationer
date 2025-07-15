@@ -1658,7 +1658,11 @@ with tab4:
         beds = st.session_state.get("bedrooms", "")
         layout_type = st.session_state.get("layout_type", [])
         unit_type = st.session_state.get("unit_type", [])
-        # Ensure all are lists for .isin
+        # Debug: show unique values in layout file and current filter values
+        st.write('DEBUG: Unique All Developments in layout_map_df:', layout_map_df['All Developments'].unique())
+        st.write('DEBUG: Unique Community/Building in layout_map_df:', layout_map_df['Community/Building'].unique())
+        st.write('DEBUG: Current filter - development:', dev)
+        st.write('DEBUG: Current filter - community:', comm)
         if not isinstance(comm, list):
             comm = [comm] if comm else []
         if not isinstance(subcomm, list):
