@@ -1658,7 +1658,6 @@ with tab4:
         layout_type = st.session_state.get("layout_type", [])
         unit_type = st.session_state.get("unit_type", [])
         # Debug: show unique values in layout file and current filter values
-        st.write('DEBUG: Layout columns:', layout_map_df.columns.tolist())
         # Use 'Development' if present and populated, else 'All Developments'
         dev_col = None
         if 'Development' in layout_filtered.columns and bool(layout_filtered['Development'].notna().any()):
@@ -1840,155 +1839,122 @@ with tab4:
         filtered_table_data = filtered_table_data[filtered_table_data['Status'] == selected_status]
 
     # --- Table Display ---
-    if filtered_table_data is not None and not filtered_table_data.empty:
-        st.subheader("Rental Data Table")
-        # Prepare data for display
-        display_data = filtered_table_data.copy()
-        
-        # Deduplicate: keep only the most recent rental record per unit
-        if 'Unit No.' in display_data.columns:
-            display_data = display_data.sort_values(['Unit No.'], ascending=[True])
-            display_data = display_data.drop_duplicates(subset=['Unit No.'], keep='first')
-        
-        # Select columns to display
-        columns_to_show = [
-            'Status', 'Unit No.', 'All Developments', 'Community/Building', 'Sub Community/Building',
-            'Layout Type', 'Beds', 'Unit Size (sq ft)', 'Start Date_dt', 'End Date_dt'
-        ]
-        
-        # Add rent amount column if available
+    # --- NEW: Merge layout inventory with rental data ---
+    display_data = None
+    if not layout_map_df.empty and layout_unit_count is not None and layout_unit_count > 0:
+        # Use filtered layout as inventory base
+        inventory_df = layout_filtered.copy()
+        # Normalize unit numbers for matching
+        if 'Unit No.' in inventory_df.columns:
+            unit_col = inventory_df['Unit No.']
+            if not isinstance(unit_col, pd.Series):
+                unit_col = pd.Series(unit_col)
+            inventory_df['Unit No.'] = unit_col.astype(str).str.strip().str.upper()
+        if 'Unit No.' in filtered_rental_data.columns:
+            unit_col = filtered_rental_data['Unit No.']
+            if not isinstance(unit_col, pd.Series):
+                unit_col = pd.Series(unit_col)
+            filtered_rental_data['Unit No.'] = unit_col.astype(str).str.strip().str.upper()
+        # Merge: left join inventory with rental data on Unit No.
+        merged = pd.merge(
+            inventory_df,
+            filtered_rental_data,
+            on='Unit No.',
+            how='left',
+            suffixes=('', '_rental')
+        )
+        # Status: if no rental contract, set to '🟢' (Available)
+        merged['Status'] = merged['Status'].fillna('🟢')
+        # For contract fields, fill N/A if missing
+        for col in ['Start Date_dt', 'End Date_dt']:
+            if col in merged.columns:
+                merged[col] = merged[col].where(merged[col].notna(), 'N/A')
+        # For rent columns, fill N/A if missing
         rent_col_candidates = [
             'Annualised Rental Price(AED)',
             'Annualised Rental Price (AED)',
             'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
         ]
-        rent_col = None
         for col in rent_col_candidates:
-            if col in display_data.columns:
-                rent_col = col
-                break
-        
-        if rent_col:
-            columns_to_show.append(rent_col)
-        
-        # Filter to only show available columns
-        available_columns = [col for col in columns_to_show if col in display_data.columns]
-        display_data = display_data[available_columns]
-        
-        # Rename columns for better display
-        column_mapping = {
-            'All Developments': 'Development',
-            'Community/Building': 'Community',
-            'Sub Community/Building': 'Sub Community',
-            'Unit Size (sq ft)': 'BUA (sq ft)',
-            'Start Date_dt': 'Contract Start',
-            'End Date_dt': 'Contract End',
-            'Annualised Rental Price(AED)': 'Annual Rent (AED)',
-            'Annualised Rental Price (AED)': 'Annual Rent (AED)',
-            'Rent (AED)': 'Rent (AED)',
-            'Annual Rent': 'Annual Rent (AED)',
-            'Rent AED': 'Rent (AED)',
-            'Rent': 'Rent (AED)'
-        }
-        
-        display_data = display_data.rename(columns=column_mapping)
-        
-        # Format Contract Start and End columns to show only date in DD/MM/YY format (after renaming)
-        if 'Contract Start' in display_data.columns:
-            display_data['Contract Start'] = pd.to_datetime(display_data['Contract Start'], errors='coerce').dt.strftime('%d/%m/%y')
-        if 'Contract End' in display_data.columns:
-            display_data['Contract End'] = pd.to_datetime(display_data['Contract End'], errors='coerce').dt.strftime('%d/%m/%y')
-        
-        # Use AgGrid for interactive table
-        gb = GridOptionsBuilder.from_dataframe(display_data)
-        gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
-        gb.configure_grid_options(domLayout='normal')
-        
-        # Configure column properties for better layout
-        for col in display_data.columns:
-            if 'Rent' in col or 'AED' in col:
-                gb.configure_column(col, type=["numericColumn", "numberColumnFilter"], valueFormatter="value.toLocaleString()", flex=1)
-            elif col == 'Status':
-                gb.configure_column(col, width=100)
-            elif col == 'Unit No.':
-                gb.configure_column(col, width=100)
-            else:
-                gb.configure_column(col, flex=1)
-        
-        grid_options = gb.build()
-        
-        # Display the table
-        grid_response = AgGrid(
-            display_data,
-            gridOptions=grid_options,
-            enable_enterprise_modules=False,
-            update_mode=GridUpdateMode.SELECTION_CHANGED,
-            data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
-            theme='alpine',
-            key="rentals_grid",
-            height=400
-        )
-        
-        # Handle row selection
-        selected_rows = grid_response['selected_rows']
-        selected_row = None
-        
-        # Check if selected_rows is a list with items or a DataFrame with rows
-        if isinstance(selected_rows, list) and len(selected_rows) > 0:
-            selected_row = selected_rows[0]
-        elif isinstance(selected_rows, pd.DataFrame) and not selected_rows.empty:
-            selected_row = selected_rows.iloc[0].to_dict()
-        
-        if selected_row is not None:
-            st.subheader("Selected Unit Details")
-            
-            # Create a nice display of selected unit info
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(f"**Unit Number:** {selected_row.get('Unit No.', 'N/A')}")
-                st.markdown(f"**Development:** {selected_row.get('Development', 'N/A')}")
-                st.markdown(f"**Community:** {selected_row.get('Community', 'N/A')}")
-                st.markdown(f"**Sub Community:** {selected_row.get('Sub Community', 'N/A')}")
-                st.markdown(f"**Layout Type:** {selected_row.get('Layout Type', 'N/A')}")
-            
-            with col2:
-                st.markdown(f"**Status:** {selected_row.get('Status', 'N/A')}")
-                st.markdown(f"**Bedrooms:** {selected_row.get('Beds', 'N/A')}")
-                st.markdown(f"**BUA:** {selected_row.get('BUA (sq ft)', 'N/A')}")
-                
-                # Show rent amount if available
-                rent_amount = None
-                for col in ['Annual Rent (AED)', 'Rent (AED)']:
-                    if col in selected_row and pd.notnull(selected_row[col]):
-                        rent_amount = selected_row[col]
-                        break
-                
-                if rent_amount is not None:
-                    st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
+            if col in merged.columns:
+                merged[col] = merged[col].where(merged[col].notna(), 'N/A')
+        display_data = merged
+    else:
+        # Fallback: use filtered_rental_data as before
+        display_data = filtered_rental_data.copy()
+        # Deduplicate: keep only the most recent rental record per unit
+        if 'Unit No.' in display_data.columns:
+            display_data = display_data.sort_values(['Unit No.'], ascending=[True])
+            display_data = display_data.drop_duplicates(subset=['Unit No.'], keep='first')
+    # --- END NEW ---
 
-            # --- Related Transactions Section ---
-            unit_no = selected_row.get('Unit No.', None)
-            if unit_no:
-                st.markdown(f"#### Related Transactions for Unit {unit_no}")
-                # Use all_transactions or filtered_transactions as appropriate
-                txn_candidates = [
-                    'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
-                ]
-                txn_col = None
-                for col in txn_candidates:
-                    if col in all_transactions.columns:
-                        txn_col = col
-                        break
-                if txn_col:
-                    txns = all_transactions[all_transactions[txn_col].astype(str) == str(unit_no)]
-                    # Ensure txns is a pandas DataFrame before checking empty
-                    if not isinstance(txns, pd.DataFrame):
-                        txns = pd.DataFrame(txns)
-                    if not txns.empty:
-                        st.dataframe(txns)
-                    else:
-                        st.info("No related transactions found for this unit.")
-                else:
-                    st.info("No unit column found in transactions data.")
+    # Select columns to display
+    columns_to_show = [
+        'Status', 'Unit No.', 'All Developments', 'Community/Building', 'Sub Community/Building',
+        'Layout Type', 'Beds', 'Unit Size (sq ft)', 'Start Date_dt', 'End Date_dt'
+    ]
+    # Add rent amount column if available
+    rent_col_candidates = [
+        'Annualised Rental Price(AED)',
+        'Annualised Rental Price (AED)',
+        'Rent (AED)', 'Annual Rent', 'Rent AED', 'Rent'
+    ]
+    rent_col = None
+    for col in rent_col_candidates:
+        if col in display_data.columns:
+            rent_col = col
+            break
+    if rent_col:
+        columns_to_show.append(rent_col)
+    # Filter to only show available columns
+    available_columns = [col for col in columns_to_show if col in display_data.columns]
+    display_data = display_data[available_columns]
+    # Rename columns for better display
+    column_mapping = {
+        'All Developments': 'Development',
+        'Community/Building': 'Community',
+        'Sub Community/Building': 'Sub Community',
+        'Unit Size (sq ft)': 'BUA (sq ft)',
+        'Start Date_dt': 'Contract Start',
+        'End Date_dt': 'Contract End',
+        'Annualised Rental Price(AED)': 'Annual Rent (AED)',
+        'Annualised Rental Price (AED)': 'Annual Rent (AED)',
+        'Rent (AED)': 'Rent (AED)',
+        'Annual Rent': 'Annual Rent (AED)',
+        'Rent AED': 'Rent (AED)',
+        'Rent': 'Rent (AED)'
+    }
+    display_data = display_data.rename(columns=column_mapping)
+    # Format Contract Start and End columns to show only date in DD/MM/YY format (after renaming)
+    if 'Contract Start' in display_data.columns:
+        display_data['Contract Start'] = pd.to_datetime(display_data['Contract Start'], errors='coerce').dt.strftime('%d/%m/%y').fillna('N/A')
+    if 'Contract End' in display_data.columns:
+        display_data['Contract End'] = pd.to_datetime(display_data['Contract End'], errors='coerce').dt.strftime('%d/%m/%y').fillna('N/A')
+    # Use AgGrid for interactive table
+    gb = GridOptionsBuilder.from_dataframe(display_data)
+    gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
+    gb.configure_grid_options(domLayout='normal')
+    # Configure column properties for better layout
+    for col in display_data.columns:
+        if 'Rent' in col or 'AED' in col:
+            gb.configure_column(col, type=["numericColumn", "numberColumnFilter"], valueFormatter="value.toLocaleString()", flex=1)
+        elif col == 'Status':
+            gb.configure_column(col, width=100)
+        elif col == 'Unit No.':
+            gb.configure_column(col, width=100)
+        else:
+            gb.configure_column(col, flex=1)
+    grid_options = gb.build()
+    # Display the table
+    grid_response = AgGrid(
+        display_data,
+        gridOptions=grid_options,
+        enable_enterprise_modules=False,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        theme='alpine',
+        key="rentals_grid",
+        height=400
+    )
+    # ... existing code ...
 
