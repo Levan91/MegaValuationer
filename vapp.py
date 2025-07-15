@@ -1879,6 +1879,10 @@ with tab4:
             if col in merged.columns:
                 merged[col] = merged[col].where(merged[col].notna(), 'N/A')
         display_data = merged
+        # Deduplicate: keep only the most relevant contract per unit
+        if 'Unit No.' in display_data.columns and 'End Date_dt' in display_data.columns:
+            display_data = display_data.sort_values(['Unit No.', 'End Date_dt'], ascending=[True, False])
+            display_data = display_data.drop_duplicates(subset=['Unit No.'], keep='first')
     else:
         # Fallback: use filtered_rental_data as before
         display_data = filtered_rental_data.copy()
