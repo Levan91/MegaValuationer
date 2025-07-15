@@ -1968,5 +1968,84 @@ with tab4:
         key="rentals_grid",
         height=400
     )
-    # ... existing code ...
+
+    # Handle row selection and show related transactions
+    selected_rows = grid_response['selected_rows']
+    selected_row = None
+    
+    # Check if selected_rows is a list with items or a DataFrame with rows
+    if isinstance(selected_rows, list) and len(selected_rows) > 0:
+        selected_row = selected_rows[0]
+    elif isinstance(selected_rows, pd.DataFrame) and not selected_rows.empty:
+        selected_row = selected_rows.iloc[0].to_dict()
+    
+    if selected_row is not None:
+        st.subheader("Selected Unit Details")
+        
+        # Create a nice display of selected unit info
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"**Unit Number:** {selected_row.get('Unit No.', 'N/A')}")
+            st.markdown(f"**Development:** {selected_row.get('Development', 'N/A')}")
+            st.markdown(f"**Community:** {selected_row.get('Community', 'N/A')}")
+            st.markdown(f"**Sub Community:** {selected_row.get('Sub Community', 'N/A')}")
+            st.markdown(f"**Layout Type:** {selected_row.get('Layout Type', 'N/A')}")
+        
+        with col2:
+            st.markdown(f"**Status:** {selected_row.get('Status', 'N/A')}")
+            st.markdown(f"**Bedrooms:** {selected_row.get('Beds', 'N/A')}")
+            st.markdown(f"**BUA:** {selected_row.get('BUA (sq ft)', 'N/A')}")
+            
+            # Show rent amount if available
+            rent_amount = None
+            for col in ['Annual Rent (AED)', 'Rent (AED)']:
+                if col in selected_row and pd.notnull(selected_row[col]) and selected_row[col] != 'N/A':
+                    rent_amount = selected_row[col]
+                    break
+            
+            if rent_amount is not None:
+                st.markdown(f"**Annual Rent:** AED {rent_amount:,.0f}")
+
+        # --- Related Transactions Section ---
+        unit_no = selected_row.get('Unit No.', None)
+        if unit_no:
+            st.markdown(f"#### Sales Transactions for {unit_no}")
+            # Use all_transactions or filtered_transactions as appropriate
+            txn_candidates = [
+                'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
+            ]
+            txn_col = None
+            for col in txn_candidates:
+                if col in all_transactions.columns:
+                    txn_col = col
+                    break
+            if txn_col:
+                txns = all_transactions[all_transactions[txn_col].astype(str) == str(unit_no)]
+                # Ensure txns is a pandas DataFrame before checking empty
+                if not isinstance(txns, pd.DataFrame):
+                    txns = pd.DataFrame(txns)
+                if not txns.empty:
+                    st.dataframe(txns)
+                else:
+                    st.info("No sales transactions found for this unit.")
+            else:
+                st.info("No unit column found in transactions data.")
+
+            st.markdown(f"#### Rent Transactions for {unit_no}")
+            rent_tx = pd.DataFrame()
+            rent_unit_col = None
+            for col in unit_col_candidates:
+                if col in filtered_rental_data_no_time.columns:
+                    rent_unit_col = col
+                    break
+            if rent_unit_col:
+                rent_col = filtered_rental_data_no_time[rent_unit_col]
+                if not isinstance(rent_col, pd.Series):
+                    rent_col = pd.Series(rent_col)
+                rent_tx = filtered_rental_data_no_time[rent_col.astype(str) == str(unit_no)]
+            if not rent_tx.empty:
+                st.dataframe(rent_tx)
+            else:
+                st.info("No rent transactions found for this unit.")
 
