@@ -1924,6 +1924,8 @@ with tab4:
         'Rent AED': 'Rent (AED)',
         'Rent': 'Rent (AED)'
     }
+    if not isinstance(display_data, pd.DataFrame):
+        display_data = pd.DataFrame(display_data)
     display_data = display_data.rename(columns=column_mapping)
     # Format Contract Start and End columns to show only date in DD/MM/YY format (after renaming)
     if 'Contract Start' in display_data.columns:
