@@ -1932,6 +1932,16 @@ with tab4:
         display_data['Contract Start'] = pd.to_datetime(display_data['Contract Start'], errors='coerce').dt.strftime('%d/%m/%y').fillna('N/A')
     if 'Contract End' in display_data.columns:
         display_data['Contract End'] = pd.to_datetime(display_data['Contract End'], errors='coerce').dt.strftime('%d/%m/%y').fillna('N/A')
+
+    # --- Apply Status filter to display_data (fix) ---
+    if selected_status != 'All' and 'Status' in display_data.columns:
+        display_data = display_data[display_data['Status'] == selected_status]
+    # --- END Status filter fix ---
+
+    # Ensure display_data is a DataFrame before passing to AgGrid
+    if not isinstance(display_data, pd.DataFrame):
+        display_data = pd.DataFrame(display_data)
+
     # Use AgGrid for interactive table
     gb = GridOptionsBuilder.from_dataframe(display_data)
     gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
