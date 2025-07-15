@@ -203,16 +203,21 @@ def _reset_filters():
 def _on_development_change():
     """Callback function for development selection changes"""
     # Use state coordination to prevent race conditions
-    if not should_process_callback("development", 300):
+    if not should_process_callback("development", 500):
         return
     
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-
     # Clear dependent filters
-    st.session_state.pop("community", None)
-    st.session_state.pop("subcommunity", None)
+    if "community" in st.session_state:
+        st.session_state.pop("community")
+    if "subcommunity" in st.session_state:
+        st.session_state.pop("subcommunity")
+    if "layout_type" in st.session_state:
+        st.session_state.pop("layout_type")
+    if "unit_type" in st.session_state:
+        st.session_state.pop("unit_type")
     
     # Clear flag
     clear_filter_update_flag()
@@ -220,15 +225,19 @@ def _on_development_change():
 def _on_community_change():
     """Callback function for community selection changes"""
     # Use state coordination to prevent race conditions
-    if not should_process_callback("community", 300):
+    if not should_process_callback("community", 500):
         return
     
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
-
     # Clear dependent filters
-    st.session_state.pop("subcommunity", None)
+    if "subcommunity" in st.session_state:
+        st.session_state.pop("subcommunity")
+    if "layout_type" in st.session_state:
+        st.session_state.pop("layout_type")
+    if "unit_type" in st.session_state:
+        st.session_state.pop("unit_type")
     
     # Clear flag
     clear_filter_update_flag()
@@ -236,12 +245,17 @@ def _on_community_change():
 def _on_subcommunity_change():
     """Callback function for subcommunity selection changes"""
     # Use state coordination to prevent race conditions
-    if not should_process_callback("subcommunity", 300):
+    if not should_process_callback("subcommunity", 500):
         return
     
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
+    # Clear dependent filters
+    if "layout_type" in st.session_state:
+        st.session_state.pop("layout_type")
+    if "unit_type" in st.session_state:
+        st.session_state.pop("unit_type")
     
     # Clear flag
     clear_filter_update_flag()
@@ -249,12 +263,17 @@ def _on_subcommunity_change():
 def _on_bedrooms_change():
     """Callback function for bedrooms selection changes"""
     # Use state coordination to prevent race conditions
-    if not should_process_callback("bedrooms", 300):
+    if not should_process_callback("bedrooms", 500):
         return
     
     # Set flag to prevent other callbacks from interfering
     set_filter_update_flag()
     
+    # Clear dependent filters
+    if "layout_type" in st.session_state:
+        st.session_state.pop("layout_type")
+    if "unit_type" in st.session_state:
+        st.session_state.pop("unit_type")
     
     # Clear flag
     clear_filter_update_flag()
@@ -273,7 +292,7 @@ def initialize_state_coordination():
             "debounce_timers": {}
         }
 
-def should_process_callback(callback_name, debounce_ms=300):
+def should_process_callback(callback_name, debounce_ms=500):
     """Check if callback should be processed based on debouncing"""
     coord = st.session_state.get("state_coordination", {})
     timers = coord.get("debounce_timers", {})
@@ -303,6 +322,11 @@ def clear_filter_update_flag():
     coord = st.session_state.get("state_coordination", {})
     coord["updating_filters"] = False
     st.session_state["state_coordination"] = coord
+    
+    # Clear filter caches to force recalculation
+    cache_keys_to_clear = [key for key in st.session_state.keys() if isinstance(key, str) and key.startswith(('filters_', 'no_time_filters_'))]
+    for key in cache_keys_to_clear:
+        st.session_state.pop(key, None)
 
 def is_filter_update_in_progress():
     """Check if a filter update is currently in progress"""
@@ -318,10 +342,17 @@ transactions_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Transactions
 txn_files = [f for f in os.listdir(transactions_dir) if f.endswith('.xlsx') and not f.startswith('~$')]
 if "included_txn_files" not in st.session_state:
     st.session_state["included_txn_files"] = txn_files
-with st.spinner("Loading transaction files..."):
-    # Load all, then filter by user selection
-    all_transactions = load_all_transactions(transactions_dir)
-    all_transactions = all_transactions[all_transactions["Source File"].isin(st.session_state["included_txn_files"])]
+
+# Check if we need to reload data (only if file selection changed)
+data_cache_key = f"data_{hash(tuple(sorted(st.session_state.get('included_txn_files', []))))}"
+if data_cache_key not in st.session_state:
+    with st.spinner("Loading transaction files..."):
+        # Load all, then filter by user selection
+        all_transactions = load_all_transactions(transactions_dir)
+        all_transactions = all_transactions[all_transactions["Source File"].isin(st.session_state["included_txn_files"])]
+        st.session_state[data_cache_key] = all_transactions
+else:
+    all_transactions = st.session_state[data_cache_key]
 # --- After loading transactions, load rental data and extract contract dates ---
 if not all_transactions.empty:
     # Parse Evidence Date once for filtering
@@ -656,12 +687,16 @@ with st.sidebar:
         if 'Beds' in bedrooms_df.columns:
             beds_col = bedrooms_df['Beds']
             # Convert to pandas Series and handle any data type issues
-            beds_col = pd.Series(beds_col)
+            if not isinstance(beds_col, pd.Series):
+                beds_col = pd.Series(beds_col)
             # Convert to string and filter out problematic values
             beds_col_str = beds_col.astype(str)
             beds_col_clean = beds_col_str[beds_col_str != 'nan']
             beds_col_clean = beds_col_clean[beds_col_clean != 'None']
             beds_col_clean = beds_col_clean[beds_col_clean != '']
+            # Ensure we have a pandas Series before calling unique() and empty
+            if not isinstance(beds_col_clean, pd.Series):
+                beds_col_clean = pd.Series(beds_col_clean)
             beds_options = sorted(beds_col_clean.unique()) if not beds_col_clean.empty else []
         else:
             beds_options = []
@@ -1023,67 +1058,79 @@ def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
     return filtered_rentals
 
 # Apply filters to create filtered datasets for all tabs
-filtered_listings = apply_sidebar_filters_to_listings(all_listings, filtered_transactions)
-filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, filtered_transactions)
-filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
+# Cache filtered data to prevent unnecessary recalculations
+filter_cache_key = f"filters_{hash(str(sorted(st.session_state.items())))}"
+if filter_cache_key not in st.session_state or is_filter_update_in_progress():
+    filtered_listings = apply_sidebar_filters_to_listings(all_listings, filtered_transactions)
+    filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, filtered_transactions)
+    filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
+    
+    # Cache the results
+    st.session_state[filter_cache_key] = {
+        'filtered_listings': filtered_listings,
+        'filtered_rent_listings': filtered_rent_listings,
+        'filtered_rental_data': filtered_rental_data
+    }
+else:
+    cached_data = st.session_state[filter_cache_key]
+    filtered_listings = cached_data['filtered_listings']
+    filtered_rent_listings = cached_data['filtered_rent_listings']
+    filtered_rental_data = cached_data['filtered_rental_data']
 
  # --- Apply sidebar filters except time period (for Search Unit) ---
-filtered_transactions_no_time = all_transactions.copy()
-if development:
-    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['All Developments'] == development]
-if community:
-    community_col = filtered_transactions_no_time['Community/Building']
-    if not isinstance(community_col, pd.Series):
-        community_col = pd.Series(community_col)
-    filtered_transactions_no_time = filtered_transactions_no_time[community_col.isin(community)]
-if subcommunity:
-    subcommunity_col = filtered_transactions_no_time['Sub Community / Building']
-    if not isinstance(subcommunity_col, pd.Series):
-        subcommunity_col = pd.Series(subcommunity_col)
-    filtered_transactions_no_time = filtered_transactions_no_time[subcommunity_col.isin(subcommunity)]
-if property_type:
-    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Unit Type'] == property_type]
-if bedrooms:
-    filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Beds'].astype(str) == bedrooms]
-if layout_type:
-    layout_type_col = filtered_transactions_no_time['Layout Type']
-    if not isinstance(layout_type_col, pd.Series):
-        layout_type_col = pd.Series(layout_type_col)
-    filtered_transactions_no_time = filtered_transactions_no_time[layout_type_col.isin(layout_type)]
-unit_type = st.session_state.get("unit_type", [])
-if unit_type:
-    unit_type_col = filtered_transactions_no_time['Unit Type']
-    if not isinstance(unit_type_col, pd.Series):
-        unit_type_col = pd.Series(unit_type_col)
-    filtered_transactions_no_time = filtered_transactions_no_time[unit_type_col.isin(unit_type)]
+# Cache no-time filtered data to prevent unnecessary recalculations
+no_time_filter_cache_key = f"no_time_filters_{hash(str(sorted(st.session_state.items())))}"
+if no_time_filter_cache_key not in st.session_state or is_filter_update_in_progress():
+    # Use the same filter logic as the main filtering but without time period
+    filtered_transactions_no_time = all_transactions.copy()
 
-filtered_rental_data_no_time = rental_df.copy()
-if development:
-    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['All Developments'] == development]
-if community:
-    community_col = filtered_rental_data_no_time['Community/Building']
-    if not isinstance(community_col, pd.Series):
-        community_col = pd.Series(community_col)
-    filtered_rental_data_no_time = filtered_rental_data_no_time[community_col.isin(community)]
-if subcommunity:
-    subcommunity_col = filtered_rental_data_no_time['Sub Community / Building']
-    if not isinstance(subcommunity_col, pd.Series):
-        subcommunity_col = pd.Series(subcommunity_col)
-    filtered_rental_data_no_time = filtered_rental_data_no_time[subcommunity_col.isin(subcommunity)]
-if property_type:
-    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Unit Type'] == property_type]
-if bedrooms:
-    filtered_rental_data_no_time = filtered_rental_data_no_time[filtered_rental_data_no_time['Beds'].astype(str) == bedrooms]
-if layout_type and isinstance(filtered_rental_data_no_time, pd.DataFrame) and hasattr(filtered_rental_data_no_time, 'columns') and 'Layout Type' in filtered_rental_data_no_time.columns:
-    layout_type_col = filtered_rental_data_no_time['Layout Type']
-    if not isinstance(layout_type_col, pd.Series):
-        layout_type_col = pd.Series(layout_type_col)
-    filtered_rental_data_no_time = filtered_rental_data_no_time[layout_type_col.isin(layout_type)]
-if unit_type:
-    unit_type_col = filtered_rental_data_no_time['Unit Type']
-    if not isinstance(unit_type_col, pd.Series):
-        unit_type_col = pd.Series(unit_type_col)
-    filtered_rental_data_no_time = filtered_rental_data_no_time[unit_type_col.isin(unit_type)]
+    # Apply the same filters as the main filtering logic
+    if development:
+        filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['All Developments'] == development]
+    if community:
+        community_col = filtered_transactions_no_time['Community/Building']
+        if not isinstance(community_col, pd.Series):
+            community_col = pd.Series(community_col)
+        filtered_transactions_no_time = filtered_transactions_no_time[community_col.isin(community)]
+    if subcommunity:
+        subcommunity_col = filtered_transactions_no_time['Sub Community / Building']
+        if not isinstance(subcommunity_col, pd.Series):
+            subcommunity_col = pd.Series(subcommunity_col)
+        filtered_transactions_no_time = filtered_transactions_no_time[subcommunity_col.isin(subcommunity)]
+    if property_type:
+        filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Unit Type'] == property_type]
+    if bedrooms:
+        filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['Beds'].astype(str) == bedrooms]
+    if layout_type:
+        layout_type_col = filtered_transactions_no_time['Layout Type']
+        if not isinstance(layout_type_col, pd.Series):
+            layout_type_col = pd.Series(layout_type_col)
+        filtered_transactions_no_time = filtered_transactions_no_time[layout_type_col.isin(layout_type)]
+    # Get unit_type from session state
+    unit_type = st.session_state.get("unit_type", [])
+    if unit_type:
+        unit_type_col = filtered_transactions_no_time['Unit Type']
+        if not isinstance(unit_type_col, pd.Series):
+            unit_type_col = pd.Series(unit_type_col)
+        filtered_transactions_no_time = filtered_transactions_no_time[unit_type_col.isin(unit_type)]
+    if sales_recurrence != "All":
+        sales_rec_col = filtered_transactions_no_time['Sales Recurrence']
+        if not isinstance(sales_rec_col, pd.Series):
+            sales_rec_col = pd.Series(sales_rec_col)
+        filtered_transactions_no_time = filtered_transactions_no_time[sales_rec_col == sales_recurrence]
+
+    # Apply same filters to rental data (without time period)
+    filtered_rental_data_no_time = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions_no_time)
+    
+    # Cache the results
+    st.session_state[no_time_filter_cache_key] = {
+        'filtered_transactions_no_time': filtered_transactions_no_time,
+        'filtered_rental_data_no_time': filtered_rental_data_no_time
+    }
+else:
+    cached_data = st.session_state[no_time_filter_cache_key]
+    filtered_transactions_no_time = cached_data['filtered_transactions_no_time']
+    filtered_rental_data_no_time = cached_data['filtered_rental_data_no_time']
 
  # --- Main Tabs ---
 tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
@@ -1847,6 +1894,9 @@ with tab4:
                         break
                 if txn_col:
                     txns = all_transactions[all_transactions[txn_col].astype(str) == str(unit_no)]
+                    # Ensure txns is a pandas DataFrame before checking empty
+                    if not isinstance(txns, pd.DataFrame):
+                        txns = pd.DataFrame(txns)
                     if not txns.empty:
                         st.dataframe(txns)
                     else:
