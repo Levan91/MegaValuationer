@@ -1651,7 +1651,6 @@ with tab4:
     # Build filter mask for layout_map_df
     if not layout_map_df.empty:
         layout_filtered = layout_map_df.copy()
-        # Apply filters: Development, Community, Subcommunity, Bedrooms, Layout Type, Unit Type
         dev = st.session_state.get("development", "")
         comm = st.session_state.get("community", [])
         subcomm = st.session_state.get("subcommunity", [])
@@ -1659,44 +1658,59 @@ with tab4:
         layout_type = st.session_state.get("layout_type", [])
         unit_type = st.session_state.get("unit_type", [])
         # Debug: show unique values in layout file and current filter values
-        st.write('DEBUG: Unique All Developments in layout_map_df:', layout_map_df['All Developments'].unique())
-        st.write('DEBUG: Unique Community/Building in layout_map_df:', layout_map_df['Community/Building'].unique())
-        st.write('DEBUG: Current filter - development:', dev)
-        st.write('DEBUG: Current filter - community:', comm)
+        st.write('DEBUG: Layout columns:', layout_map_df.columns.tolist())
+        # Use 'Development' if present and populated, else 'All Developments'
+        dev_col = None
+        if 'Development' in layout_filtered.columns and bool(layout_filtered['Development'].notna().any()):
+            dev_col = 'Development'
+        elif 'All Developments' in layout_filtered.columns and bool(layout_filtered['All Developments'].notna().any()):
+            dev_col = 'All Developments'
+        # Use 'Community' if present and populated, else 'Community/Building'
+        comm_col = None
+        if 'Community' in layout_filtered.columns and bool(layout_filtered['Community'].notna().any()):
+            comm_col = 'Community'
+        elif 'Community/Building' in layout_filtered.columns and bool(layout_filtered['Community/Building'].notna().any()):
+            comm_col = 'Community/Building'
+        # Apply filters
+        import pandas as pd
+        if dev and dev_col:
+            if not isinstance(layout_filtered, pd.DataFrame):
+                layout_filtered = pd.DataFrame(layout_filtered)
+            if dev_col in layout_filtered.columns and bool(layout_filtered[dev_col].notna().any()):
+                layout_filtered = layout_filtered[layout_filtered[dev_col] == dev]
         if not isinstance(comm, list):
             comm = [comm] if comm else []
+        if comm and comm_col:
+            if not isinstance(layout_filtered, pd.DataFrame):
+                layout_filtered = pd.DataFrame(layout_filtered)
+            if comm_col in layout_filtered.columns and bool(layout_filtered[comm_col].notna().any()):
+                layout_filtered = layout_filtered[layout_filtered[comm_col].isin(comm)]
         if not isinstance(subcomm, list):
             subcomm = [subcomm] if subcomm else []
+        if subcomm:
+            if not isinstance(layout_filtered, pd.DataFrame):
+                layout_filtered = pd.DataFrame(layout_filtered)
+            if 'Sub Community / Building' in layout_filtered.columns and bool(layout_filtered['Sub Community / Building'].notna().any()):
+                layout_filtered = layout_filtered[layout_filtered['Sub Community / Building'].isin(subcomm)]
+        if beds:
+            if not isinstance(layout_filtered, pd.DataFrame):
+                layout_filtered = pd.DataFrame(layout_filtered)
+            if 'Beds' in layout_filtered.columns and bool(layout_filtered['Beds'].notna().any()):
+                layout_filtered = layout_filtered[layout_filtered['Beds'].astype(str) == str(beds)]
         if not isinstance(layout_type, list):
             layout_type = [layout_type] if layout_type else []
+        if layout_type:
+            if not isinstance(layout_filtered, pd.DataFrame):
+                layout_filtered = pd.DataFrame(layout_filtered)
+            if 'Layout Type' in layout_filtered.columns and bool(layout_filtered['Layout Type'].notna().any()):
+                layout_filtered = layout_filtered[layout_filtered['Layout Type'].isin(layout_type)]
         if not isinstance(unit_type, list):
             unit_type = [unit_type] if unit_type else []
-        # Ensure layout_filtered is always a DataFrame
-        import pandas as pd
-        if not isinstance(layout_filtered, pd.DataFrame):
-            layout_filtered = pd.DataFrame(layout_filtered)
-        if dev and 'All Developments' in layout_filtered.columns:
-            layout_filtered = layout_filtered[layout_filtered['All Developments'] == dev]
-        if not isinstance(layout_filtered, pd.DataFrame):
-            layout_filtered = pd.DataFrame(layout_filtered)
-        if comm and 'Community/Building' in layout_filtered.columns:
-            layout_filtered = layout_filtered[layout_filtered['Community/Building'].isin(comm)]
-        if not isinstance(layout_filtered, pd.DataFrame):
-            layout_filtered = pd.DataFrame(layout_filtered)
-        if subcomm and 'Sub Community / Building' in layout_filtered.columns:
-            layout_filtered = layout_filtered[layout_filtered['Sub Community / Building'].isin(subcomm)]
-        if not isinstance(layout_filtered, pd.DataFrame):
-            layout_filtered = pd.DataFrame(layout_filtered)
-        if beds and 'Beds' in layout_filtered.columns:
-            layout_filtered = layout_filtered[layout_filtered['Beds'].astype(str) == str(beds)]
-        if not isinstance(layout_filtered, pd.DataFrame):
-            layout_filtered = pd.DataFrame(layout_filtered)
-        if layout_type and 'Layout Type' in layout_filtered.columns:
-            layout_filtered = layout_filtered[layout_filtered['Layout Type'].isin(layout_type)]
-        if not isinstance(layout_filtered, pd.DataFrame):
-            layout_filtered = pd.DataFrame(layout_filtered)
-        if unit_type and 'Type' in layout_filtered.columns:
-            layout_filtered = layout_filtered[layout_filtered['Type'].isin(unit_type)]
+        if unit_type:
+            if not isinstance(layout_filtered, pd.DataFrame):
+                layout_filtered = pd.DataFrame(layout_filtered)
+            if 'Type' in layout_filtered.columns and bool(layout_filtered['Type'].notna().any()):
+                layout_filtered = layout_filtered[layout_filtered['Type'].isin(unit_type)]
         if 'Unit No.' in layout_filtered.columns:
             unit_no_col = layout_filtered['Unit No.']
             if not isinstance(unit_no_col, pd.Series):
