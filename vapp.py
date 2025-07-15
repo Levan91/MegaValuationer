@@ -1772,7 +1772,8 @@ with tab4:
         # Display metrics in columns
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Units", len(filtered_rental_data))
+            # Use context-aware unique unit count for Total Units
+            st.metric("Total Units", total_units)
             delta = current_metrics["Available Units"] - last_metrics.get("Available Units", current_metrics["Available Units"])
             st.metric("Available Units", available_units, delta if last_metrics else None)
         with col2:
