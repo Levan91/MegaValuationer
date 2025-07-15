@@ -1623,6 +1623,12 @@ with tab4:
         end = end_dates.iloc[i]
         left = days_left.iloc[i]
         since_end = days_since_end.iloc[i]
+        # New: check for 'Rented Recently (last 90 days)'
+        rented_recently = False
+        if pd.notnull(start):
+            days_since_start = (today - start).days
+            if 0 <= days_since_start <= 90:
+                rented_recently = True
         if pd.notnull(start) and pd.notnull(end):
             if start <= today <= end:
                 if left < 31:
@@ -1633,8 +1639,12 @@ with tab4:
                     status.append('🔴')  # Rented
             elif 0 < since_end <= 60:
                 status.append('🔵')  # Recently Vacant
+            elif rented_recently:
+                status.append('🟠')  # Rented Recently (last 90 days)
             else:
                 status.append('🟢')  # Available
+        elif rented_recently:
+            status.append('🟠')  # Rented Recently (last 90 days)
         else:
             status.append('🟢')  # Available
     filtered_rental_data['Status'] = status
@@ -1729,7 +1739,8 @@ with tab4:
         '🟢': 'Available',
         '🟡': 'Expiring Soon',
         '🟣': 'Expiring <30 days',
-        '🔵': 'Recently Vacant'
+        '��': 'Recently Vacant',
+        '🟠': 'Rented Recently (last 90 days)'
     }
     status_options = []
     if 'Status' in filtered_rental_data.columns:
