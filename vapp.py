@@ -1643,11 +1643,75 @@ with tab4:
             status.append('🟢')  # Available
     filtered_rental_data['Status'] = status
     
-    # Show data count
-    if filtered_rental_data is not None:
-        st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    # --- Context-aware unique unit count ---
+    # Try to use layout_map_df for unique unit count if possible
+    layout_unit_count = None
+    rentals_unit_count = None
+    layout_note = ""
+    # Build filter mask for layout_map_df
+    if not layout_map_df.empty:
+        layout_filtered = layout_map_df.copy()
+        # Apply filters: Development, Community, Subcommunity, Bedrooms, Layout Type, Unit Type
+        dev = st.session_state.get("development", "")
+        comm = st.session_state.get("community", [])
+        subcomm = st.session_state.get("subcommunity", [])
+        beds = st.session_state.get("bedrooms", "")
+        layout_type = st.session_state.get("layout_type", [])
+        unit_type = st.session_state.get("unit_type", [])
+        # Ensure all are lists for .isin
+        if not isinstance(comm, list):
+            comm = [comm] if comm else []
+        if not isinstance(subcomm, list):
+            subcomm = [subcomm] if subcomm else []
+        if not isinstance(layout_type, list):
+            layout_type = [layout_type] if layout_type else []
+        if not isinstance(unit_type, list):
+            unit_type = [unit_type] if unit_type else []
+        # Ensure layout_filtered is always a DataFrame
+        import pandas as pd
+        if not isinstance(layout_filtered, pd.DataFrame):
+            layout_filtered = pd.DataFrame(layout_filtered)
+        if dev and 'All Developments' in layout_filtered.columns:
+            layout_filtered = layout_filtered[layout_filtered['All Developments'] == dev]
+        if not isinstance(layout_filtered, pd.DataFrame):
+            layout_filtered = pd.DataFrame(layout_filtered)
+        if comm and 'Community/Building' in layout_filtered.columns:
+            layout_filtered = layout_filtered[layout_filtered['Community/Building'].isin(comm)]
+        if not isinstance(layout_filtered, pd.DataFrame):
+            layout_filtered = pd.DataFrame(layout_filtered)
+        if subcomm and 'Sub Community / Building' in layout_filtered.columns:
+            layout_filtered = layout_filtered[layout_filtered['Sub Community / Building'].isin(subcomm)]
+        if not isinstance(layout_filtered, pd.DataFrame):
+            layout_filtered = pd.DataFrame(layout_filtered)
+        if beds and 'Beds' in layout_filtered.columns:
+            layout_filtered = layout_filtered[layout_filtered['Beds'].astype(str) == str(beds)]
+        if not isinstance(layout_filtered, pd.DataFrame):
+            layout_filtered = pd.DataFrame(layout_filtered)
+        if layout_type and 'Layout Type' in layout_filtered.columns:
+            layout_filtered = layout_filtered[layout_filtered['Layout Type'].isin(layout_type)]
+        if not isinstance(layout_filtered, pd.DataFrame):
+            layout_filtered = pd.DataFrame(layout_filtered)
+        if unit_type and 'Type' in layout_filtered.columns:
+            layout_filtered = layout_filtered[layout_filtered['Type'].isin(unit_type)]
+        if 'Unit No.' in layout_filtered.columns:
+            unit_no_col = layout_filtered['Unit No.']
+            if not isinstance(unit_no_col, pd.Series):
+                unit_no_col = pd.Series(unit_no_col)
+            layout_unit_count = unit_no_col.nunique()
+    # Always get unique units from rentals data as fallback
+    if 'Unit No.' in filtered_rental_data.columns:
+        rentals_unit_count = filtered_rental_data['Unit No.'].nunique()
+    # Decide which to show
+    if layout_unit_count is not None and layout_unit_count > 0:
+        total_units = layout_unit_count
+        layout_note = "(from layout file)"
     else:
-        st.info("📊 No rental data available")
+        total_units = rentals_unit_count if rentals_unit_count is not None else 0
+        layout_note = "(from rentals data)"
+    # ...
+    # Show data count and unique unit count
+    st.info(f"📊 Showing {len(filtered_rental_data)} rental records")
+    st.info(f"🏢 Unique Units: {total_units} {layout_note}")
     
     # --- Tracker Metrics Persistence ---
     TRACKER_METRICS_FILE = "tracker_metrics.json"
