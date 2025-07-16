@@ -1268,37 +1268,10 @@ with tab1:
 with tab2:
     if isinstance(filtered_listings, pd.DataFrame) and filtered_listings.shape[0] > 0:
         st.subheader("Sale Listings (Filtered)")
-        
-        # --- Download as Excel button for Listings: Sale tab ---
-        import io
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
-            filtered_listings.to_excel(writer, index=False, sheet_name='Sale Listings')
-        output.seek(0)
-        st.download_button(
-            label="⬇️ Download sale listings as Excel",
-            data=output,
-            file_name="filtered_sale_listings.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
 
-        # --- New: Download filtered listings (cleaned) as Excel ---
-        columns_to_exclude = [
-            "Reference Number", "DLD Permit Number", "URL", "Unit Number", "Agent Name", "Company Name", "Availability", "Description", "Source File"
-        ]
-        cleaned_listings = filtered_listings[[col for col in filtered_listings.columns if col not in columns_to_exclude]]
-        output_cleaned = io.BytesIO()
-        with pd.ExcelWriter(output_cleaned, engine='xlsxwriter') as writer:  # type: ignore
-            cleaned_listings.to_excel(writer, index=False, sheet_name='Sale Listings (Cleaned)')
-        output_cleaned.seek(0)
-        st.download_button(
-            label="⬇️ Download filtered listings (cleaned) as Excel",
-            data=output_cleaned,
-            file_name="filtered_sale_listings_cleaned.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        
-        # Add verified filter
+        # --- Apply Verified and Show listings filters to get final_listings ---
+        final_listings = filtered_listings.copy()
+        # Verified filter
         verified_filter = st.radio(
             "Verified listings:",
             ["All listings", "Verified only"],
@@ -1306,25 +1279,9 @@ with tab2:
             horizontal=True,
             key="sale_verified_filter"
         )
-        
-        # Apply verified filter
-        if verified_filter == "Verified only" and 'Verified' in filtered_listings.columns:
-            filtered_listings = filtered_listings[filtered_listings['Verified'].str.lower() == 'yes']
-        
-        # Calculate unique listings count (after verified filter)
-        total_listings = filtered_listings.shape[0]
-        if isinstance(filtered_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_listings.columns:
-            dld_col = filtered_listings['DLD Permit Number']
-            if not isinstance(dld_col, pd.Series):
-                dld_col = pd.Series(dld_col)
-            unique_dlds = dld_col.dropna().nunique()
-        else:
-            unique_dlds = total_listings
-        
-        # Show total count
-        st.markdown(f"**Total: {total_listings} listings / {unique_dlds} unique listings**")
-        
-        # Add listing type selector
+        if verified_filter == "Verified only" and 'Verified' in final_listings.columns:
+            final_listings = final_listings[final_listings['Verified'].str.lower() == 'yes']
+        # Show listings filter
         listing_type = st.radio(
             "Show listings:",
             ["All listings", "Unique listings", "Duplicate listings"],
@@ -1332,17 +1289,13 @@ with tab2:
             horizontal=True,
             key="sale_listing_type"
         )
-        
-        # Filter listings based on selection
         if listing_type == "Unique listings":
-            # Select unique listings (prioritizing verified and most recent)
-            if 'DLD Permit Number' in filtered_listings.columns:
+            if 'DLD Permit Number' in final_listings.columns:
                 def select_unique_listings(df):
                     groups = []
                     for dld, group in df.groupby("DLD Permit Number"):
                         if pd.isna(dld) or str(dld).strip() == "":
                             continue
-                        # Prioritize verified listings
                         verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
                         if not verified_group.empty:
                             if "Listed When" in verified_group.columns:
@@ -1360,30 +1313,60 @@ with tab2:
                         return pd.concat(groups, ignore_index=True)
                     else:
                         return pd.DataFrame(columns=df.columns)
-                
-                filtered_listings = select_unique_listings(filtered_listings)
-                st.markdown(f"**Showing {filtered_listings.shape[0]} unique listings**")
-                
+                final_listings = select_unique_listings(final_listings)
+                st.markdown(f"**Showing {final_listings.shape[0]} unique listings**")
         elif listing_type == "Duplicate listings":
-            # Show only listings that have duplicates
-            if isinstance(filtered_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_listings.columns:
-                dld_col = filtered_listings['DLD Permit Number']
+            if 'DLD Permit Number' in final_listings.columns:
+                dld_col = final_listings['DLD Permit Number']
                 if not isinstance(dld_col, pd.Series):
                     dld_col = pd.Series(dld_col)
                 dld_counts = dld_col.value_counts()
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-                filtered_listings = filtered_listings[dld_col.isin(duplicate_dlds)]
-                st.markdown(f"**Showing {filtered_listings.shape[0]} duplicate listings**")
-        
+                final_listings = final_listings[dld_col.isin(duplicate_dlds)]
+                st.markdown(f"**Showing {final_listings.shape[0]} duplicate listings**")
+
+        # --- Download as Excel button for Listings: Sale tab ---
+        import io
+        if not isinstance(final_listings, pd.DataFrame):
+            final_listings = pd.DataFrame(final_listings)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
+            final_listings.to_excel(writer, index=False, sheet_name='Sale Listings')
+        output.seek(0)
+        st.download_button(
+            label="⬇️ Download sale listings as Excel",
+            data=output,
+            file_name="filtered_sale_listings.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # --- New: Download filtered listings (cleaned) as Excel ---
+        columns_to_exclude = [
+            "Reference Number", "DLD Permit Number", "URL", "Unit Number", "Agent Name", "Company Name", "Availability", "Description", "Source File"
+        ]
+        if not isinstance(final_listings, pd.DataFrame):
+            final_listings = pd.DataFrame(final_listings)
+        cleaned_listings = final_listings[[col for col in final_listings.columns if col not in columns_to_exclude]]
+        output_cleaned = io.BytesIO()
+        with pd.ExcelWriter(output_cleaned, engine='xlsxwriter') as writer:  # type: ignore
+            cleaned_listings.to_excel(writer, index=False, sheet_name='Sale Listings (Cleaned)')
+        output_cleaned.seek(0)
+        st.download_button(
+            label="⬇️ Download filtered listings (cleaned) as Excel",
+            data=output_cleaned,
+            file_name="filtered_sale_listings_cleaned.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
         # --- Price comparison feature (MOVED HERE, ENSURED NUMERIC) ---
-        if isinstance(filtered_listings, pd.DataFrame) and 'Price (AED)' in filtered_listings.columns:
+        if isinstance(final_listings, pd.DataFrame) and 'Price (AED)' in final_listings.columns:
             asking_price = st.number_input(
                 "Enter asking price (AED):",
                 min_value=0,
                 value=st.session_state.get("sale_asking_price", 0),
                 key="sale_asking_price"
             )
-            price_col = filtered_listings['Price (AED)']
+            price_col = final_listings['Price (AED)']
             if not isinstance(price_col, pd.Series):
                 if isinstance(price_col, (list, np.ndarray)):
                     price_col = pd.Series(price_col)
@@ -1402,18 +1385,18 @@ with tab2:
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
-        if isinstance(filtered_listings, pd.DataFrame):
-            visible_columns = [c for c in filtered_listings.columns if c not in columns_to_hide] + ["URL"]
+        if isinstance(final_listings, pd.DataFrame):
+            visible_columns = [c for c in final_listings.columns if c not in columns_to_hide] + ["URL"]
         else:
             visible_columns = []
 
         # Use AgGrid for clickable selection
-        gb = GridOptionsBuilder.from_dataframe(filtered_listings[visible_columns])
+        gb = GridOptionsBuilder.from_dataframe(final_listings[visible_columns])
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         grid_options = gb.build()
 
         # Before passing to AgGrid, ensure DataFrame
-        data_for_aggrid = filtered_listings[visible_columns]
+        data_for_aggrid = final_listings[visible_columns]
         if not isinstance(data_for_aggrid, pd.DataFrame):
             data_for_aggrid = pd.DataFrame(data_for_aggrid)
         grid_response = AgGrid(
@@ -1455,63 +1438,18 @@ with tab2:
 with tab3:
     if isinstance(filtered_rent_listings, pd.DataFrame) and filtered_rent_listings.shape[0] > 0:
         st.subheader("Rent Listings (Filtered)")
-        
-        # --- Download as Excel button for Listings: Rent tab ---
-        import io
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
-            filtered_rent_listings.to_excel(writer, index=False, sheet_name='Rent Listings')
-        output.seek(0)
-        st.download_button(
-            label="⬇️ Download rent listings as Excel",
-            data=output,
-            file_name="filtered_rent_listings.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
 
-        # --- New: Download filtered rent listings (cleaned) as Excel ---
-        columns_to_exclude = [
-            "Reference Number", "DLD Permit Number", "URL", "Unit Number", "Agent Name", "Company Name", "Availability", "Description", "Source File"
-        ]
-        cleaned_rent_listings = filtered_rent_listings[[col for col in filtered_rent_listings.columns if col not in columns_to_exclude]]
-        output_cleaned_rent = io.BytesIO()
-        with pd.ExcelWriter(output_cleaned_rent, engine='xlsxwriter') as writer:  # type: ignore
-            cleaned_rent_listings.to_excel(writer, index=False, sheet_name='Rent Listings (Cleaned)')
-        output_cleaned_rent.seek(0)
-        st.download_button(
-            label="⬇️ Download filtered rent listings (cleaned) as Excel",
-            data=output_cleaned_rent,
-            file_name="filtered_rent_listings_cleaned.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        
-        # Add verified filter
+        # --- Apply Verified and Show listings filters to get final_rent_listings ---
+        final_rent_listings = filtered_rent_listings.copy()
         verified_filter = st.radio(
             "Verified listings:",
             ["All listings", "Verified only"],
             index=0,
-                horizontal=True,
+            horizontal=True,
             key="rent_verified_filter"
         )
-        
-        # Apply verified filter
-        if verified_filter == "Verified only" and 'Verified' in filtered_rent_listings.columns:
-            filtered_rent_listings = filtered_rent_listings[filtered_rent_listings['Verified'].str.lower() == 'yes']
-        
-        # Calculate unique listings count (after verified filter)
-        total_rent_listings = filtered_rent_listings.shape[0]
-        if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
-            dld_col = filtered_rent_listings['DLD Permit Number']
-            if not isinstance(dld_col, pd.Series):
-                dld_col = pd.Series(dld_col)
-            unique_dlds = dld_col.dropna().nunique()
-        else:
-            unique_dlds = total_rent_listings
-        
-        # Show total count
-        st.markdown(f"**Total: {total_rent_listings} listings / {unique_dlds} unique listings**")
-        
-        # Add listing type selector
+        if verified_filter == "Verified only" and 'Verified' in final_rent_listings.columns:
+            final_rent_listings = final_rent_listings[final_rent_listings['Verified'].str.lower() == 'yes']
         listing_type = st.radio(
             "Show listings:",
             ["All listings", "Unique listings", "Duplicate listings"],
@@ -1519,17 +1457,13 @@ with tab3:
             horizontal=True,
             key="rent_listing_type"
         )
-        
-        # Filter listings based on selection
         if listing_type == "Unique listings":
-            # Select unique listings (prioritizing verified and most recent)
-            if 'DLD Permit Number' in filtered_rent_listings.columns:
+            if 'DLD Permit Number' in final_rent_listings.columns:
                 def select_unique_listings(df):
                     groups = []
                     for dld, group in df.groupby("DLD Permit Number"):
                         if pd.isna(dld) or str(dld).strip() == "":
                             continue
-                        # Prioritize verified listings
                         verified_group = group[group["Verified"].str.lower() == "yes"] if "Verified" in group.columns else pd.DataFrame()
                         if not verified_group.empty:
                             if "Listed When" in verified_group.columns:
@@ -1547,30 +1481,60 @@ with tab3:
                         return pd.concat(groups, ignore_index=True)
                     else:
                         return pd.DataFrame(columns=df.columns)
-                
-                filtered_rent_listings = select_unique_listings(filtered_rent_listings)
-                st.markdown(f"**Showing {filtered_rent_listings.shape[0]} unique listings**")
-                
+                final_rent_listings = select_unique_listings(final_rent_listings)
+                st.markdown(f"**Showing {final_rent_listings.shape[0]} unique listings**")
         elif listing_type == "Duplicate listings":
-            # Show only listings that have duplicates
-            if isinstance(filtered_rent_listings, pd.DataFrame) and 'DLD Permit Number' in filtered_rent_listings.columns:
-                dld_col = filtered_rent_listings['DLD Permit Number']
+            if 'DLD Permit Number' in final_rent_listings.columns:
+                dld_col = final_rent_listings['DLD Permit Number']
                 if not isinstance(dld_col, pd.Series):
                     dld_col = pd.Series(dld_col)
                 dld_counts = dld_col.value_counts()
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
-                filtered_rent_listings = filtered_rent_listings[dld_col.isin(duplicate_dlds)]
-                st.markdown(f"**Showing {filtered_rent_listings.shape[0]} duplicate listings**")
-        
+                final_rent_listings = final_rent_listings[dld_col.isin(duplicate_dlds)]
+                st.markdown(f"**Showing {final_rent_listings.shape[0]} duplicate listings**")
+
+        # --- Download as Excel button for Listings: Rent tab ---
+        import io
+        if not isinstance(final_rent_listings, pd.DataFrame):
+            final_rent_listings = pd.DataFrame(final_rent_listings)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
+            final_rent_listings.to_excel(writer, index=False, sheet_name='Rent Listings')
+        output.seek(0)
+        st.download_button(
+            label="⬇️ Download rent listings as Excel",
+            data=output,
+            file_name="filtered_rent_listings.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # --- New: Download filtered rent listings (cleaned) as Excel ---
+        columns_to_exclude = [
+            "Reference Number", "DLD Permit Number", "URL", "Unit Number", "Agent Name", "Company Name", "Availability", "Description", "Source File"
+        ]
+        if not isinstance(final_rent_listings, pd.DataFrame):
+            final_rent_listings = pd.DataFrame(final_rent_listings)
+        cleaned_rent_listings = final_rent_listings[[col for col in final_rent_listings.columns if col not in columns_to_exclude]]
+        output_cleaned_rent = io.BytesIO()
+        with pd.ExcelWriter(output_cleaned_rent, engine='xlsxwriter') as writer:  # type: ignore
+            cleaned_rent_listings.to_excel(writer, index=False, sheet_name='Rent Listings (Cleaned)')
+        output_cleaned_rent.seek(0)
+        st.download_button(
+            label="⬇️ Download filtered rent listings (cleaned) as Excel",
+            data=output_cleaned_rent,
+            file_name="filtered_rent_listings_cleaned.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
         # --- Price comparison feature (MOVED HERE, ENSURED NUMERIC) ---
-        if isinstance(filtered_rent_listings, pd.DataFrame) and 'Price (AED)' in filtered_rent_listings.columns:
+        if isinstance(final_rent_listings, pd.DataFrame) and 'Price (AED)' in final_rent_listings.columns:
             asking_price = st.number_input(
                 "Enter asking price (AED):",
                 min_value=0,
                 value=st.session_state.get("rent_asking_price", 0),
                 key="rent_asking_price"
             )
-            price_col = filtered_rent_listings['Price (AED)']
+            price_col = final_rent_listings['Price (AED)']
             if not isinstance(price_col, pd.Series):
                 if isinstance(price_col, (list, np.ndarray)):
                     price_col = pd.Series(price_col)
@@ -1589,15 +1553,15 @@ with tab3:
         
         # Hide certain columns but keep them in the DataFrame
         columns_to_hide = ["Reference Number", "URL", "Source File", "Unit No.", "Unit Number", "Listed When", "Listed when", "DLD Permit Number", "Description"]
-        visible_columns = [c for c in filtered_rent_listings.columns if c not in columns_to_hide] + ["URL"]
+        visible_columns = [c for c in final_rent_listings.columns if c not in columns_to_hide] + ["URL"]
 
         # Use AgGrid for clickable selection
-        gb = GridOptionsBuilder.from_dataframe(filtered_rent_listings[visible_columns])
+        gb = GridOptionsBuilder.from_dataframe(final_rent_listings[visible_columns])
         gb.configure_selection('single', use_checkbox=False, rowMultiSelectWithClick=False)
         grid_options = gb.build()
 
         # Before passing to AgGrid, ensure DataFrame
-        data_for_aggrid = filtered_rent_listings[visible_columns]
+        data_for_aggrid = final_rent_listings[visible_columns]
         if not isinstance(data_for_aggrid, pd.DataFrame):
             data_for_aggrid = pd.DataFrame(data_for_aggrid)
         grid_response = AgGrid(
