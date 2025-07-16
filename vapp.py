@@ -1139,6 +1139,20 @@ tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "
 with tab1:
     st.title("Real Estate Valuation Sales")
 
+    # --- Download as Excel button for Sales tab ---
+    import io
+    if isinstance(filtered_transactions, pd.DataFrame) and not filtered_transactions.empty:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
+            filtered_transactions.to_excel(writer, index=False, sheet_name='Sales')
+        output.seek(0)
+        st.download_button(
+            label="⬇️ Download transactions as Excel",
+            data=output,
+            file_name="filtered_sales.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
     # --- Search Unit Box ---
     # Get all unique units from filtered_transactions_no_time (or another relevant DataFrame)
     unit_col_candidates = [
@@ -1226,7 +1240,18 @@ with tab2:
     if isinstance(filtered_listings, pd.DataFrame) and filtered_listings.shape[0] > 0:
         st.subheader("Sale Listings (Filtered)")
         
-        # Use filtered listings based on sidebar filters
+        # --- Download as Excel button for Listings: Sale tab ---
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
+            filtered_listings.to_excel(writer, index=False, sheet_name='Sale Listings')
+        output.seek(0)
+        st.download_button(
+            label="⬇️ Download sale listings as Excel",
+            data=output,
+            file_name="filtered_sale_listings.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         
         # Add verified filter
         verified_filter = st.radio(
@@ -1386,7 +1411,18 @@ with tab3:
     if isinstance(filtered_rent_listings, pd.DataFrame) and filtered_rent_listings.shape[0] > 0:
         st.subheader("Rent Listings (Filtered)")
         
-        # Use filtered rent listings based on sidebar filters
+        # --- Download as Excel button for Listings: Rent tab ---
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
+            filtered_rent_listings.to_excel(writer, index=False, sheet_name='Rent Listings')
+        output.seek(0)
+        st.download_button(
+            label="⬇️ Download rent listings as Excel",
+            data=output,
+            file_name="filtered_rent_listings.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         
         # Add verified filter
         verified_filter = st.radio(
