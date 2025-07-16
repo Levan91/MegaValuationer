@@ -1325,6 +1325,16 @@ with tab2:
                 final_listings = final_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {final_listings.shape[0]} duplicate listings**")
 
+        # --- Show counter for filtered listings ---
+        if not isinstance(final_listings, pd.DataFrame):
+            final_listings = pd.DataFrame(final_listings)
+        total_listings = final_listings.shape[0]
+        if 'DLD Permit Number' in final_listings.columns:
+            unique_dlds = final_listings['DLD Permit Number'].dropna().nunique()
+        else:
+            unique_dlds = total_listings
+        st.markdown(f"**Total: {total_listings} listings / {unique_dlds} unique listings**")
+
         # --- Download as Excel button for Listings: Sale tab ---
         import io
         if not isinstance(final_listings, pd.DataFrame):
@@ -1435,6 +1445,7 @@ with tab2:
                 )
     else:
         st.info("No sale listings data found.")
+
 with tab3:
     if isinstance(filtered_rent_listings, pd.DataFrame) and filtered_rent_listings.shape[0] > 0:
         st.subheader("Rent Listings (Filtered)")
@@ -1492,6 +1503,16 @@ with tab3:
                 duplicate_dlds = [dld for dld in dld_counts.index if dld_counts[dld] > 1 and str(dld).strip() != ""]
                 final_rent_listings = final_rent_listings[dld_col.isin(duplicate_dlds)]
                 st.markdown(f"**Showing {final_rent_listings.shape[0]} duplicate listings**")
+
+        # --- Show counter for filtered rent listings ---
+        if not isinstance(final_rent_listings, pd.DataFrame):
+            final_rent_listings = pd.DataFrame(final_rent_listings)
+        total_rent_listings = final_rent_listings.shape[0]
+        if 'DLD Permit Number' in final_rent_listings.columns:
+            unique_dlds = final_rent_listings['DLD Permit Number'].dropna().nunique()
+        else:
+            unique_dlds = total_rent_listings
+        st.markdown(f"**Total: {total_rent_listings} listings / {unique_dlds} unique listings**")
 
         # --- Download as Excel button for Listings: Rent tab ---
         import io
@@ -1600,6 +1621,7 @@ with tab3:
                 )
     else:
         st.info("No rent listings data found.")
+
 with tab4:
     st.title("Rental Tracker (Filtered)")
     
