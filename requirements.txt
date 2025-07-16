@@ -12,3 +12,4 @@ streamlit-plotly-events
 pdfkit
 kaleido
 fpdf2
+XlsxWriter
