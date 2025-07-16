@@ -142,6 +142,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import time
 import json
+import typing
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -1945,6 +1946,20 @@ with tab4:
     # Ensure display_data is a DataFrame before passing to AgGrid
     if not isinstance(display_data, pd.DataFrame):
         display_data = pd.DataFrame(display_data)
+
+    # --- Download as Excel button ---
+    import io
+    if not display_data.empty:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:  # type: ignore
+            display_data.to_excel(writer, index=False, sheet_name='Rentals')
+        output.seek(0)
+        st.download_button(
+            label="⬇️ Download table as Excel",
+            data=output,
+            file_name="filtered_rentals.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
     # Use AgGrid for interactive table
     gb = GridOptionsBuilder.from_dataframe(display_data)
