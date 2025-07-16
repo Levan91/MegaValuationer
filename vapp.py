@@ -1153,6 +1153,35 @@ with tab1:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
+        # --- Additional button: Download latest transaction per unit ---
+        # Identify unit and date columns
+        unit_col_candidates = [
+            'Unit No.', 'Unit Number', 'Unit', 'UnitNo', 'Unit_No', 'Unit_Number'
+        ]
+        unit_col = None
+        for col in unit_col_candidates:
+            if col in filtered_transactions.columns:
+                unit_col = col
+                break
+        date_col = 'Evidence Date' if 'Evidence Date' in filtered_transactions.columns else None
+        if unit_col and date_col:
+            # Ensure date column is datetime
+            latest_df = filtered_transactions.copy()
+            latest_df[date_col] = pd.to_datetime(latest_df[date_col], errors='coerce')
+            # Sort by unit and date descending, then drop duplicates
+            latest_df = latest_df.sort_values([unit_col, date_col], ascending=[True, False])
+            latest_df = latest_df.drop_duplicates(subset=[unit_col], keep='first')
+            output_latest = io.BytesIO()
+            with pd.ExcelWriter(output_latest, engine='xlsxwriter') as writer:  # type: ignore
+                latest_df.to_excel(writer, index=False, sheet_name='Latest Transactions')
+            output_latest.seek(0)
+            st.download_button(
+                label="⬇️ Download latest transaction per unit as Excel",
+                data=output_latest,
+                file_name="latest_transaction_per_unit.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
     # --- Search Unit Box ---
     # Get all unique units from filtered_transactions_no_time (or another relevant DataFrame)
     unit_col_candidates = [
