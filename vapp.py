@@ -1281,6 +1281,22 @@ with tab2:
             file_name="filtered_sale_listings.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+        # --- New: Download filtered listings (cleaned) as Excel ---
+        columns_to_exclude = [
+            "Reference Number", "DLD Permit Number", "URL", "Unit Number", "Agent Name", "Company Name", "Availability", "Description", "Source File"
+        ]
+        cleaned_listings = filtered_listings[[col for col in filtered_listings.columns if col not in columns_to_exclude]]
+        output_cleaned = io.BytesIO()
+        with pd.ExcelWriter(output_cleaned, engine='xlsxwriter') as writer:  # type: ignore
+            cleaned_listings.to_excel(writer, index=False, sheet_name='Sale Listings (Cleaned)')
+        output_cleaned.seek(0)
+        st.download_button(
+            label="⬇️ Download filtered listings (cleaned) as Excel",
+            data=output_cleaned,
+            file_name="filtered_sale_listings_cleaned.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         
         # Add verified filter
         verified_filter = st.radio(
@@ -1450,6 +1466,22 @@ with tab3:
             label="⬇️ Download rent listings as Excel",
             data=output,
             file_name="filtered_rent_listings.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # --- New: Download filtered rent listings (cleaned) as Excel ---
+        columns_to_exclude = [
+            "Reference Number", "DLD Permit Number", "URL", "Unit Number", "Agent Name", "Company Name", "Availability", "Description", "Source File"
+        ]
+        cleaned_rent_listings = filtered_rent_listings[[col for col in filtered_rent_listings.columns if col not in columns_to_exclude]]
+        output_cleaned_rent = io.BytesIO()
+        with pd.ExcelWriter(output_cleaned_rent, engine='xlsxwriter') as writer:  # type: ignore
+            cleaned_rent_listings.to_excel(writer, index=False, sheet_name='Rent Listings (Cleaned)')
+        output_cleaned_rent.seek(0)
+        st.download_button(
+            label="⬇️ Download filtered rent listings (cleaned) as Excel",
+            data=output_cleaned_rent,
+            file_name="filtered_rent_listings_cleaned.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         
