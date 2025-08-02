@@ -142,7 +142,6 @@ import numpy as np
 from datetime import datetime, timedelta
 import time
 import json
-import typing
 
 def prepare_prophet_df(df):
     df2 = df.dropna(subset=['Evidence Date', 'Price (AED/sq ft)']).copy()
@@ -201,141 +200,8 @@ def _reset_filters():
     # Restore sales_recurrence
     st.session_state["sales_recurrence"] = saved
 
-def _on_development_change():
-    """Callback function for development selection changes"""
-    # Use state coordination to prevent race conditions
-    if not should_process_callback("development", 500):
-        return
-    
-    # Set flag to prevent other callbacks from interfering
-    set_filter_update_flag()
-    
-    # Clear dependent filters
-    if "community" in st.session_state:
-        st.session_state.pop("community")
-    if "subcommunity" in st.session_state:
-        st.session_state.pop("subcommunity")
-    if "layout_type" in st.session_state:
-        st.session_state.pop("layout_type")
-    if "unit_type" in st.session_state:
-        st.session_state.pop("unit_type")
-    
-    # Clear flag
-    clear_filter_update_flag()
-
-def _on_community_change():
-    """Callback function for community selection changes"""
-    # Use state coordination to prevent race conditions
-    if not should_process_callback("community", 500):
-        return
-    
-    # Set flag to prevent other callbacks from interfering
-    set_filter_update_flag()
-    
-    # Clear dependent filters
-    if "subcommunity" in st.session_state:
-        st.session_state.pop("subcommunity")
-    if "layout_type" in st.session_state:
-        st.session_state.pop("layout_type")
-    if "unit_type" in st.session_state:
-        st.session_state.pop("unit_type")
-    
-    # Clear flag
-    clear_filter_update_flag()
-
-def _on_subcommunity_change():
-    """Callback function for subcommunity selection changes"""
-    # Use state coordination to prevent race conditions
-    if not should_process_callback("subcommunity", 500):
-        return
-    
-    # Set flag to prevent other callbacks from interfering
-    set_filter_update_flag()
-    
-    # Clear dependent filters
-    if "layout_type" in st.session_state:
-        st.session_state.pop("layout_type")
-    if "unit_type" in st.session_state:
-        st.session_state.pop("unit_type")
-    
-    # Clear flag
-    clear_filter_update_flag()
-
-def _on_bedrooms_change():
-    """Callback function for bedrooms selection changes"""
-    # Use state coordination to prevent race conditions
-    if not should_process_callback("bedrooms", 500):
-        return
-    
-    # Set flag to prevent other callbacks from interfering
-    set_filter_update_flag()
-    
-    # Clear dependent filters
-    if "layout_type" in st.session_state:
-        st.session_state.pop("layout_type")
-    if "unit_type" in st.session_state:
-        st.session_state.pop("unit_type")
-    
-    # Clear flag
-    clear_filter_update_flag()
-
 # --- Page Config ---
 st.set_page_config(page_title="Valuation App V2", layout="wide")
-
-# --- State Coordination System ---
-def initialize_state_coordination():
-    """Initialize state coordination to prevent race conditions"""
-    if "state_coordination" not in st.session_state:
-        st.session_state["state_coordination"] = {
-            "last_update": time.time(),
-            "updating_filters": False,
-            "filter_update_queue": [],
-            "debounce_timers": {}
-        }
-
-def should_process_callback(callback_name, debounce_ms=500):
-    """Check if callback should be processed based on debouncing"""
-    coord = st.session_state.get("state_coordination", {})
-    timers = coord.get("debounce_timers", {})
-    
-    current_time = time.time()
-    last_time = timers.get(callback_name, 0)
-    
-    if current_time - last_time < (debounce_ms / 1000):
-        return False
-    
-    # Update timer
-    timers[callback_name] = current_time
-    coord["debounce_timers"] = timers
-    st.session_state["state_coordination"] = coord
-    
-    return True
-
-def set_filter_update_flag():
-    """Set flag to indicate filter update in progress"""
-    coord = st.session_state.get("state_coordination", {})
-    coord["updating_filters"] = True
-    coord["last_update"] = time.time()
-    st.session_state["state_coordination"] = coord
-
-def clear_filter_update_flag():
-    """Clear flag when filter update is complete"""
-    coord = st.session_state.get("state_coordination", {})
-    coord["updating_filters"] = False
-    st.session_state["state_coordination"] = coord
-    
-    # Clear filter caches to force recalculation
-    cache_keys_to_clear = [key for key in st.session_state.keys() if isinstance(key, str) and key.startswith(('filters_', 'no_time_filters_'))]
-    for key in cache_keys_to_clear:
-        st.session_state.pop(key, None)
-
-def is_filter_update_in_progress():
-    """Check if a filter update is currently in progress"""
-    coord = st.session_state.get("state_coordination", {})
-    return coord.get("updating_filters", False)
-
-# Initialize state coordination
-initialize_state_coordination()
 
 # --- Load Transaction Data from Data/Transactions (cached) ---
 transactions_dir = os.path.join(os.path.dirname(__file__), 'Data', 'Transactions')
@@ -602,7 +468,6 @@ with st.sidebar:
         options=[""] + dev_options,
         index=([""] + dev_options).index(development) if development in dev_options else 0,
         key="development",
-        on_change=_on_development_change,
         placeholder=""
     )
     # --- Community Filter ---
@@ -618,8 +483,7 @@ with st.sidebar:
         "Community",
         options=community_options,
         default=current_community if current_community and all(c in community_options for c in current_community) else [],
-        key="community",
-        on_change=_on_community_change
+        key="community"
     )
 
     # --- Subcommunity Filter (context-aware) ---
@@ -710,7 +574,6 @@ with st.sidebar:
         options=[""] + beds_options,
         index=([""] + beds_options).index(current_bedrooms) if current_bedrooms in beds_options else 0,
         key="bedrooms",
-        on_change=_on_bedrooms_change,
         placeholder=""
     )
 
@@ -742,7 +605,7 @@ with st.sidebar:
         subcom_col = layout_df_filtered['Sub Community / Building'] if 'Sub Community / Building' in layout_df_filtered.columns else pd.Series([])
         if not isinstance(subcom_col, pd.Series):
             if isinstance(subcom_col, np.ndarray):
-                subcom_col = pd.Series(subcom_col)
+                subcom_col = pd.Series([subcom_col])
             else:
                 subcom_col = pd.Series([subcom_col])
         layout_df_filtered = layout_df_filtered[subcom_col.isin(subcommunity)]
@@ -949,7 +812,7 @@ if not all_rent_listings.empty:
 def apply_sidebar_filters_to_listings(listings_df, filtered_transactions):
     """Apply sidebar filters to listings data based on filtered transactions."""
     if listings_df.empty:
-        return listings_df.copy()
+        return listings_df
     
     filtered_listings = listings_df.copy()
     
@@ -1009,7 +872,7 @@ def apply_sidebar_filters_to_listings(listings_df, filtered_transactions):
 def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
     """Apply sidebar filters to rental data based on filtered transactions."""
     if rental_df.empty:
-        return rental_df.copy()
+        return rental_df
     
     filtered_rentals = rental_df.copy()
     
@@ -1059,33 +922,76 @@ def apply_sidebar_filters_to_rentals(rental_df, filtered_transactions):
     return filtered_rentals
 
 # Apply filters to create filtered datasets for all tabs
-# Cache filtered data to prevent unnecessary recalculations
-filter_cache_key = f"filters_{hash(str(sorted(st.session_state.items())))}"
-if filter_cache_key not in st.session_state or is_filter_update_in_progress():
+# Simplified caching without complex keys
+@st.cache_data(ttl=300)  # 5 minute cache
+def get_filtered_data(all_transactions, all_listings, all_rent_listings, rental_df, 
+                     development, community, subcommunity, property_type, bedrooms, 
+                     layout_type, unit_type, time_filter_mode, last_n_days, after_date, 
+                     date_range, sales_recurrence):
+    """Get filtered data based on current filter values"""
+    
+    # Filter transactions
+    filtered_transactions = all_transactions.copy()
+    
+    # Apply Time Period Filter
+    if not filtered_transactions.empty:
+        if 'Evidence Date' in filtered_transactions.columns:
+            filtered_transactions['Evidence Date'] = pd.to_datetime(filtered_transactions['Evidence Date'], errors='coerce')
+
+            today = datetime.now()
+
+            if time_filter_mode == "Last N Days" and last_n_days:
+                date_threshold = today - timedelta(days=last_n_days)
+                filtered_transactions = filtered_transactions[filtered_transactions['Evidence Date'] >= date_threshold]
+
+            elif time_filter_mode == "After Date" and after_date:
+                filtered_transactions = filtered_transactions[filtered_transactions['Evidence Date'] >= pd.to_datetime(after_date)]
+
+            elif time_filter_mode == "From Date to Date" and isinstance(date_range, (tuple, list)) and len(date_range) == 2 and date_range[0] is not None and date_range[1] is not None:
+                start_date = pd.to_datetime(str(date_range[0]))
+                end_date = pd.to_datetime(str(date_range[1]))
+                filtered_transactions = filtered_transactions[
+                    (filtered_transactions['Evidence Date'] >= start_date) &
+                    (filtered_transactions['Evidence Date'] <= end_date)
+                ]
+
+    # Apply sidebar filters
+    if development:
+        filtered_transactions = filtered_transactions[filtered_transactions['All Developments'] == development]
+    if community:
+        community_col = filtered_transactions['Community/Building']
+        if not isinstance(community_col, pd.Series):
+            community_col = pd.Series(community_col)
+        filtered_transactions = filtered_transactions[community_col.isin(community)]
+    if subcommunity:
+        subcommunity_col = filtered_transactions['Sub Community / Building']
+        if not isinstance(subcommunity_col, pd.Series):
+            subcommunity_col = pd.Series(subcommunity_col)
+        filtered_transactions = filtered_transactions[subcommunity_col.isin(subcommunity)]
+    if property_type:
+        filtered_transactions = filtered_transactions[filtered_transactions['Unit Type'] == property_type]
+    if bedrooms:
+        filtered_transactions = filtered_transactions[filtered_transactions['Beds'].astype(str) == bedrooms]
+    if layout_type:
+        filtered_transactions = filtered_transactions[filtered_transactions['Layout Type'].isin(layout_type)]
+    if unit_type:
+        unit_type_col = filtered_transactions['Unit Type']
+        if not isinstance(unit_type_col, pd.Series):
+            unit_type_col = pd.Series(unit_type_col)
+        filtered_transactions = filtered_transactions[unit_type_col.isin(unit_type)]
+    if sales_recurrence != "All":
+        sales_rec_col = filtered_transactions['Sales Recurrence']
+        if not isinstance(sales_rec_col, pd.Series):
+            sales_rec_col = pd.Series(sales_rec_col)
+        filtered_transactions = filtered_transactions[sales_rec_col == sales_recurrence]
+
+    # Filter listings
     filtered_listings = apply_sidebar_filters_to_listings(all_listings, filtered_transactions)
     filtered_rent_listings = apply_sidebar_filters_to_listings(all_rent_listings, filtered_transactions)
     filtered_rental_data = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions)
     
-    # Cache the results
-    st.session_state[filter_cache_key] = {
-        'filtered_listings': filtered_listings,
-        'filtered_rent_listings': filtered_rent_listings,
-        'filtered_rental_data': filtered_rental_data
-    }
-else:
-    cached_data = st.session_state[filter_cache_key]
-    filtered_listings = cached_data['filtered_listings']
-    filtered_rent_listings = cached_data['filtered_rent_listings']
-    filtered_rental_data = cached_data['filtered_rental_data']
-
- # --- Apply sidebar filters except time period (for Search Unit) ---
-# Cache no-time filtered data to prevent unnecessary recalculations
-no_time_filter_cache_key = f"no_time_filters_{hash(str(sorted(st.session_state.items())))}"
-if no_time_filter_cache_key not in st.session_state or is_filter_update_in_progress():
-    # Use the same filter logic as the main filtering but without time period
+    # Filter transactions without time period
     filtered_transactions_no_time = all_transactions.copy()
-
-    # Apply the same filters as the main filtering logic
     if development:
         filtered_transactions_no_time = filtered_transactions_no_time[filtered_transactions_no_time['All Developments'] == development]
     if community:
@@ -1107,8 +1013,6 @@ if no_time_filter_cache_key not in st.session_state or is_filter_update_in_progr
         if not isinstance(layout_type_col, pd.Series):
             layout_type_col = pd.Series(layout_type_col)
         filtered_transactions_no_time = filtered_transactions_no_time[layout_type_col.isin(layout_type)]
-    # Get unit_type from session state
-    unit_type = st.session_state.get("unit_type", [])
     if unit_type:
         unit_type_col = filtered_transactions_no_time['Unit Type']
         if not isinstance(unit_type_col, pd.Series):
@@ -1120,18 +1024,31 @@ if no_time_filter_cache_key not in st.session_state or is_filter_update_in_progr
             sales_rec_col = pd.Series(sales_rec_col)
         filtered_transactions_no_time = filtered_transactions_no_time[sales_rec_col == sales_recurrence]
 
-    # Apply same filters to rental data (without time period)
     filtered_rental_data_no_time = apply_sidebar_filters_to_rentals(rental_df, filtered_transactions_no_time)
     
-    # Cache the results
-    st.session_state[no_time_filter_cache_key] = {
+    return {
+        'filtered_transactions': filtered_transactions,
+        'filtered_listings': filtered_listings,
+        'filtered_rent_listings': filtered_rent_listings,
+        'filtered_rental_data': filtered_rental_data,
         'filtered_transactions_no_time': filtered_transactions_no_time,
         'filtered_rental_data_no_time': filtered_rental_data_no_time
     }
-else:
-    cached_data = st.session_state[no_time_filter_cache_key]
-    filtered_transactions_no_time = cached_data['filtered_transactions_no_time']
-    filtered_rental_data_no_time = cached_data['filtered_rental_data_no_time']
+
+# Get filtered data using simplified caching
+filtered_data = get_filtered_data(
+    all_transactions, all_listings, all_rent_listings, rental_df,
+    development, community, subcommunity, property_type, bedrooms,
+    layout_type, unit_type, time_filter_mode, last_n_days, after_date,
+    date_range, sales_recurrence
+)
+
+filtered_transactions = filtered_data['filtered_transactions']
+filtered_listings = filtered_data['filtered_listings']
+filtered_rent_listings = filtered_data['filtered_rent_listings']
+filtered_rental_data = filtered_data['filtered_rental_data']
+filtered_transactions_no_time = filtered_data['filtered_transactions_no_time']
+filtered_rental_data_no_time = filtered_data['filtered_rental_data_no_time']
 
  # --- Main Tabs ---
 tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
