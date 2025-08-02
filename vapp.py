@@ -1051,7 +1051,7 @@ filtered_transactions_no_time = filtered_data['filtered_transactions_no_time']
 filtered_rental_data_no_time = filtered_data['filtered_rental_data_no_time']
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
+tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"], key="main_tabs")
 
 with tab1:
     st.title("Real Estate Valuation Sales")
