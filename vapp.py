@@ -1051,7 +1051,11 @@ filtered_transactions_no_time = filtered_data['filtered_transactions_no_time']
 filtered_rental_data_no_time = filtered_data['filtered_rental_data_no_time']
 
  # --- Main Tabs ---
-tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"], key="main_tabs")
+# Track current tab in session state to prevent jumping
+if "current_tab" not in st.session_state:
+    st.session_state.current_tab = 0
+
+tab1, tab2, tab3, tab4 = st.tabs(["Sales", "Listings: Sale", "Listings: Rent", "Tracker"])
 
 with tab1:
     st.title("Real Estate Valuation Sales")
